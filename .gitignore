@@ -198,6 +198,7 @@ cython_debug/
 #   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
 #   that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
 #   and can be added to the global gitignore or merged into this file. However, if you prefer, 
+
 #   you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 # Temporary file for partial code execution
@@ -216,3 +217,35 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ============================================================================
+# Project-specific ignores
+# ============================================================================
+
+# Centre (DBT) auto-generated files
+app/centre/profiles.yml
+app/centre/dbt_packages/
+app/centre/target/
+app/centre/cache/
+app/centre/logs/
+app/centre/.user.yml
+*.duckdb
+*.duckdb.wal
+
+# Logs
+logs/
+*.log
+
+# Cache
+cache/
+.cache/
+
+# Data files (don't commit large data files)
+*.parquet
+*.csv
+*.json.gz
+
+# Workbench outputs
+app/centre/workbench/profiles.yml
+app/centre/workbench/target/
+app/centre/workbench/dbt_packages/
