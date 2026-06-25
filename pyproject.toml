@@ -1,0 +1,60 @@
+[project]
+name = "app-fortress"
+version = "5.0.0"
+description = "Fortress Application for API Extraction and Data Hub"
+readme = "README.md"
+authors = [
+    { name = "Xing Xing", email = "x.xing.work@gmail.com" }
+]
+license = "MIT"
+license-files = ["LICENSE"]
+
+dependencies = [
+    # ---------- System Dependencies ----------
+    "pydantic-setting",
+    "lib-x17-log>=1.0.6",
+    "pyyaml",
+    "python-dotenv",
+
+    # ---------- Centre Dependencies ----------
+    "dbt-core",
+    "dbt-duckdb",
+    "oss2"
+
+    # ---------- Bridge Dependencies ----------
+]
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["logs*"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-benchmark",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+fix = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501", "E402"]
+
+[tool.ruff.lint.isort]
+force-single-line = false
+
+[tool.pytest.ini_options]
+pythonpath = "."
+testpaths = ["app"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
