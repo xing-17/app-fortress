@@ -104,21 +104,21 @@ class TestValidation:
 
 
 class TestDescribe:
-    def test_describe_returns_dict(self):
-        assert isinstance(SystemSetting(name="app").describe(), dict)
+    def test_describe_returns_str(self):
+        assert isinstance(SystemSetting(name="app").describe(), str)
 
     def test_describe_contains_all_keys(self):
-        result = SystemSetting(name="app").describe()
+        result = SystemSetting(name="app").export()
         for key in _ALL_KEYS:
             assert key in result
 
     def test_describe_no_extra_keys(self):
-        result = SystemSetting(name="app").describe()
+        result = SystemSetting(name="app").export()
         assert set(result.keys()) == set(_ALL_KEYS)
 
     def test_describe_values_match_fields(self):
         config = SystemSetting(name="check", version="2.0.0", alias="tester")
-        result = config.describe()
+        result = config.export()
         assert result["name"] == "check"
         assert result["version"] == "2.0.0"
         assert result["alias"] == "tester"

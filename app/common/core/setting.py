@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import ClassVar, Optional
 
@@ -103,10 +104,17 @@ class CoreSetting(BaseModel):
         except ValidationError as e:
             raise ValueError(f"Setting validation failed:\n{e}") from e
 
-    def describe(self) -> dict:
+    def export(self) -> dict:
         return {
-            "system": self.system.describe(),
+            "system": self.system.export(),
         }
+
+    def describe(self) -> str:
+        return json.dumps(
+            self.export(),
+            indent=4,
+            ensure_ascii=False,
+        )
 
 
 # ── 全局单例 ──────────────────────────────────────────────────────────────────────────────

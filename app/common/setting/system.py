@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from pydantic import BaseModel
 
 
@@ -44,7 +46,7 @@ class SystemSetting(BaseModel):
     log_file_max_mb: int = 10
     log_group_max_len: int = 10000
 
-    def describe(self) -> dict:
+    def export(self) -> dict:
         return {
             "name": self.name,
             "version": self.version,
@@ -57,3 +59,10 @@ class SystemSetting(BaseModel):
             "log_file_max_mb": self.log_file_max_mb,
             "log_group_max_len": self.log_group_max_len,
         }
+
+    def describe(self) -> str:
+        return json.dumps(
+            self.export(),
+            indent=4,
+            ensure_ascii=False,
+        )

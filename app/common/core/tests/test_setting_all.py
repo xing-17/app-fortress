@@ -131,14 +131,11 @@ class TestRefresh:
 
 
 class TestDescribe:
-    def test_describe_returns_dict(self):
-        assert isinstance(GlobalSetting.describe(), dict)
+    def test_describe_returns_str(self):
+        assert isinstance(GlobalSetting.describe(), str)
 
     def test_describe_contains_system_key(self):
         assert "system" in GlobalSetting.describe()
-
-    def test_describe_system_value_is_dict(self):
-        assert isinstance(GlobalSetting.describe()["system"], dict)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
