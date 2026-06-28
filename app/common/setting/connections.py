@@ -69,10 +69,10 @@ class ConnectionsSetting(BaseSetting):
     连接配置集合。
 
     Attributes:
-        connections: 连接配置字典，键为环境名，值为具体的连接
+        connections: 连接配置字典，键为连接名，值为具体的连接
 
     Methods:
-        get: 根据环境名获取对应的连接配置
+        get: 根据连接名获取对应的连接配置
 
     Examples:
         >>> conns = ConnectionsSetting(raw)
@@ -85,14 +85,14 @@ class ConnectionsSetting(BaseSetting):
 
     def get(
         self,
-        env: str,
+        name: str,
     ) -> ConnectionSetting:
-        if env not in self.connections:
-            raise KeyError(f"Connection not found: {env!r}")
-        return self.connections[env]
+        if name not in self.connections:
+            raise KeyError(f"Connection not found: {name!r}")
+        return self.connections[name]
 
     def export(self) -> dict:
         result = {}
-        for env, conn in self.connections.items():
-            result[env] = conn.export()
+        for name, conn in self.connections.items():
+            result[name] = conn.export()
         return result
