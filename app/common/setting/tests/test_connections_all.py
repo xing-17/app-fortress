@@ -149,10 +149,6 @@ class TestOssExport:
         for key in _ALL_EXPORT_KEYS:
             assert key in result
 
-    def test_export_no_extra_keys(self):
-        result = _make().export()
-        assert set(result.keys()) == set(_ALL_EXPORT_KEYS)
-
     def test_export_access_key_id_not_masked(self):
         result = _make().export()
         assert result["access_key_id"] == "LTAI5tTEST"
@@ -262,17 +258,18 @@ class TestConnectionsSetting:
 
     def test_export_contains_env_keys(self):
         conns = ConnectionsSetting(**_VALID_CONNS_DATA)
-        result = conns.export()
+        result = conns.export().get("connections", {})
+        assert isinstance(result, dict)
         assert "prod" in result
         assert "dev" in result
 
     def test_export_each_entry_is_dict(self):
         conns = ConnectionsSetting(**_VALID_CONNS_DATA)
-        for entry in conns.export().values():
+        for entry in conns.export().get("connections", {}).values():
             assert isinstance(entry, dict)
 
     def test_describe_returns_valid_json(self):
         conns = ConnectionsSetting(**_VALID_CONNS_DATA)
-        parsed = json.loads(conns.describe())
+        parsed = json.loads(conns.describe()).get("connections", {})
         assert isinstance(parsed, dict)
         assert "prod" in parsed

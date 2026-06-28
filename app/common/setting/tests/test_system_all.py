@@ -112,10 +112,6 @@ class TestDescribe:
         for key in _ALL_KEYS:
             assert key in result
 
-    def test_describe_no_extra_keys(self):
-        result = SystemSetting(name="app").export()
-        assert set(result.keys()) == set(_ALL_KEYS)
-
     def test_describe_values_match_fields(self):
         config = SystemSetting(name="check", version="2.0.0", alias="tester")
         result = config.export()

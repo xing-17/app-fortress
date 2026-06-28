@@ -3,27 +3,14 @@ from __future__ import annotations
 import json
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import Field
+
+from app.common.setting.base import BaseSetting
 
 
-class BaseConnectionSetting(BaseModel):
-    """
-    连接配置基类。
-
-    Attributes:
-        type: 连接类型标识，作为区分不同连接配置的字段
-        name: 连接标识名，用于日志区分
-
-    """
-
-    type: str = Field(
-        ...,
-        description="连接类型标识，作为区分不同连接配置的字段",
-    )
-    name: str = Field(
-        ...,
-        description="连接标识名，用于日志区分",
-    )
+class BaseConnectionSetting(BaseSetting):
+    type: str = Field(..., description="连接类型标识，作为区分不同连接配置的字段")
+    name: str = Field(..., description="连接标识名，用于日志区分")
 
 
 class OssConnectionSetting(BaseConnectionSetting):
@@ -53,6 +40,7 @@ class OssConnectionSetting(BaseConnectionSetting):
         ... )
         >>> conn.describe()
         >>> ...
+
     """
 
     type: Literal["oss"] = "oss"
@@ -64,21 +52,12 @@ class OssConnectionSetting(BaseConnectionSetting):
     bucket: str
     url_style: str = "vhost"
 
-    def export(self) -> dict:
-        return self.model_dump()
-
     def describe(self) -> str:
-        data = {
-            "type": self.type,
-            "access_key_id": self.access_key_id[:4] + "***",
-            "access_key_secret": self.access_key_secret[:4] + "***",
-            "endpoint": self.endpoint,
-            "region": self.region,
-            "url_style": self.url_style,
-            "bucket": self.bucket,
-        }
+        result = super().export()
+        result["access_key_id"] = self.access_key_id[:4] + "***"
+        result["access_key_secret"] = self.access_key_secret[:4] + "***"
         return json.dumps(
-            data,
+            result,
             indent=4,
             ensure_ascii=False,
         )
@@ -89,10 +68,8 @@ ConnectionSetting = Annotated[
     Field(discriminator="type"),
 ]
 
-_CONN_ADAPTER = TypeAdapter(ConnectionSetting)
 
-
-class ConnectionsSetting(BaseModel):
+class ConnectionsSetting(BaseSetting):
     """
     连接配置集合。
 
@@ -102,6 +79,8 @@ class ConnectionsSetting(BaseModel):
     Examples:
         >>> conns = ConnectionsSetting(raw)
         >>> conn = conns.get("prod")     # → OssConnectionSetting
+        >>> print(conn.describe())
+
     """
 
     connections: dict[str, ConnectionSetting]
@@ -113,16 +92,3 @@ class ConnectionsSetting(BaseModel):
         if env not in self.connections:
             raise KeyError(f"Connection not found: {env!r}")
         return self.connections[env]
-
-    def export(self) -> dict:
-        result = {}
-        for name, conn in self.connections.items():
-            result[name] = conn.export()
-        return result
-
-    def describe(self) -> str:
-        return json.dumps(
-            self.export(),
-            indent=4,
-            ensure_ascii=False,
-        )

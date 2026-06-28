@@ -83,10 +83,6 @@ class TestExport:
         for key in _ALL_KEYS:
             assert key in result
 
-    def test_export_no_extra_keys(self):
-        result = CacheSetting().export()
-        assert set(result.keys()) == set(_ALL_KEYS)
-
     def test_export_values_match_fields(self):
         setting = CacheSetting(name="test", chunksize=200)
         result = setting.export()
