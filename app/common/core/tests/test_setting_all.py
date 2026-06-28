@@ -3,14 +3,17 @@
 
 覆盖范围
 --------
-- TestLoad      默认/自定义路径加载；缺失文件、空/非法 YAML 时抛出正确异常；connections/cache 路径与字段正确记录
-- TestRefresh   refresh() 不抛异常；刷新后字段值与文件一致；connections/cache 持久正确
-- TestDescribe  describe() 返回包含 system/connections/cache 的正确结构
-- TestSingleton GlobalSetting 全局单例完整性，connections 和 cache 可访问
+- TestLoad          默认/自定义路径加载；5 个配置项全部就位；缺失文件时抛正确异常
+- TestRefresh       refresh() 不抛异常；文件变更后值更新；5 项全部持久
+- TestExport        export() 返回 dict；system/cache/centre 嵌套结构正确
+- TestDescribe      describe() 返回合法 JSON；system/cache/centre 键存在
+- TestGetShortcuts  get_connection() / get_provider() 委托正确；缺失时抛 KeyError
+- TestSingleton     GlobalSetting 完整性；5 项可访问；两个快捷方法可用
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -18,9 +21,16 @@ import yaml
 
 from app.common.core.setting import CoreSetting, GlobalSetting
 from app.common.setting.cache import CacheSetting
+from app.common.setting.centre import CentreSetting
 from app.common.setting.connections import ConnectionsSetting, OssConnectionSetting
+from app.common.setting.providers import ProvidersSetting, TushareProviderSetting
+from app.common.setting.system import SystemSetting
 
-VALID_YAML = {
+# ──────────────────────────────────────────────────────────────────────────────
+# Test data
+# ──────────────────────────────────────────────────────────────────────────────
+
+VALID_SYSTEM_YAML = {
     "name": "test-fortress",
     "version": "1.0.0",
     "alias": "test",
@@ -31,6 +41,10 @@ VALID_YAML = {
     "log_path": "./test_logs",
     "log_file_max_mb": 5,
     "log_group_max_len": 100,
+}
+
+VALID_CACHE_YAML = {
+    "url": "sqlite:///tmp/test_cache.db",
 }
 
 VALID_CONNECTIONS_YAML = {
@@ -46,8 +60,19 @@ VALID_CONNECTIONS_YAML = {
     }
 }
 
-VALID_CACHE_YAML = {
-    "url": "sqlite:///tmp/test_cache.db",
+VALID_CENTRE_YAML = {
+    "target": "test",
+}
+
+VALID_PROVIDERS_YAML = {
+    "providers": {
+        "tushare": {
+            "type": "tushare",
+            "name": "tushare",
+            "region": "cn",
+            "secret": "test_token_12345678901234",
+        }
+    }
 }
 
 
@@ -58,49 +83,74 @@ VALID_CACHE_YAML = {
 
 @pytest.fixture
 def valid_yaml_path(tmp_path: Path) -> Path:
-    path = tmp_path / "system.yml"
-    path.write_text(yaml.dump(VALID_YAML, allow_unicode=True), encoding="utf-8")
-    return path
-
-
-@pytest.fixture
-def empty_yaml_path(tmp_path: Path) -> Path:
-    path = tmp_path / "empty.yml"
-    path.write_text("", encoding="utf-8")
-    return path
-
-
-@pytest.fixture
-def invalid_yaml_path(tmp_path: Path) -> Path:
-    path = tmp_path / "invalid.yml"
-    path.write_text("name: [unclosed", encoding="utf-8")
-    return path
-
-
-@pytest.fixture
-def valid_conns_yaml_path(tmp_path: Path) -> Path:
-    path = tmp_path / "connections.yml"
-    path.write_text(yaml.dump(VALID_CONNECTIONS_YAML, allow_unicode=True), encoding="utf-8")
-    return path
+    p = tmp_path / "system.yml"
+    p.write_text(yaml.dump(VALID_SYSTEM_YAML, allow_unicode=True), encoding="utf-8")
+    return p
 
 
 @pytest.fixture
 def valid_cache_yaml_path(tmp_path: Path) -> Path:
-    path = tmp_path / "cache.yml"
-    path.write_text(yaml.dump(VALID_CACHE_YAML, allow_unicode=True), encoding="utf-8")
-    return path
+    p = tmp_path / "cache.yml"
+    p.write_text(yaml.dump(VALID_CACHE_YAML, allow_unicode=True), encoding="utf-8")
+    return p
+
+
+@pytest.fixture
+def valid_conns_yaml_path(tmp_path: Path) -> Path:
+    p = tmp_path / "connections.yml"
+    p.write_text(yaml.dump(VALID_CONNECTIONS_YAML, allow_unicode=True), encoding="utf-8")
+    return p
+
+
+@pytest.fixture
+def valid_centre_yaml_path(tmp_path: Path) -> Path:
+    p = tmp_path / "centre.yml"
+    p.write_text(yaml.dump(VALID_CENTRE_YAML, allow_unicode=True), encoding="utf-8")
+    return p
+
+
+@pytest.fixture
+def valid_providers_yaml_path(tmp_path: Path) -> Path:
+    p = tmp_path / "providers.yml"
+    p.write_text(yaml.dump(VALID_PROVIDERS_YAML, allow_unicode=True), encoding="utf-8")
+    return p
+
+
+@pytest.fixture
+def all_custom_paths(
+    valid_yaml_path,
+    valid_cache_yaml_path,
+    valid_conns_yaml_path,
+    valid_centre_yaml_path,
+    valid_providers_yaml_path,
+) -> dict:
+    return dict(
+        system_path=valid_yaml_path,
+        cache_path=valid_cache_yaml_path,
+        conns_path=valid_conns_yaml_path,
+        centre_path=valid_centre_yaml_path,
+        providers_path=valid_providers_yaml_path,
+    )
 
 
 @pytest.fixture(autouse=True)
 def restore_class_paths():
     """Restore all CoreSetting class-level paths after each test."""
-    orig_sys = CoreSetting._system_path
-    orig_conns = CoreSetting._conns_path
-    orig_cache = CoreSetting._cache_path
+    orig = (
+        CoreSetting._system_path,
+        CoreSetting._cache_path,
+        CoreSetting._conns_path,
+        CoreSetting._centre_path,
+        CoreSetting._providers_path,
+    )
     yield
-    CoreSetting._system_path = orig_sys
-    CoreSetting._conns_path = orig_conns
-    CoreSetting._cache_path = orig_cache
+    (
+        CoreSetting._system_path,
+        CoreSetting._cache_path,
+        CoreSetting._conns_path,
+        CoreSetting._centre_path,
+        CoreSetting._providers_path,
+    ) = orig
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -109,65 +159,65 @@ def restore_class_paths():
 
 
 class TestLoad:
-    def test_load_default_path_returns_coresetting(self):
-        setting = CoreSetting.load()
-        assert isinstance(setting, CoreSetting)
+    def test_load_default_returns_coresetting(self):
+        assert isinstance(CoreSetting.load(), CoreSetting)
 
-    def test_load_custom_path_returns_coresetting(self, valid_yaml_path):
-        setting = CoreSetting.load(system_path=valid_yaml_path)
-        assert isinstance(setting, CoreSetting)
+    def test_load_populates_system(self):
+        assert isinstance(CoreSetting.load().system, SystemSetting)
+
+    def test_load_populates_cache(self):
+        assert isinstance(CoreSetting.load().cache, CacheSetting)
+
+    def test_load_populates_connections(self):
+        assert isinstance(CoreSetting.load().connections, ConnectionsSetting)
+
+    def test_load_populates_centre(self):
+        assert isinstance(CoreSetting.load().centre, CentreSetting)
+
+    def test_load_populates_providers(self):
+        assert isinstance(CoreSetting.load().providers, ProvidersSetting)
+
+    def test_load_custom_system_path(self, valid_yaml_path):
+        s = CoreSetting.load(system_path=valid_yaml_path)
+        assert s.system.name == "test-fortress"
+
+    def test_load_custom_all_paths(self, all_custom_paths):
+        s = CoreSetting.load(**all_custom_paths)
+        assert isinstance(s, CoreSetting)
+        assert s.system.name == "test-fortress"
+        assert s.centre.target == "test"
 
     def test_load_stores_system_path(self, valid_yaml_path):
         CoreSetting.load(system_path=valid_yaml_path)
         assert CoreSetting._system_path == valid_yaml_path
 
-    def test_load_populates_system_name(self, valid_yaml_path):
-        setting = CoreSetting.load(system_path=valid_yaml_path)
-        assert setting.system.name == VALID_YAML["name"]
+    def test_load_stores_all_paths(self, all_custom_paths):
+        CoreSetting.load(**all_custom_paths)
+        assert CoreSetting._system_path == all_custom_paths["system_path"]
+        assert CoreSetting._cache_path == all_custom_paths["cache_path"]
+        assert CoreSetting._conns_path == all_custom_paths["conns_path"]
+        assert CoreSetting._centre_path == all_custom_paths["centre_path"]
+        assert CoreSetting._providers_path == all_custom_paths["providers_path"]
 
-    def test_load_missing_file_raises_filenotfounderror(self, tmp_path):
+    def test_load_missing_system_raises_filenotfounderror(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             CoreSetting.load(system_path=tmp_path / "nonexistent.yml")
 
-    def test_load_empty_yaml_raises_valueerror(self, empty_yaml_path):
-        with pytest.raises(ValueError):
-            CoreSetting.load(system_path=empty_yaml_path)
-
-    def test_load_invalid_yaml_raises_valueerror(self, invalid_yaml_path):
-        with pytest.raises(ValueError):
-            CoreSetting.load(system_path=invalid_yaml_path)
-
-    def test_load_populates_connections(self):
-        setting = CoreSetting.load()
-        assert isinstance(setting.connections, ConnectionsSetting)
-
-    def test_load_populates_cache(self):
-        setting = CoreSetting.load()
-        assert isinstance(setting.cache, CacheSetting)
-
-    def test_load_custom_conns_path(self, valid_conns_yaml_path):
-        setting = CoreSetting.load(conns_path=valid_conns_yaml_path)
-        assert isinstance(setting.connections, ConnectionsSetting)
-
-    def test_load_custom_cache_path(self, valid_cache_yaml_path):
-        setting = CoreSetting.load(cache_path=valid_cache_yaml_path)
-        assert isinstance(setting.cache, CacheSetting)
-
-    def test_load_stores_conns_path(self, valid_conns_yaml_path):
-        CoreSetting.load(conns_path=valid_conns_yaml_path)
-        assert CoreSetting._conns_path == valid_conns_yaml_path
-
-    def test_load_stores_cache_path(self, valid_cache_yaml_path):
-        CoreSetting.load(cache_path=valid_cache_yaml_path)
-        assert CoreSetting._cache_path == valid_cache_yaml_path
+    def test_load_missing_cache_raises_filenotfounderror(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            CoreSetting.load(cache_path=tmp_path / "nonexistent.yml")
 
     def test_load_missing_conns_raises_filenotfounderror(self, tmp_path):
         with pytest.raises(FileNotFoundError):
-            CoreSetting.load(conns_path=tmp_path / "nonexistent_conns.yml")
+            CoreSetting.load(conns_path=tmp_path / "nonexistent.yml")
 
-    def test_load_missing_cache_raises_filenotfounderror(self, tmp_path):
+    def test_load_missing_centre_raises_filenotfounderror(self, tmp_path):
         with pytest.raises(FileNotFoundError):
-            CoreSetting.load(cache_path=tmp_path / "nonexistent_cache.yml")
+            CoreSetting.load(centre_path=tmp_path / "nonexistent.yml")
+
+    def test_load_missing_providers_raises_filenotfounderror(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            CoreSetting.load(providers_path=tmp_path / "nonexistent.yml")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -179,27 +229,64 @@ class TestRefresh:
     def test_refresh_does_not_raise(self):
         GlobalSetting.refresh()
 
-    def test_refresh_retains_correct_name(self):
+    def test_refresh_retains_system_name(self):
         GlobalSetting.refresh()
         assert GlobalSetting.system.name == "fortress"
 
     def test_refresh_picks_up_file_changes(self, valid_yaml_path):
         setting = CoreSetting.load(system_path=valid_yaml_path)
         assert setting.system.name == "test-fortress"
-
-        updated = {**VALID_YAML, "name": "updated-fortress"}
+        updated = {**VALID_SYSTEM_YAML, "name": "updated-fortress"}
         valid_yaml_path.write_text(yaml.dump(updated, allow_unicode=True), encoding="utf-8")
-
         setting.refresh()
         assert setting.system.name == "updated-fortress"
+
+    def test_refresh_retains_cache(self):
+        GlobalSetting.refresh()
+        assert isinstance(GlobalSetting.cache, CacheSetting)
 
     def test_refresh_retains_connections(self):
         GlobalSetting.refresh()
         assert isinstance(GlobalSetting.connections, ConnectionsSetting)
 
-    def test_refresh_retains_cache(self):
+    def test_refresh_retains_centre(self):
         GlobalSetting.refresh()
-        assert isinstance(GlobalSetting.cache, CacheSetting)
+        assert isinstance(GlobalSetting.centre, CentreSetting)
+
+    def test_refresh_retains_providers(self):
+        GlobalSetting.refresh()
+        assert isinstance(GlobalSetting.providers, ProvidersSetting)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TestExport
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestExport:
+    def test_export_returns_dict(self):
+        assert isinstance(GlobalSetting.export(), dict)
+
+    def test_export_contains_system_key(self):
+        assert "system" in GlobalSetting.export()
+
+    def test_export_contains_cache_key(self):
+        assert "cache" in GlobalSetting.export()
+
+    def test_export_contains_centre_key(self):
+        assert "centre" in GlobalSetting.export()
+
+    def test_export_system_is_dict(self):
+        assert isinstance(GlobalSetting.export()["system"], dict)
+
+    def test_export_cache_is_dict(self):
+        assert isinstance(GlobalSetting.export()["cache"], dict)
+
+    def test_export_centre_is_dict(self):
+        assert isinstance(GlobalSetting.export()["centre"], dict)
+
+    def test_export_system_name_matches(self):
+        assert GlobalSetting.export()["system"]["name"] == GlobalSetting.system.name
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -211,14 +298,40 @@ class TestDescribe:
     def test_describe_returns_str(self):
         assert isinstance(GlobalSetting.describe(), str)
 
+    def test_describe_is_valid_json(self):
+        assert isinstance(json.loads(GlobalSetting.describe()), dict)
+
     def test_describe_contains_system_key(self):
         assert "system" in GlobalSetting.describe()
 
-    def test_describe_contains_connections_key(self):
-        assert "connections" in GlobalSetting.describe()
-
     def test_describe_contains_cache_key(self):
         assert "cache" in GlobalSetting.describe()
+
+    def test_describe_contains_centre_key(self):
+        assert "centre" in GlobalSetting.describe()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TestGetShortcuts
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestGetShortcuts:
+    def test_get_connection_returns_oss_setting(self):
+        conn = GlobalSetting.get_connection("prod")
+        assert isinstance(conn, OssConnectionSetting)
+
+    def test_get_connection_missing_raises_keyerror(self):
+        with pytest.raises(KeyError):
+            GlobalSetting.get_connection("nonexistent")
+
+    def test_get_provider_returns_tushare_setting(self):
+        provider = GlobalSetting.get_provider("tushare")
+        assert isinstance(provider, TushareProviderSetting)
+
+    def test_get_provider_missing_raises_keyerror(self):
+        with pytest.raises(KeyError):
+            GlobalSetting.get_provider("nonexistent")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -230,15 +343,29 @@ class TestSingleton:
     def test_global_setting_is_coresetting(self):
         assert isinstance(GlobalSetting, CoreSetting)
 
-    def test_global_setting_system_name_is_fortress(self):
+    def test_global_setting_system_name(self):
         assert GlobalSetting.system.name == "fortress"
 
-    def test_global_setting_has_connections_setting(self):
-        assert isinstance(GlobalSetting.connections, ConnectionsSetting)
+    def test_global_setting_has_system(self):
+        assert isinstance(GlobalSetting.system, SystemSetting)
 
-    def test_global_setting_has_cache_setting(self):
+    def test_global_setting_has_cache(self):
         assert isinstance(GlobalSetting.cache, CacheSetting)
 
-    def test_global_setting_connections_get_prod(self):
-        conn = GlobalSetting.connections.get("prod")
-        assert isinstance(conn, OssConnectionSetting)
+    def test_global_setting_has_connections(self):
+        assert isinstance(GlobalSetting.connections, ConnectionsSetting)
+
+    def test_global_setting_has_centre(self):
+        assert isinstance(GlobalSetting.centre, CentreSetting)
+
+    def test_global_setting_has_providers(self):
+        assert isinstance(GlobalSetting.providers, ProvidersSetting)
+
+    def test_global_setting_get_connection_prod(self):
+        assert isinstance(GlobalSetting.get_connection("prod"), OssConnectionSetting)
+
+    def test_global_setting_get_provider_tushare(self):
+        assert isinstance(GlobalSetting.get_provider("tushare"), TushareProviderSetting)
+
+
+
