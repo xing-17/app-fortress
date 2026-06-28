@@ -3,11 +3,12 @@
 
 覆盖范围
 --------
-- TestOssDefaults     各字段默认值正确
-- TestOssValidation   必填字段缺失时抛出 ValidationError；自定义值完整存储；name 可选
-- TestOssExport       export() 返回完整未脱敏字典
-- TestOssDescribe     describe() 返回合法 JSON；敏感字段正确脱敏；非敏感字段值一致
-- TestConnectionUnion discriminated union 按 type 正确分发到 OssConnectionSetting
+- TestOssDefaults        各字段默认值正确
+- TestOssValidation      必填字段缺失时抛出 ValidationError；自定义值完整存储；name 可选
+- TestOssExport          export() 返回完整未脱敏字典
+- TestOssDescribe        describe() 返回合法 JSON；敏感字段正确脱敏；非敏感字段值一致
+- TestConnectionUnion    discriminated union 按 type 正确分发到 OssConnectionSetting
+- TestConnectionsSetting 多环境集合；get() 分发与 KeyError；export()/describe() 结构正确
 """
 
 from __future__ import annotations
@@ -19,8 +20,30 @@ from pydantic import TypeAdapter, ValidationError
 
 from app.common.setting.connections import (
     ConnectionSetting,
+    ConnectionsSetting,
     OssConnectionSetting,
 )
+
+_VALID_CONNS_DATA = {
+    "connections": {
+        "prod": {
+            "type": "oss",
+            "access_key_id": "LTAI5tTEST",
+            "access_key_secret": "SECRET5678",
+            "endpoint": "oss-cn-shanghai.aliyuncs.com",
+            "region": "cn-shanghai",
+            "bucket": "my-test-bucket",
+        },
+        "dev": {
+            "type": "oss",
+            "access_key_id": "LTAI5tDEVK",
+            "access_key_secret": "DEVSEC5678",
+            "endpoint": "oss-cn-hangzhou.aliyuncs.com",
+            "region": "cn-hangzhou",
+            "bucket": "dev-test-bucket",
+        },
+    }
+}
 
 _REQUIRED = dict(
     access_key_id="LTAI5tTEST",
@@ -196,3 +219,60 @@ class TestConnectionUnion:
         ta = TypeAdapter(ConnectionSetting)
         with pytest.raises((ValidationError, Exception)):
             ta.validate_python({"type": "unknown", **_REQUIRED})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TestConnectionsSetting
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestConnectionsSetting:
+    def test_create_returns_connections_setting(self):
+        result = ConnectionsSetting(**_VALID_CONNS_DATA)
+        assert isinstance(result, ConnectionsSetting)
+
+    def test_create_with_multiple_envs(self):
+        result = ConnectionsSetting(**_VALID_CONNS_DATA)
+        assert "prod" in result.connections
+        assert "dev" in result.connections
+
+    def test_get_returns_oss_setting(self):
+        conns = ConnectionsSetting(**_VALID_CONNS_DATA)
+        assert isinstance(conns.get("prod"), OssConnectionSetting)
+
+    def test_get_returns_correct_values(self):
+        conns = ConnectionsSetting(**_VALID_CONNS_DATA)
+        conn = conns.get("prod")
+        assert conn.bucket == "my-test-bucket"
+        assert conn.region == "cn-shanghai"
+
+    def test_get_different_envs(self):
+        conns = ConnectionsSetting(**_VALID_CONNS_DATA)
+        assert conns.get("prod").bucket == "my-test-bucket"
+        assert conns.get("dev").bucket == "dev-test-bucket"
+
+    def test_get_missing_env_raises_keyerror(self):
+        conns = ConnectionsSetting(**_VALID_CONNS_DATA)
+        with pytest.raises(KeyError):
+            conns.get("nonexistent")
+
+    def test_export_returns_dict(self):
+        conns = ConnectionsSetting(**_VALID_CONNS_DATA)
+        assert isinstance(conns.export(), dict)
+
+    def test_export_contains_env_keys(self):
+        conns = ConnectionsSetting(**_VALID_CONNS_DATA)
+        result = conns.export()
+        assert "prod" in result
+        assert "dev" in result
+
+    def test_export_each_entry_is_dict(self):
+        conns = ConnectionsSetting(**_VALID_CONNS_DATA)
+        for entry in conns.export().values():
+            assert isinstance(entry, dict)
+
+    def test_describe_returns_valid_json(self):
+        conns = ConnectionsSetting(**_VALID_CONNS_DATA)
+        parsed = json.loads(conns.describe())
+        assert isinstance(parsed, dict)
+        assert "prod" in parsed

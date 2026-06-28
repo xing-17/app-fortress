@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter
 
 
 class BaseConnectionSetting(BaseModel):
@@ -88,3 +88,41 @@ ConnectionSetting = Annotated[
     Union[OssConnectionSetting,],
     Field(discriminator="type"),
 ]
+
+_CONN_ADAPTER = TypeAdapter(ConnectionSetting)
+
+
+class ConnectionsSetting(BaseModel):
+    """
+    连接配置集合。
+
+    Attributes:
+        connections: 连接配置字典，键为环境名，值为具体的连接
+
+    Examples:
+        >>> conns = ConnectionsSetting(raw)
+        >>> conn = conns.get("prod")     # → OssConnectionSetting
+    """
+
+    connections: dict[str, ConnectionSetting]
+
+    def get(
+        self,
+        env: str,
+    ) -> ConnectionSetting:
+        if env not in self.connections:
+            raise KeyError(f"Connection not found: {env!r}")
+        return self.connections[env]
+
+    def export(self) -> dict:
+        result = {}
+        for name, conn in self.connections.items():
+            result[name] = conn.export()
+        return result
+
+    def describe(self) -> str:
+        return json.dumps(
+            self.export(),
+            indent=4,
+            ensure_ascii=False,
+        )

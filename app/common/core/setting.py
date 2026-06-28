@@ -7,6 +7,8 @@ from typing import ClassVar, Optional
 import yaml
 from pydantic import BaseModel, ValidationError
 
+from app.common.setting.cache import CacheSetting
+from app.common.setting.connections import ConnectionsSetting
 from app.common.setting.system import SystemSetting
 
 
@@ -19,6 +21,8 @@ class CoreSetting(BaseModel):
 
     Attributes:
         system[SystemSetting]: 系统运行时配置
+        connections[ConnectionsSetting]: 连接配置
+        cache[CacheSetting]: 缓存配置
 
     Examples:
         >>> setting = CoreSetting.load()
@@ -30,12 +34,18 @@ class CoreSetting(BaseModel):
     """
 
     _system_path: ClassVar[Optional[Path]] = None
+    _conns_path: ClassVar[Optional[Path]] = None
+    _cache_path: ClassVar[Optional[Path]] = None
+
     _default_root_dir: ClassVar[Path] = Path(__file__).parent.parent.parent.parent
     _default_setting_dir: ClassVar[Path] = _default_root_dir / "setting"
     _default_sys_setting_path: ClassVar[Path] = _default_setting_dir / "system.yml"
-    _default_conn_setting_path: ClassVar[Path] = _default_setting_dir / "connection.yml"
+    _default_conn_setting_path: ClassVar[Path] = _default_setting_dir / "connections.yml"
+    _default_cache_path: ClassVar[Path] = _default_setting_dir / "cache.yml"
 
     system: SystemSetting
+    connections: ConnectionsSetting
+    cache: CacheSetting
 
     @staticmethod
     def _resolve_path(
@@ -69,22 +79,44 @@ class CoreSetting(BaseModel):
     def load(
         cls,
         system_path: str | Path | None = None,
+        conns_path: str | Path | None = None,  # 新增
+        cache_path: str | Path | None = None,  # 新增
     ) -> "CoreSetting":
         # Resolve and validate the system setting path
         system_path = CoreSetting._resolve_path(
             path=system_path,
-            default=CoreSetting._default_sys_setting_path,
+            default=cls._default_sys_setting_path,
         )
-        CoreSetting._validate_path(system_path)
-        system_data = CoreSetting._read_yaml(system_path)
+        cls._validate_path(system_path)
+        system_data = cls._read_yaml(system_path)
+
+        # Resolve and validate the connections setting path
+        conns_path = cls._resolve_path(
+            path=conns_path,
+            default=cls._default_conn_setting_path,
+        )
+        cls._validate_path(conns_path)
+        conn_data = cls._read_yaml(conns_path)
+
+        # Resolve and validate the cache setting path
+        cache_path = cls._resolve_path(
+            path=cache_path,
+            default=cls._default_cache_path,
+        )
+        cls._validate_path(cache_path)
+        cache_data = cls._read_yaml(cache_path)
 
         # Create an instance of CoreSetting with the loaded data
         # Add more settings here
         try:
             instance = cls(
                 system=SystemSetting(**system_data),
+                connections=ConnectionsSetting(**conn_data),
+                cache=CacheSetting(**cache_data),
             )
             cls._system_path = system_path
+            cls._conns_path = conns_path
+            cls._cache_path = cache_path
             return instance
         except ValidationError as e:
             msg = f"Setting validation failed:\n{e}"
@@ -96,17 +128,33 @@ class CoreSetting(BaseModel):
         CoreSetting._validate_path(system_path)
         system_data = CoreSetting._read_yaml(system_path)
 
+        # Resolve and validate the connections setting path
+        conn_path = self.__class__._conns_path
+        CoreSetting._validate_path(conn_path)
+        conn_data = CoreSetting._read_yaml(conn_path)
+
+        # Resolve and validate the cache setting path
+        cache_path = self.__class__._cache_path
+        CoreSetting._validate_path(cache_path)
+        cache_data = CoreSetting._read_yaml(cache_path)
+
         try:
             temp = self.__class__(
                 system=SystemSetting(**system_data),
+                connections=ConnectionsSetting(**conn_data),
+                cache=CacheSetting(**cache_data),
             )
             self.system = temp.system
+            self.connections = temp.connections
+            self.cache = temp.cache
         except ValidationError as e:
             raise ValueError(f"Setting validation failed:\n{e}") from e
 
     def export(self) -> dict:
         return {
             "system": self.system.export(),
+            "connections": self.connections.export(),
+            "cache": self.cache.export(),
         }
 
     def describe(self) -> str:
