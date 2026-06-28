@@ -2,6 +2,7 @@
 __pycache__/
 *.py[codz]
 *$py.class
+.benchmark/
 
 # C extensions
 *.so
@@ -233,6 +234,7 @@ app/centre/.user.yml
 *.duckdb.wal
 
 # Logs
+.logs/
 logs/
 *.log
 
