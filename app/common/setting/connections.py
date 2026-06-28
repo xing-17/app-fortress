@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Annotated, Literal, Union
 
 from pydantic import Field
@@ -52,15 +51,11 @@ class OssConnectionSetting(BaseConnectionSetting):
     bucket: str
     url_style: str = "vhost"
 
-    def describe(self) -> str:
+    def export(self) -> dict:
         result = super().export()
         result["access_key_id"] = self.access_key_id[:4] + "***"
         result["access_key_secret"] = self.access_key_secret[:4] + "***"
-        return json.dumps(
-            result,
-            indent=4,
-            ensure_ascii=False,
-        )
+        return result
 
 
 ConnectionSetting = Annotated[
@@ -75,6 +70,9 @@ class ConnectionsSetting(BaseSetting):
 
     Attributes:
         connections: 连接配置字典，键为环境名，值为具体的连接
+
+    Methods:
+        get: 根据环境名获取对应的连接配置
 
     Examples:
         >>> conns = ConnectionsSetting(raw)
@@ -92,3 +90,9 @@ class ConnectionsSetting(BaseSetting):
         if env not in self.connections:
             raise KeyError(f"Connection not found: {env!r}")
         return self.connections[env]
+
+    def export(self) -> dict:
+        result = {}
+        for env, conn in self.connections.items():
+            result[env] = conn.export()
+        return result

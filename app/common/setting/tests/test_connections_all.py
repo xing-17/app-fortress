@@ -149,13 +149,15 @@ class TestOssExport:
         for key in _ALL_EXPORT_KEYS:
             assert key in result
 
-    def test_export_access_key_id_not_masked(self):
+    def test_export_access_key_id_is_masked(self):
         result = _make().export()
-        assert result["access_key_id"] == "LTAI5tTEST"
+        assert result["access_key_id"].endswith("***")
+        assert result["access_key_id"].startswith("LTAI")
 
-    def test_export_access_key_secret_not_masked(self):
+    def test_export_access_key_secret_is_masked(self):
         result = _make().export()
-        assert result["access_key_secret"] == "SECRET5678"
+        assert result["access_key_secret"].endswith("***")
+        assert result["access_key_secret"].startswith("SECR")
 
     def test_export_values_match_fields(self):
         conn = _make(name="prod")
@@ -258,18 +260,18 @@ class TestConnectionsSetting:
 
     def test_export_contains_env_keys(self):
         conns = ConnectionsSetting(**_VALID_CONNS_DATA)
-        result = conns.export().get("connections", {})
+        result = conns.export()
         assert isinstance(result, dict)
         assert "prod" in result
         assert "dev" in result
 
     def test_export_each_entry_is_dict(self):
         conns = ConnectionsSetting(**_VALID_CONNS_DATA)
-        for entry in conns.export().get("connections", {}).values():
+        for entry in conns.export().values():
             assert isinstance(entry, dict)
 
     def test_describe_returns_valid_json(self):
         conns = ConnectionsSetting(**_VALID_CONNS_DATA)
-        parsed = json.loads(conns.describe()).get("connections", {})
+        parsed = json.loads(conns.describe())
         assert isinstance(parsed, dict)
         assert "prod" in parsed

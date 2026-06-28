@@ -54,6 +54,11 @@ class TushareProviderSetting(BaseProviderSetting):
     jitter_min_seconds: float = 1.0
     jitter_max_seconds: float = 1.5
 
+    def export(self) -> dict:
+        result = super().export()
+        result["secret"] = self.secret[:4] + "***"
+        return result
+
 
 ProviderSetting = Annotated[
     Union[TushareProviderSetting,],
@@ -67,6 +72,9 @@ class ProvidersSetting(BaseSetting):
 
     Attributes:
         providers: 提供商配置字典，键为提供商名称，值为具体的提供商配置
+
+    Methods:
+        get: 根据提供商名称获取对应的提供商配置
 
     Examples:
         >>> providers = ProvidersSetting.from_yaml("setting/providers.yml")
@@ -84,3 +92,9 @@ class ProvidersSetting(BaseSetting):
         if name not in self.providers:
             raise KeyError(f"Provider not found: {name!r}")
         return self.providers[name]
+
+    def export(self) -> dict:
+        result = {}
+        for name, provider in self.providers.items():
+            result[name] = provider.export()
+        return result

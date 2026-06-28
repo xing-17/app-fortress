@@ -162,9 +162,10 @@ class TestTushareExport:
         for key in _ALL_EXPORT_KEYS:
             assert key in result, f"missing key: {key}"
 
-    def test_export_secret_not_masked(self):
+    def test_export_secret_is_masked(self):
         result = _make().export()
-        assert result["secret"] == "testtoken1234567890abcdef"
+        assert result["secret"].endswith("***")
+        assert result["secret"].startswith("test")
 
     def test_export_values_match_fields(self):
         obj = _make(ttl_seconds=900, retry_max=3)
@@ -226,24 +227,20 @@ class TestProvidersSetting:
         ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
         assert isinstance(ps.export(), dict)
 
-    def test_export_contains_providers_key(self):
+    def test_export_contains_tushare_key(self):
         ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
-        assert "providers" in ps.export()
-
-    def test_export_providers_contains_tushare(self):
-        ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
-        assert "tushare" in ps.export()["providers"]
+        assert "tushare" in ps.export()
 
     def test_export_each_entry_is_dict(self):
         ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
-        for entry in ps.export()["providers"].values():
+        for entry in ps.export().values():
             assert isinstance(entry, dict)
 
     def test_describe_returns_valid_json(self):
         ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
         parsed = json.loads(ps.describe())
-        assert isinstance(parsed.get("providers"), dict)
-        assert "tushare" in parsed["providers"]
+        assert isinstance(parsed, dict)
+        assert "tushare" in parsed
 
 
 # ──────────────────────────────────────────────────────────────────────────────
