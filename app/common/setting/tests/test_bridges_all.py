@@ -18,9 +18,9 @@ import json
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from app.common.setting.providers import (
+from app.common.setting.bridges import (
+    BridgesSetting,
     ProviderSetting,
-    ProvidersSetting,
     TushareProviderSetting,
 )
 
@@ -198,49 +198,49 @@ class TestProviderUnion:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class TestProvidersSetting:
-    def test_create_returns_providers_setting(self):
-        result = ProvidersSetting(**_VALID_PROVIDERS_DATA)
-        assert isinstance(result, ProvidersSetting)
+class TestBridgesSetting:
+    def test_create_returns_bridges_setting(self):
+        result = BridgesSetting(**_VALID_PROVIDERS_DATA)
+        assert isinstance(result, BridgesSetting)
 
     def test_create_with_tushare_key(self):
-        result = ProvidersSetting(**_VALID_PROVIDERS_DATA)
+        result = BridgesSetting(**_VALID_PROVIDERS_DATA)
         assert "tushare" in result.providers
 
-    def test_get_returns_tushare_setting(self):
-        ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
-        assert isinstance(ps.get("tushare"), TushareProviderSetting)
+    def test_get_provider_returns_tushare_setting(self):
+        ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
+        assert isinstance(ps.get_provider("tushare"), TushareProviderSetting)
 
-    def test_get_returns_correct_values(self):
-        ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
-        ts = ps.get("tushare")
+    def test_get_provider_returns_correct_values(self):
+        ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
+        ts = ps.get_provider("tushare")
         assert ts.region == "cn"
         assert ts.ttl_seconds == 1800
         assert ts.retry_skip_messages == ["不存在"]
 
-    def test_get_missing_provider_raises_keyerror(self):
-        ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
+    def test_get_provider_missing_provider_raises_keyerror(self):
+        ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
         with pytest.raises(KeyError):
-            ps.get("nonexistent")
+            ps.get_provider("nonexistent")
 
     def test_export_returns_dict(self):
-        ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
+        ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
         assert isinstance(ps.export(), dict)
 
     def test_export_contains_tushare_key(self):
-        ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
-        assert "tushare" in ps.export()
+        ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
+        assert "tushare" in ps.export()["providers"]
 
-    def test_export_each_entry_is_dict(self):
-        ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
+    def test_export_each_entry_is_dict_or_list(self):
+        ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
         for entry in ps.export().values():
-            assert isinstance(entry, dict)
+            assert isinstance(entry, dict) or isinstance(entry, list)
 
     def test_describe_returns_valid_json(self):
-        ps = ProvidersSetting(**_VALID_PROVIDERS_DATA)
+        ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
         parsed = json.loads(ps.describe())
         assert isinstance(parsed, dict)
-        assert "tushare" in parsed
+        assert "tushare" in parsed["providers"]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -249,22 +249,22 @@ class TestProvidersSetting:
 
 
 class TestFromYaml:
-    def test_loads_real_providers_yml(self):
+    def test_loads_real_bridges_yml(self):
         from pathlib import Path
 
-        real_path = Path(__file__).parent.parent.parent.parent.parent / "setting" / "providers.yml"
+        real_path = Path(__file__).parent.parent.parent.parent.parent / "setting" / "bridges.yml"
         if not real_path.is_file():
-            pytest.skip("setting/providers.yml not present")
-        ps = ProvidersSetting.from_yaml(real_path)
-        assert isinstance(ps, ProvidersSetting)
+            pytest.skip("setting/bridges.yml not present")
+        ps = BridgesSetting.from_yaml(real_path)
+        assert isinstance(ps, BridgesSetting)
 
     def test_real_yml_tushare_accessible(self):
         from pathlib import Path
 
-        real_path = Path(__file__).parent.parent.parent.parent.parent / "setting" / "providers.yml"
+        real_path = Path(__file__).parent.parent.parent.parent.parent / "setting" / "bridges.yml"
         if not real_path.is_file():
-            pytest.skip("setting/providers.yml not present")
-        ts = ProvidersSetting.from_yaml(real_path).get("tushare")
+            pytest.skip("setting/bridges.yml not present")
+        ts = BridgesSetting.from_yaml(real_path).get_provider("tushare")
         assert isinstance(ts, TushareProviderSetting)
         assert ts.secret
         assert ts.ttl_seconds > 0

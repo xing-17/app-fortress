@@ -6,10 +6,10 @@ from typing import ClassVar, Optional
 
 from pydantic import BaseModel, ValidationError
 
+from app.common.setting.bridges import BaseProviderSetting, BridgesSetting
 from app.common.setting.cache import CacheSetting
 from app.common.setting.centre import CentreSetting
 from app.common.setting.connections import BaseConnectionSetting, ConnectionsSetting
-from app.common.setting.providers import BaseProviderSetting, ProvidersSetting
 from app.common.setting.system import SystemSetting
 
 
@@ -41,7 +41,7 @@ class CoreSetting(BaseModel):
     _cache_path: ClassVar[Optional[Path]] = None
     _centre_path: ClassVar[Optional[Path]] = None
     _conns_path: ClassVar[Optional[Path]] = None
-    _providers_path: ClassVar[Optional[Path]] = None
+    _bridges_path: ClassVar[Optional[Path]] = None
 
     # 默认配置文件路径
     _default_root_dir: ClassVar[Path] = Path(__file__).parent.parent.parent.parent
@@ -49,7 +49,7 @@ class CoreSetting(BaseModel):
     _default_cache_path: ClassVar[Path] = _default_setting_dir / "cache.yml"
     _default_sys_setting_path: ClassVar[Path] = _default_setting_dir / "system.yml"
     _default_centre_setting_path: ClassVar[Path] = _default_setting_dir / "centre.yml"
-    _default_providers_setting_path: ClassVar[Path] = _default_setting_dir / "providers.yml"
+    _default_bridges_setting_path: ClassVar[Path] = _default_setting_dir / "bridges.yml"
     _default_conn_setting_path: ClassVar[Path] = _default_setting_dir / "connections.yml"
 
     # 配置项
@@ -57,7 +57,7 @@ class CoreSetting(BaseModel):
     cache: CacheSetting
     centre: CentreSetting
     connections: ConnectionsSetting
-    providers: ProvidersSetting
+    bridges: BridgesSetting
 
     @staticmethod
     def _resolve_path(
@@ -81,7 +81,7 @@ class CoreSetting(BaseModel):
         system_path: str | Path | None = None,
         cache_path: str | Path | None = None,
         centre_path: str | Path | None = None,
-        providers_path: str | Path | None = None,
+        bridges_path: str | Path | None = None,
         conns_path: str | Path | None = None,
     ) -> "CoreSetting":
         # Resolve and validate the system setting path
@@ -116,13 +116,13 @@ class CoreSetting(BaseModel):
         cls._validate_path(centre_path)
         _centre: CentreSetting = CentreSetting.from_yaml(centre_path)
 
-        # Resolve and validate the providers setting path
-        providers_path = cls._resolve_path(
-            path=providers_path,
-            default=cls._default_providers_setting_path,
+        # Resolve and validate the bridges setting path
+        bridges_path = cls._resolve_path(
+            path=bridges_path,
+            default=cls._default_bridges_setting_path,
         )
-        cls._validate_path(providers_path)
-        _providers: ProvidersSetting = ProvidersSetting.from_yaml(providers_path)
+        cls._validate_path(bridges_path)
+        _bridges: BridgesSetting = BridgesSetting.from_yaml(bridges_path)
 
         # Create an instance of CoreSetting with the loaded data
         try:
@@ -131,13 +131,13 @@ class CoreSetting(BaseModel):
                 connections=_conns,
                 cache=_cache,
                 centre=_centre,
-                providers=_providers,
+                bridges=_bridges,
             )
             cls._system_path = system_path
             cls._conns_path = conns_path
             cls._cache_path = cache_path
             cls._centre_path = centre_path
-            cls._providers_path = providers_path
+            cls._bridges_path = bridges_path
             return instance
         except ValidationError as e:
             msg = f"Setting validation failed:\n{e}"
@@ -164,10 +164,10 @@ class CoreSetting(BaseModel):
         CoreSetting._validate_path(centre_path)
         _centre: CentreSetting = CentreSetting.from_yaml(centre_path)
 
-        # Resolve and validate the providers setting path
-        providers_path = self.__class__._providers_path
-        CoreSetting._validate_path(providers_path)
-        _providers: ProvidersSetting = ProvidersSetting.from_yaml(providers_path)
+        # Resolve and validate the bridges setting path
+        bridges_path = self.__class__._bridges_path
+        CoreSetting._validate_path(bridges_path)
+        _bridges: BridgesSetting = BridgesSetting.from_yaml(bridges_path)
 
         try:
             temp = self.__class__(
@@ -175,13 +175,13 @@ class CoreSetting(BaseModel):
                 connections=_conns,
                 cache=_cache,
                 centre=_centre,
-                providers=_providers,
+                bridges=_bridges,
             )
             self.system = temp.system
             self.connections = temp.connections
             self.cache = temp.cache
             self.centre = temp.centre
-            self.providers = temp.providers
+            self.bridges = temp.bridges
         except ValidationError as e:
             raise ValueError(f"Setting validation failed:\n{e}") from e
 
@@ -189,7 +189,7 @@ class CoreSetting(BaseModel):
         self,
         name: str,
     ) -> BaseProviderSetting:
-        return self.providers.get(name)
+        return self.bridges.get_provider(name)
 
     def get_connection(
         self,
@@ -203,7 +203,7 @@ class CoreSetting(BaseModel):
             "connections": self.connections.export(),
             "cache": self.cache.export(),
             "centre": self.centre.export(),
-            "providers": self.providers.export(),
+            "bridges": self.bridges.export(),
         }
         return result
 

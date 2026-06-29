@@ -20,10 +20,10 @@ import pytest
 import yaml
 
 from app.common.core.setting import CoreSetting, GlobalSetting
+from app.common.setting.bridges import BridgesSetting, TushareProviderSetting
 from app.common.setting.cache import CacheSetting
 from app.common.setting.centre import CentreSetting
 from app.common.setting.connections import ConnectionsSetting, OssConnectionSetting
-from app.common.setting.providers import ProvidersSetting, TushareProviderSetting
 from app.common.setting.system import SystemSetting
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -110,8 +110,8 @@ def valid_centre_yaml_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def valid_providers_yaml_path(tmp_path: Path) -> Path:
-    p = tmp_path / "providers.yml"
+def valid_bridges_yaml_path(tmp_path: Path) -> Path:
+    p = tmp_path / "bridges.yml"
     p.write_text(yaml.dump(VALID_PROVIDERS_YAML, allow_unicode=True), encoding="utf-8")
     return p
 
@@ -122,14 +122,14 @@ def all_custom_paths(
     valid_cache_yaml_path,
     valid_conns_yaml_path,
     valid_centre_yaml_path,
-    valid_providers_yaml_path,
+    valid_bridges_yaml_path,
 ) -> dict:
     return dict(
         system_path=valid_yaml_path,
         cache_path=valid_cache_yaml_path,
         conns_path=valid_conns_yaml_path,
         centre_path=valid_centre_yaml_path,
-        providers_path=valid_providers_yaml_path,
+        bridges_path=valid_bridges_yaml_path,
     )
 
 
@@ -141,7 +141,7 @@ def restore_class_paths():
         CoreSetting._cache_path,
         CoreSetting._conns_path,
         CoreSetting._centre_path,
-        CoreSetting._providers_path,
+        CoreSetting._bridges_path,
     )
     yield
     (
@@ -149,7 +149,7 @@ def restore_class_paths():
         CoreSetting._cache_path,
         CoreSetting._conns_path,
         CoreSetting._centre_path,
-        CoreSetting._providers_path,
+        CoreSetting._bridges_path,
     ) = orig
 
 
@@ -174,8 +174,8 @@ class TestLoad:
     def test_load_populates_centre(self):
         assert isinstance(CoreSetting.load().centre, CentreSetting)
 
-    def test_load_populates_providers(self):
-        assert isinstance(CoreSetting.load().providers, ProvidersSetting)
+    def test_load_populates_bridges(self):
+        assert isinstance(CoreSetting.load().bridges, BridgesSetting)
 
     def test_load_custom_system_path(self, valid_yaml_path):
         s = CoreSetting.load(system_path=valid_yaml_path)
@@ -197,7 +197,7 @@ class TestLoad:
         assert CoreSetting._cache_path == all_custom_paths["cache_path"]
         assert CoreSetting._conns_path == all_custom_paths["conns_path"]
         assert CoreSetting._centre_path == all_custom_paths["centre_path"]
-        assert CoreSetting._providers_path == all_custom_paths["providers_path"]
+        assert CoreSetting._bridges_path == all_custom_paths["bridges_path"]
 
     def test_load_missing_system_raises_filenotfounderror(self, tmp_path):
         with pytest.raises(FileNotFoundError):
@@ -215,9 +215,9 @@ class TestLoad:
         with pytest.raises(FileNotFoundError):
             CoreSetting.load(centre_path=tmp_path / "nonexistent.yml")
 
-    def test_load_missing_providers_raises_filenotfounderror(self, tmp_path):
+    def test_load_missing_bridges_raises_filenotfounderror(self, tmp_path):
         with pytest.raises(FileNotFoundError):
-            CoreSetting.load(providers_path=tmp_path / "nonexistent.yml")
+            CoreSetting.load(bridges_path=tmp_path / "nonexistent.yml")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -253,9 +253,9 @@ class TestRefresh:
         GlobalSetting.refresh()
         assert isinstance(GlobalSetting.centre, CentreSetting)
 
-    def test_refresh_retains_providers(self):
+    def test_refresh_retains_bridges(self):
         GlobalSetting.refresh()
-        assert isinstance(GlobalSetting.providers, ProvidersSetting)
+        assert isinstance(GlobalSetting.bridges, BridgesSetting)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -358,8 +358,8 @@ class TestSingleton:
     def test_global_setting_has_centre(self):
         assert isinstance(GlobalSetting.centre, CentreSetting)
 
-    def test_global_setting_has_providers(self):
-        assert isinstance(GlobalSetting.providers, ProvidersSetting)
+    def test_global_setting_has_bridges(self):
+        assert isinstance(GlobalSetting.bridges, BridgesSetting)
 
     def test_global_setting_get_connection_prod(self):
         assert isinstance(GlobalSetting.get_connection("prod"), OssConnectionSetting)

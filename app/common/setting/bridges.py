@@ -66,7 +66,7 @@ ProviderSetting = Annotated[
 ]
 
 
-class ProvidersSetting(BaseSetting):
+class BridgesSetting(BaseSetting):
     """
     数据提供商配置集合。
 
@@ -74,18 +74,19 @@ class ProvidersSetting(BaseSetting):
         providers: 提供商配置字典，键为提供商名称，值为具体的提供商配置
 
     Methods:
-        get: 根据提供商名称获取对应的提供商配置
+        get_provider: 根据提供商名称获取对应的提供商配置
 
     Examples:
-        >>> providers = ProvidersSetting.from_yaml("setting/providers.yml")
-        >>> ts = providers.get("tushare")
+        >>> bridges = BridgesSetting.from_yaml("setting/bridges.yml")
+        >>> ts = bridges.get_provider("tushare")
         >>> print(ts.secret)
 
     """
 
     providers: dict[str, ProviderSetting]
+    source_paths: list[str] = Field(default_factory=list, description="配置来源路径列表")
 
-    def get(
+    def get_provider(
         self,
         name: str,
     ) -> ProviderSetting:
@@ -95,6 +96,8 @@ class ProvidersSetting(BaseSetting):
 
     def export(self) -> dict:
         result = {}
+        result["providers"] = {}
         for name, provider in self.providers.items():
-            result[name] = provider.export()
+            result["providers"][name] = provider.export()
+        result["source_paths"] = self.source_paths
         return result
