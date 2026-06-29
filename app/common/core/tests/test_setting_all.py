@@ -366,6 +366,3 @@ class TestSingleton:
 
     def test_global_setting_get_provider_tushare(self):
         assert isinstance(GlobalSetting.get_provider("tushare"), TushareProviderSetting)
-
-
-

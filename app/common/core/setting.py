@@ -4,14 +4,13 @@ import json
 from pathlib import Path
 from typing import ClassVar, Optional
 
-import yaml
 from pydantic import BaseModel, ValidationError
 
 from app.common.setting.cache import CacheSetting
-from app.common.setting.connections import BaseConnectionSetting, ConnectionsSetting
-from app.common.setting.system import SystemSetting
 from app.common.setting.centre import CentreSetting
-from app.common.setting.providers import ProvidersSetting, BaseProviderSetting
+from app.common.setting.connections import BaseConnectionSetting, ConnectionsSetting
+from app.common.setting.providers import BaseProviderSetting, ProvidersSetting
+from app.common.setting.system import SystemSetting
 
 
 class CoreSetting(BaseModel):
@@ -36,14 +35,14 @@ class CoreSetting(BaseModel):
         'fortress'
 
     """
-    
+
     # 运行时配置文件路径缓存
     _system_path: ClassVar[Optional[Path]] = None
     _cache_path: ClassVar[Optional[Path]] = None
     _centre_path: ClassVar[Optional[Path]] = None
     _conns_path: ClassVar[Optional[Path]] = None
     _providers_path: ClassVar[Optional[Path]] = None
-    
+
     # 默认配置文件路径
     _default_root_dir: ClassVar[Path] = Path(__file__).parent.parent.parent.parent
     _default_setting_dir: ClassVar[Path] = _default_root_dir / "setting"
@@ -92,7 +91,7 @@ class CoreSetting(BaseModel):
         )
         cls._validate_path(system_path)
         _system: SystemSetting = SystemSetting.from_yaml(system_path)
-        
+
         # Resolve and validate the cache setting path
         cache_path = cls._resolve_path(
             path=cache_path,
@@ -116,7 +115,7 @@ class CoreSetting(BaseModel):
         )
         cls._validate_path(centre_path)
         _centre: CentreSetting = CentreSetting.from_yaml(centre_path)
-        
+
         # Resolve and validate the providers setting path
         providers_path = cls._resolve_path(
             path=providers_path,
@@ -124,7 +123,7 @@ class CoreSetting(BaseModel):
         )
         cls._validate_path(providers_path)
         _providers: ProvidersSetting = ProvidersSetting.from_yaml(providers_path)
-        
+
         # Create an instance of CoreSetting with the loaded data
         try:
             instance = cls(
@@ -164,7 +163,7 @@ class CoreSetting(BaseModel):
         centre_path = self.__class__._centre_path
         CoreSetting._validate_path(centre_path)
         _centre: CentreSetting = CentreSetting.from_yaml(centre_path)
-        
+
         # Resolve and validate the providers setting path
         providers_path = self.__class__._providers_path
         CoreSetting._validate_path(providers_path)
@@ -191,7 +190,7 @@ class CoreSetting(BaseModel):
         name: str,
     ) -> BaseProviderSetting:
         return self.providers.get(name)
-    
+
     def get_connection(
         self,
         name: str,
