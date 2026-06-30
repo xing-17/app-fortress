@@ -1,22 +1,22 @@
 """
-综合测试：app.bridges.cache.cache
+综合测试: app.bridges.cache.cache
 
 覆盖范围
 --------
-- TestResolveIdentifier     同 key+partition 哈希稳定；顺序无关；None == 空列表；长度由 hash_length 控制
-- TestResolveTtlHours       None 回退默认值；显式值优先
-- TestResolveData           DataFrame 直通；list[dict] 转为 DataFrame；无效类型抛 ValueError
-- TestEnsureTtlTable        TTL 表初始化成功；重复调用幂等
-- TestWrite                 数据写入 DuckDB；TTL 记录使用 hash identifier；重复写覆盖数据并更新 TTL
-- TestCheck                 新写入返回 True；不存在返回 False；过期返回 False；未过期返回 True
-- TestRead                  有效缓存返回完整 DataFrame；数据行完整性；缺失返回 None；过期返回 None
-- TestReset                 单 key 删除数据表和 TTL；key=None 全量清除；删除不存在 key 不抛异常
-- TestClean                 过期条目被删除；有效条目被保留；key=None 批量清理
-- TestListTables            返回所有非 TTL 数据表；空库返回空列表
+- TestResolveIdentifier     同 key+partition 哈希稳定; 顺序无关; None == 空列表; 长度由 hash_length 控制
+- TestResolveTtlHours       None 回退默认值; 显式值优先
+- TestResolveData           DataFrame 直通; list[dict] 转为 DataFrame; 无效类型抛 ValueError
+- TestEnsureTtlTable        TTL 表初始化成功; 重复调用幂等
+- TestWrite                 数据写入 DuckDB; TTL 记录使用 hash identifier; 重复写覆盖数据并更新 TTL
+- TestCheck                 新写入返回 True; 不存在返回 False; 过期返回 False; 未过期返回 True
+- TestRead                  有效缓存返回完整 DataFrame; 数据行完整性; 缺失返回 None; 过期返回 None
+- TestReset                 单 key 删除数据表和 TTL; key=None 全量清除; 删除不存在 key 不抛异常
+- TestClean                 过期条目被删除; 有效条目被保留; key=None 批量清理
+- TestListTables            返回所有非 TTL 数据表; 空库返回空列表
 - TestPartitionIsolation    同 key 不同 partition 产生独立表和独立 TTL
-- TestContextManager        __enter__ 返回实例；__exit__ 关闭连接
+- TestContextManager        __enter__ 返回实例; __exit__ 关闭连接
 - TestConcurrency           多线程并发写入不破坏数据，所有 key 均可正确读取
-- TestExport                export() 包含必要字段；describe() 返回合法 JSON
+- TestExport                export() 包含必要字段; describe() 返回合法 JSON
 """
 
 from __future__ import annotations
