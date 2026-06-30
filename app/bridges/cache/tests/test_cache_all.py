@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
+from typing import Iterator
 
 import polars as pl
 import pytest
@@ -41,7 +42,6 @@ _SAMPLE_LIST = [{"id": 1, "val": "a"}, {"id": 2, "val": "b"}]
 
 
 def _force_expire(cache: BridgesCache, identifier: str) -> None:
-    """将指定 identifier 的 TTL 强制设置为过去时间（Unix epoch 0）。"""
     cache.conn.execute(
         f"UPDATE {cache._ttl_table} SET expire_at = to_timestamp(0) WHERE key = ?",
         [identifier],
@@ -54,7 +54,7 @@ def _force_expire(cache: BridgesCache, identifier: str) -> None:
 
 
 @pytest.fixture
-def cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> BridgesCache:
+def cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """每个测试使用独立的临时 DuckDB 文件，测试结束后关闭连接。"""
     db_path = tmp_path / "test_cache.duckdb"
     test_setting = CacheSetting(
