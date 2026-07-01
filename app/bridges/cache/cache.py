@@ -36,6 +36,7 @@ class BridgesCache(
         write(key, data, partition, ttl_hours): 写入缓存数据，支持 Polars DataFrame 或 list[dict]
         check(key, partition): 检查缓存是否存在且未过期，返回布尔值
         reset(key, partition): 重置缓存，删除指定的缓存条目
+        refresh(): 刷新缓存配置，重新连接 DuckDB 并清理过期条目
 
     Example:
         >>> cache = BridgesCache()
