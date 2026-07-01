@@ -7,7 +7,6 @@ from typing import ClassVar, Optional
 from pydantic import BaseModel, ValidationError
 
 from app.common.setting.bridges import BaseProviderSetting, BridgesSetting
-from app.common.setting.cache import CacheSetting
 from app.common.setting.centre import CentreSetting
 from app.common.setting.connections import BaseConnectionSetting, ConnectionsSetting
 from app.common.setting.system import SystemSetting
@@ -22,10 +21,9 @@ class CoreSetting(BaseModel):
 
     Attributes:
         system[SystemSetting]: 系统运行时配置
-        cache[CacheSetting]: 缓存配置
         connections[ConnectionsSetting]: 连接配置
         centre[CentreSetting]: 中心配置
-        providers[ProvidersSetting]: 提供者配置
+        bridges[BridgesSetting]: 提供者配置
 
     Examples:
         >>> setting = CoreSetting.load()
@@ -38,7 +36,6 @@ class CoreSetting(BaseModel):
 
     # 运行时配置文件路径缓存
     _system_path: ClassVar[Optional[Path]] = None
-    _cache_path: ClassVar[Optional[Path]] = None
     _centre_path: ClassVar[Optional[Path]] = None
     _conns_path: ClassVar[Optional[Path]] = None
     _bridges_path: ClassVar[Optional[Path]] = None
@@ -46,7 +43,6 @@ class CoreSetting(BaseModel):
     # 默认配置文件路径
     _default_root_dir: ClassVar[Path] = Path(__file__).parent.parent.parent.parent
     _default_setting_dir: ClassVar[Path] = _default_root_dir / "setting"
-    _default_cache_path: ClassVar[Path] = _default_setting_dir / "cache.yml"
     _default_sys_setting_path: ClassVar[Path] = _default_setting_dir / "system.yml"
     _default_centre_setting_path: ClassVar[Path] = _default_setting_dir / "centre.yml"
     _default_bridges_setting_path: ClassVar[Path] = _default_setting_dir / "bridges.yml"
@@ -54,7 +50,6 @@ class CoreSetting(BaseModel):
 
     # 配置项
     system: SystemSetting
-    cache: CacheSetting
     centre: CentreSetting
     connections: ConnectionsSetting
     bridges: BridgesSetting
@@ -79,7 +74,6 @@ class CoreSetting(BaseModel):
     def load(
         cls,
         system_path: str | Path | None = None,
-        cache_path: str | Path | None = None,
         centre_path: str | Path | None = None,
         bridges_path: str | Path | None = None,
         conns_path: str | Path | None = None,
@@ -91,14 +85,6 @@ class CoreSetting(BaseModel):
         )
         cls._validate_path(system_path)
         _system: SystemSetting = SystemSetting.from_yaml(system_path)
-
-        # Resolve and validate the cache setting path
-        cache_path = cls._resolve_path(
-            path=cache_path,
-            default=cls._default_cache_path,
-        )
-        cls._validate_path(cache_path)
-        _cache: CacheSetting = CacheSetting.from_yaml(cache_path)
 
         # Resolve and validate the connections setting path
         conns_path = cls._resolve_path(
@@ -129,13 +115,11 @@ class CoreSetting(BaseModel):
             instance = cls(
                 system=_system,
                 connections=_conns,
-                cache=_cache,
                 centre=_centre,
                 bridges=_bridges,
             )
             cls._system_path = system_path
             cls._conns_path = conns_path
-            cls._cache_path = cache_path
             cls._centre_path = centre_path
             cls._bridges_path = bridges_path
             return instance
@@ -154,11 +138,6 @@ class CoreSetting(BaseModel):
         CoreSetting._validate_path(conn_path)
         _conns: ConnectionsSetting = ConnectionsSetting.from_yaml(conn_path)
 
-        # Resolve and validate the cache setting path
-        cache_path = self.__class__._cache_path
-        CoreSetting._validate_path(cache_path)
-        _cache: CacheSetting = CacheSetting.from_yaml(cache_path)
-
         # Resolve and validate the centre setting path
         centre_path = self.__class__._centre_path
         CoreSetting._validate_path(centre_path)
@@ -173,13 +152,11 @@ class CoreSetting(BaseModel):
             temp = self.__class__(
                 system=_system,
                 connections=_conns,
-                cache=_cache,
                 centre=_centre,
                 bridges=_bridges,
             )
             self.system = temp.system
             self.connections = temp.connections
-            self.cache = temp.cache
             self.centre = temp.centre
             self.bridges = temp.bridges
         except ValidationError as e:
@@ -201,7 +178,6 @@ class CoreSetting(BaseModel):
         result = {
             "system": self.system.export(),
             "connections": self.connections.export(),
-            "cache": self.cache.export(),
             "centre": self.centre.export(),
             "bridges": self.bridges.export(),
         }

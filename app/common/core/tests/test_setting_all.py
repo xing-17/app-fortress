@@ -5,8 +5,8 @@
 --------
 - TestLoad          默认/自定义路径加载；5 个配置项全部就位；缺失文件时抛正确异常
 - TestRefresh       refresh() 不抛异常；文件变更后值更新；5 项全部持久
-- TestExport        export() 返回 dict；system/cache/centre 嵌套结构正确
-- TestDescribe      describe() 返回合法 JSON；system/cache/centre 键存在
+- TestExport        export() 返回 dict；system/bridges/centre 嵌套结构正确
+- TestDescribe      describe() 返回合法 JSON；system/bridges/centre 键存在
 - TestGetShortcuts  get_connection() / get_provider() 委托正确；缺失时抛 KeyError
 - TestSingleton     GlobalSetting 完整性；5 项可访问；两个快捷方法可用
 """
@@ -21,7 +21,6 @@ import yaml
 
 from app.common.core.setting import CoreSetting, GlobalSetting
 from app.common.setting.bridges import BridgesSetting, TushareProviderSetting
-from app.common.setting.cache import CacheSetting
 from app.common.setting.centre import CentreSetting
 from app.common.setting.connections import ConnectionsSetting, OssConnectionSetting
 from app.common.setting.system import SystemSetting
@@ -41,10 +40,6 @@ VALID_SYSTEM_YAML = {
     "log_path": "./test_logs",
     "log_file_max_mb": 5,
     "log_group_max_len": 100,
-}
-
-VALID_CACHE_YAML = {
-    "url": "sqlite:///tmp/test_cache.db",
 }
 
 VALID_CONNECTIONS_YAML = {
@@ -89,13 +84,6 @@ def valid_yaml_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def valid_cache_yaml_path(tmp_path: Path) -> Path:
-    p = tmp_path / "cache.yml"
-    p.write_text(yaml.dump(VALID_CACHE_YAML, allow_unicode=True), encoding="utf-8")
-    return p
-
-
-@pytest.fixture
 def valid_conns_yaml_path(tmp_path: Path) -> Path:
     p = tmp_path / "connections.yml"
     p.write_text(yaml.dump(VALID_CONNECTIONS_YAML, allow_unicode=True), encoding="utf-8")
@@ -119,14 +107,12 @@ def valid_bridges_yaml_path(tmp_path: Path) -> Path:
 @pytest.fixture
 def all_custom_paths(
     valid_yaml_path,
-    valid_cache_yaml_path,
     valid_conns_yaml_path,
     valid_centre_yaml_path,
     valid_bridges_yaml_path,
 ) -> dict:
     return dict(
         system_path=valid_yaml_path,
-        cache_path=valid_cache_yaml_path,
         conns_path=valid_conns_yaml_path,
         centre_path=valid_centre_yaml_path,
         bridges_path=valid_bridges_yaml_path,
@@ -138,7 +124,6 @@ def restore_class_paths():
     """Restore all CoreSetting class-level paths after each test."""
     orig = (
         CoreSetting._system_path,
-        CoreSetting._cache_path,
         CoreSetting._conns_path,
         CoreSetting._centre_path,
         CoreSetting._bridges_path,
@@ -146,7 +131,6 @@ def restore_class_paths():
     yield
     (
         CoreSetting._system_path,
-        CoreSetting._cache_path,
         CoreSetting._conns_path,
         CoreSetting._centre_path,
         CoreSetting._bridges_path,
@@ -164,9 +148,6 @@ class TestLoad:
 
     def test_load_populates_system(self):
         assert isinstance(CoreSetting.load().system, SystemSetting)
-
-    def test_load_populates_cache(self):
-        assert isinstance(CoreSetting.load().cache, CacheSetting)
 
     def test_load_populates_connections(self):
         assert isinstance(CoreSetting.load().connections, ConnectionsSetting)
@@ -194,7 +175,6 @@ class TestLoad:
     def test_load_stores_all_paths(self, all_custom_paths):
         CoreSetting.load(**all_custom_paths)
         assert CoreSetting._system_path == all_custom_paths["system_path"]
-        assert CoreSetting._cache_path == all_custom_paths["cache_path"]
         assert CoreSetting._conns_path == all_custom_paths["conns_path"]
         assert CoreSetting._centre_path == all_custom_paths["centre_path"]
         assert CoreSetting._bridges_path == all_custom_paths["bridges_path"]
@@ -202,22 +182,6 @@ class TestLoad:
     def test_load_missing_system_raises_filenotfounderror(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             CoreSetting.load(system_path=tmp_path / "nonexistent.yml")
-
-    def test_load_missing_cache_raises_filenotfounderror(self, tmp_path):
-        with pytest.raises(FileNotFoundError):
-            CoreSetting.load(cache_path=tmp_path / "nonexistent.yml")
-
-    def test_load_missing_conns_raises_filenotfounderror(self, tmp_path):
-        with pytest.raises(FileNotFoundError):
-            CoreSetting.load(conns_path=tmp_path / "nonexistent.yml")
-
-    def test_load_missing_centre_raises_filenotfounderror(self, tmp_path):
-        with pytest.raises(FileNotFoundError):
-            CoreSetting.load(centre_path=tmp_path / "nonexistent.yml")
-
-    def test_load_missing_bridges_raises_filenotfounderror(self, tmp_path):
-        with pytest.raises(FileNotFoundError):
-            CoreSetting.load(bridges_path=tmp_path / "nonexistent.yml")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -240,10 +204,6 @@ class TestRefresh:
         valid_yaml_path.write_text(yaml.dump(updated, allow_unicode=True), encoding="utf-8")
         setting.refresh()
         assert setting.system.name == "updated-fortress"
-
-    def test_refresh_retains_cache(self):
-        GlobalSetting.refresh()
-        assert isinstance(GlobalSetting.cache, CacheSetting)
 
     def test_refresh_retains_connections(self):
         GlobalSetting.refresh()
@@ -270,17 +230,14 @@ class TestExport:
     def test_export_contains_system_key(self):
         assert "system" in GlobalSetting.export()
 
-    def test_export_contains_cache_key(self):
-        assert "cache" in GlobalSetting.export()
+    def test_export_contains_bridges_key(self):
+        assert "bridges" in GlobalSetting.export()
 
     def test_export_contains_centre_key(self):
         assert "centre" in GlobalSetting.export()
 
     def test_export_system_is_dict(self):
         assert isinstance(GlobalSetting.export()["system"], dict)
-
-    def test_export_cache_is_dict(self):
-        assert isinstance(GlobalSetting.export()["cache"], dict)
 
     def test_export_centre_is_dict(self):
         assert isinstance(GlobalSetting.export()["centre"], dict)
@@ -303,9 +260,6 @@ class TestDescribe:
 
     def test_describe_contains_system_key(self):
         assert "system" in GlobalSetting.describe()
-
-    def test_describe_contains_cache_key(self):
-        assert "cache" in GlobalSetting.describe()
 
     def test_describe_contains_centre_key(self):
         assert "centre" in GlobalSetting.describe()
@@ -348,9 +302,6 @@ class TestSingleton:
 
     def test_global_setting_has_system(self):
         assert isinstance(GlobalSetting.system, SystemSetting)
-
-    def test_global_setting_has_cache(self):
-        assert isinstance(GlobalSetting.cache, CacheSetting)
 
     def test_global_setting_has_connections(self):
         assert isinstance(GlobalSetting.connections, ConnectionsSetting)

@@ -3,6 +3,7 @@
 
 覆盖范围
 --------
+- TestBridgesCacheSetting 默认值正确；自定义值存储；export() 结构完整
 - TestTushareDefaults     各字段默认值正确
 - TestTushareValidation   secret 必填；缺失时抛 ValidationError；自定义值完整存储
 - TestTushareExport       export() 返回完整未脱敏字典；包含全部字段
@@ -19,6 +20,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from app.common.setting.bridges import (
+    BridgesCacheSetting,
     BridgesSetting,
     ProviderSetting,
     TushareProviderSetting,
@@ -34,11 +36,6 @@ _VALID_PROVIDERS_DATA = {
             "ttl_seconds": 1800,
             "ttl_margin": 60,
             "use_cache": True,
-            "retry_max": 2,
-            "retry_wait": 60,
-            "retry_rate": 1.0,
-            "retry_skip_messages": ["不存在"],
-            "coolant_interval": 0,
             "jitter_min_seconds": 1.0,
             "jitter_max_seconds": 1.5,
         }
@@ -56,11 +53,6 @@ _ALL_EXPORT_KEYS = [
     "ttl_seconds",
     "ttl_margin",
     "use_cache",
-    "retry_max",
-    "retry_wait",
-    "retry_rate",
-    "retry_skip_messages",
-    "coolant_interval",
     "jitter_min_seconds",
     "jitter_max_seconds",
 ]
@@ -94,21 +86,6 @@ class TestTushareDefaults:
     def test_use_cache_default(self):
         assert _make().use_cache is True
 
-    def test_retry_max_default(self):
-        assert _make().retry_max == 2
-
-    def test_retry_wait_default(self):
-        assert _make().retry_wait == 60
-
-    def test_retry_rate_default(self):
-        assert _make().retry_rate == 1.0
-
-    def test_retry_skip_messages_default_is_empty(self):
-        assert _make().retry_skip_messages == []
-
-    def test_coolant_interval_default(self):
-        assert _make().coolant_interval == 0
-
     def test_jitter_min_seconds_default(self):
         assert _make().jitter_min_seconds == 1.0
 
@@ -138,10 +115,6 @@ class TestTushareValidation:
     def test_custom_use_cache_stored(self):
         assert _make(use_cache=False).use_cache is False
 
-    def test_custom_retry_skip_messages_stored(self):
-        obj = _make(retry_skip_messages=["不存在", "超限"])
-        assert obj.retry_skip_messages == ["不存在", "超限"]
-
     def test_custom_jitter_stored(self):
         obj = _make(jitter_min_seconds=0.5, jitter_max_seconds=2.0)
         assert obj.jitter_min_seconds == 0.5
@@ -168,10 +141,10 @@ class TestTushareExport:
         assert result["secret"].startswith("test")
 
     def test_export_values_match_fields(self):
-        obj = _make(ttl_seconds=900, retry_max=3)
+        obj = _make(ttl_seconds=900, use_cache=False)
         result = obj.export()
         assert result["ttl_seconds"] == 900
-        assert result["retry_max"] == 3
+        assert result["use_cache"] is False
         assert result["type"] == "tushare"
         assert result["category"] == "TushareProviderSetting"
 
@@ -216,7 +189,7 @@ class TestBridgesSetting:
         ts = ps.get_provider("tushare")
         assert ts.region == "cn"
         assert ts.ttl_seconds == 1800
-        assert ts.retry_skip_messages == ["不存在"]
+        assert ts.use_cache is True
 
     def test_get_provider_missing_provider_raises_keyerror(self):
         ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
@@ -268,3 +241,65 @@ class TestFromYaml:
         assert isinstance(ts, TushareProviderSetting)
         assert ts.secret
         assert ts.ttl_seconds > 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TestBridgesCacheSetting
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestBridgesCacheSetting:
+    def test_defaults_name(self):
+        assert BridgesCacheSetting().name == "cache"
+
+    def test_defaults_path(self):
+        assert BridgesCacheSetting().path == ".cache/bridges/cache.duckdb"
+
+    def test_defaults_ttl_hours(self):
+        assert BridgesCacheSetting().ttl_hours == 48
+
+    def test_defaults_ttl_table(self):
+        assert BridgesCacheSetting().ttl_table == "__system_ttl"
+
+    def test_defaults_hash_length(self):
+        assert BridgesCacheSetting().hash_length == 16
+
+    def test_custom_path_stored(self):
+        s = BridgesCacheSetting(path="/tmp/test.duckdb")
+        assert s.path == "/tmp/test.duckdb"
+
+    def test_custom_ttl_hours_stored(self):
+        s = BridgesCacheSetting(ttl_hours=24)
+        assert s.ttl_hours == 24
+
+    def test_custom_hash_length_stored(self):
+        s = BridgesCacheSetting(hash_length=8)
+        assert s.hash_length == 8
+
+    def test_export_returns_dict(self):
+        assert isinstance(BridgesCacheSetting().export(), dict)
+
+    def test_export_contains_all_keys(self):
+        result = BridgesCacheSetting().export()
+        for key in ("name", "path", "ttl_hours", "ttl_table", "hash_length", "category"):
+            assert key in result, f"missing key: {key}"
+
+    def test_export_values_match_defaults(self):
+        result = BridgesCacheSetting().export()
+        assert result["ttl_hours"] == 48
+        assert result["hash_length"] == 16
+
+    def test_bridges_setting_cache_defaults(self):
+        ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
+        assert isinstance(ps.cache, BridgesCacheSetting)
+        assert ps.cache.ttl_hours == 48
+
+    def test_bridges_setting_custom_cache(self):
+        data = {**_VALID_PROVIDERS_DATA, "cache": {"ttl_hours": 12, "hash_length": 8}}
+        ps = BridgesSetting(**data)
+        assert ps.cache.ttl_hours == 12
+        assert ps.cache.hash_length == 8
+
+    def test_bridges_setting_export_includes_cache(self):
+        ps = BridgesSetting(**_VALID_PROVIDERS_DATA)
+        assert "cache" in ps.export()

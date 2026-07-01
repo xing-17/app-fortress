@@ -8,8 +8,29 @@ from app.common.setting.base import BaseSetting
 
 
 class BaseProviderSetting(BaseSetting):
+    """
+    数据提供商基础配置。
+
+    Attributes:
+        name: 提供商标识名
+        type: 提供商类型
+        region: 服务地区，默认 "cn"
+
+    Examples:
+        >>> setting = BaseProviderSetting(
+        ...     name="example_provider",
+        ...     type="example_type",
+        ...     region="cn",
+        ... )
+        >>> print(setting.name)  # example_provider
+        >>> print(setting.type)  # example_type
+        >>> print(setting.region)  # cn
+    """
+
     name: str = Field(..., description="提供商标识名")
+    type: str = Field(..., description="提供商类型")
     region: str = Field("cn", description="服务地区")
+    use_cache: bool = Field(True, description="是否启用缓存")
 
 
 class TushareProviderSetting(BaseProviderSetting):
@@ -24,11 +45,6 @@ class TushareProviderSetting(BaseProviderSetting):
         ttl_seconds:          缓存 TTL（秒），默认 1800
         ttl_margin:           缓存 TTL 边际（秒），默认 60
         use_cache:            是否启用缓存，默认 True
-        retry_max:            最大重试次数，默认 2
-        retry_wait:           重试等待（秒），默认 60
-        retry_rate:           重试速率，默认 1.0
-        retry_skip_messages:  遇到这些错误消息时跳过重试
-        coolant_interval:     冷却间隔（秒），默认 0
         jitter_min_seconds:   请求抖动最小值（秒），默认 1.0
         jitter_max_seconds:   请求抖动最大值（秒），默认 1.5
 
@@ -43,14 +59,10 @@ class TushareProviderSetting(BaseProviderSetting):
     type: Literal["tushare"] = "tushare"
     name: str = "tushare"
     secret: str = Field(..., description="Tushare API Token")
+    timeout: int = Field(30, description="请求超时时间（秒）")
     ttl_seconds: int = 1800
     ttl_margin: int = 60
     use_cache: bool = True
-    retry_max: int = 2
-    retry_wait: int = 60
-    retry_rate: float = 1.0
-    retry_skip_messages: list[str] = []
-    coolant_interval: int = 0
     jitter_min_seconds: float = 1.0
     jitter_max_seconds: float = 1.5
 
@@ -64,6 +76,30 @@ ProviderSetting = Annotated[
     Union[TushareProviderSetting,],
     Field(discriminator="type"),
 ]
+
+
+class BridgesCacheSetting(BaseSetting):
+    """
+    缓存配置。
+
+    Attributes:
+        name: 缓存名称，默认 "cache"
+        path: 缓存文件路径，默认 ".cache/bridges/cache.duckdb"
+        ttl_hours: 缓存过期时间（小时），默认 48
+        ttl_table: TTL 元数据表名，默认 "__system_ttl"
+        hash_length: 哈希长度，默认 16
+
+    Examples:
+        >>> cache_setting = BridgesCacheSetting()
+        >>> print(cache_setting.path)  # 输出: .cache/bridges/cache.duckdb
+        >>> print(cache_setting.ttl_hours)  # 输出: 48
+    """
+
+    name: str = "cache"
+    path: str = ".cache/bridges/cache.duckdb"
+    ttl_hours: int = 48
+    ttl_table: str = "__system_ttl"
+    hash_length: int = 16
 
 
 class BridgesSetting(BaseSetting):
@@ -85,6 +121,7 @@ class BridgesSetting(BaseSetting):
 
     providers: dict[str, ProviderSetting]
     source_paths: list[str] = Field(default_factory=list, description="配置来源路径列表")
+    cache: BridgesCacheSetting = Field(default_factory=BridgesCacheSetting, description="缓存配置")
 
     def get_provider(
         self,
@@ -94,10 +131,14 @@ class BridgesSetting(BaseSetting):
             raise KeyError(f"Provider not found: {name!r}")
         return self.providers[name]
 
+    def get_cache(self) -> BridgesCacheSetting:
+        return self.cache
+
     def export(self) -> dict:
         result = {}
         result["providers"] = {}
         for name, provider in self.providers.items():
             result["providers"][name] = provider.export()
         result["source_paths"] = self.source_paths
+        result["cache"] = self.cache.export()
         return result
