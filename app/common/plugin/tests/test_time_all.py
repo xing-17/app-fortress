@@ -52,20 +52,20 @@ class TestTimezone:
 
 
 class TestGetters:
-    def test_get_current_timestamp_returns_string(self):
+    def test_get_current_timestamp_returns_float(self):
         task = _Task()
         result = task._get_current_timestamp()
-        assert isinstance(result, str)
+        assert isinstance(result, float)
 
     def test_get_current_timestamp_is_numeric(self):
         task = _Task()
         result = task._get_current_timestamp()
-        assert result.isdigit()
+        assert isinstance(result, float)
 
     def test_get_current_timestamp_length_is_10(self):
         task = _Task()
         result = task._get_current_timestamp()
-        assert len(result) == 10
+        assert len(str(int(result))) == 10
 
     def test_get_current_datetime_returns_datetime(self):
         task = _Task()

@@ -33,8 +33,8 @@ class TimePlugin:
         except Exception:
             return ZoneInfo("UTC")
 
-    def _get_current_timestamp(self) -> str:
-        return str(int(datetime.now(self._time_zoneinfo).timestamp()))
+    def _get_current_timestamp(self) -> float:
+        return datetime.now(self._time_zoneinfo).timestamp()
 
     def _get_current_datetime(self) -> datetime:
         return datetime.now(self._time_zoneinfo)

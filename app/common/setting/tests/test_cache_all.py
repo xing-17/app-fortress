@@ -16,9 +16,8 @@ import json
 from app.common.setting.cache import CacheSetting
 
 _ALL_KEYS = [
-    "name",
-    "url",
-    "chunksize",
+    "path",
+    "ttl_hours",
 ]
 
 
@@ -32,10 +31,7 @@ class TestDefaults:
         assert CacheSetting().name == "cache"
 
     def test_url_default(self):
-        assert CacheSetting().url == "sqlite:///cache/system/cache.db"
-
-    def test_chunksize_default_is_none(self):
-        assert CacheSetting().chunksize is None
+        assert CacheSetting().path == ".cache/bridges/cache.duckdb"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -47,26 +43,18 @@ class TestValidation:
     def test_custom_name_stored(self):
         assert CacheSetting(name="my-cache").name == "my-cache"
 
-    def test_custom_url_stored(self):
-        url = "postgresql://user:pass@localhost:5432/mydb"
-        assert CacheSetting(url=url).url == url
+    def test_custom_path_stored(self):
+        path = "custom/path/cache.duckdb"
+        assert CacheSetting(path=path).path == path
 
-    def test_custom_chunksize_stored(self):
-        assert CacheSetting(chunksize=500).chunksize == 500
-
-    def test_chunksize_is_optional(self):
-        setting = CacheSetting()
-        assert setting.chunksize is None
+    def test_custom_ttl_hours_stored(self):
+        assert CacheSetting(ttl_hours=72).ttl_hours == 72
 
     def test_all_custom_values_stored_correctly(self):
-        setting = CacheSetting(
-            name="prod-cache",
-            url="sqlite:///tmp/prod.db",
-            chunksize=1000,
-        )
+        setting = CacheSetting(name="prod-cache", path="sqlite:///tmp/prod.db", ttl_hours=1000)
         assert setting.name == "prod-cache"
-        assert setting.url == "sqlite:///tmp/prod.db"
-        assert setting.chunksize == 1000
+        assert setting.path == "sqlite:///tmp/prod.db"
+        assert setting.ttl_hours == 1000
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -84,15 +72,11 @@ class TestExport:
             assert key in result
 
     def test_export_values_match_fields(self):
-        setting = CacheSetting(name="test", chunksize=200)
+        setting = CacheSetting(name="test", ttl_hours=200)
         result = setting.export()
         assert result["name"] == "test"
-        assert result["url"] == setting.url
-        assert result["chunksize"] == 200
-
-    def test_export_chunksize_none_included(self):
-        result = CacheSetting().export()
-        assert result["chunksize"] is None
+        assert result["path"] == setting.path
+        assert result["ttl_hours"] == 200
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -109,9 +93,9 @@ class TestDescribe:
         assert isinstance(result, dict)
 
     def test_describe_values_match_export(self):
-        setting = CacheSetting(name="check", chunksize=100)
+        setting = CacheSetting(name="check", ttl_hours=100)
         parsed = json.loads(setting.describe())
         exported = setting.export()
         assert parsed["name"] == exported["name"]
-        assert parsed["url"] == exported["url"]
-        assert parsed["chunksize"] == exported["chunksize"]
+        assert parsed["path"] == exported["path"]
+        assert parsed["ttl_hours"] == exported["ttl_hours"]
