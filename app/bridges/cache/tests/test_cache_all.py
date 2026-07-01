@@ -16,7 +16,9 @@
 - TestPartitionIsolation    同 key 不同 partition 产生独立表和独立 TTL
 - TestContextManager        __enter__ 返回实例; __exit__ 关闭连接
 - TestConcurrency           多线程并发写入不破坏数据，所有 key 均可正确读取
+- TestRefresh               refresh() 重连成功; 保留有效数据; 清除过期条目
 - TestExport                export() 包含必要字段; describe() 返回合法 JSON
+- TestSingleton             ModuleBridgesCache 全局单例完整性
 """
 
 from __future__ import annotations
@@ -24,14 +26,13 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
-from typing import Iterator
 
 import polars as pl
 import pytest
 
-from app.bridges.cache.cache import BridgesCache
+from app.bridges.cache.cache import BridgesCache, ModuleBridgesCache
 from app.common.core.setting import GlobalSetting
-from app.common.setting.cache import CacheSetting
+from app.common.setting.bridges import BridgesCacheSetting
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -57,14 +58,14 @@ def _force_expire(cache: BridgesCache, identifier: str) -> None:
 def cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """每个测试使用独立的临时 DuckDB 文件，测试结束后关闭连接。"""
     db_path = tmp_path / "test_cache.duckdb"
-    test_setting = CacheSetting(
+    test_setting = BridgesCacheSetting(
         name="test",
         path=str(db_path),
         ttl_hours=24,
         ttl_table="__system_ttl",
         hash_length=16,
     )
-    monkeypatch.setattr(GlobalSetting, "cache", test_setting)
+    monkeypatch.setattr(BridgesCache, "setting", property(lambda self: test_setting))
     monkeypatch.setattr(GlobalSetting.system, "timezone", "UTC")
 
     c = BridgesCache()
@@ -492,8 +493,8 @@ class TestPartitionIsolation:
 class TestContextManager:
     def test_enter_returns_cache_instance(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         db_path = tmp_path / "ctx_cache.duckdb"
-        test_setting = CacheSetting(name="ctx", path=str(db_path))
-        monkeypatch.setattr(GlobalSetting, "cache", test_setting)
+        test_setting = BridgesCacheSetting(name="ctx", path=str(db_path))
+        monkeypatch.setattr(BridgesCache, "setting", property(lambda self: test_setting))
         monkeypatch.setattr(GlobalSetting.system, "timezone", "UTC")
 
         c = BridgesCache()
@@ -502,8 +503,8 @@ class TestContextManager:
 
     def test_exit_closes_connection(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         db_path = tmp_path / "ctx_cache2.duckdb"
-        test_setting = CacheSetting(name="ctx2", path=str(db_path))
-        monkeypatch.setattr(GlobalSetting, "cache", test_setting)
+        test_setting = BridgesCacheSetting(name="ctx2", path=str(db_path))
+        monkeypatch.setattr(BridgesCache, "setting", property(lambda self: test_setting))
         monkeypatch.setattr(GlobalSetting.system, "timezone", "UTC")
 
         c = BridgesCache()
@@ -597,3 +598,45 @@ class TestExport:
         assert "name" in parsed
         assert "path" in parsed
         assert "ttl_hours" in parsed
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TestRefresh
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestRefresh:
+    def test_refresh_does_not_raise(self, cache: BridgesCache):
+        cache.refresh()
+
+    def test_refresh_reconnects(self, cache: BridgesCache):
+        cache.refresh()
+        assert cache.conn is not None
+
+    def test_refresh_retains_valid_data(self, cache: BridgesCache):
+        cache.write("k1", _SAMPLE_DF)
+        cache.refresh()
+        assert cache.check("k1") is True
+
+    def test_refresh_removes_expired_entries(self, cache: BridgesCache):
+        cache.write("k1", _SAMPLE_DF)
+        identifier = cache.resolve_identifier("k1")
+        _force_expire(cache, identifier)
+        cache.refresh()
+        assert cache.check("k1") is False
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TestSingleton
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestSingleton:
+    def test_module_bridges_cache_is_bridges_cache(self):
+        assert isinstance(ModuleBridgesCache, BridgesCache)
+
+    def test_module_bridges_cache_has_connection(self):
+        assert ModuleBridgesCache.conn is not None
+
+    def test_module_bridges_cache_export_returns_dict(self):
+        assert isinstance(ModuleBridgesCache.export(), dict)

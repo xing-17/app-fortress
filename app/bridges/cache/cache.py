@@ -14,7 +14,7 @@ from app.common.plugin import (
     StopwatchPlugin,
     TimePlugin,
 )
-from app.common.setting.cache import CacheSetting
+from app.common.setting.bridges import BridgesCacheSetting
 
 
 class BridgesCache(
@@ -46,9 +46,12 @@ class BridgesCache(
 
     """
 
+    @classmethod
+    def load(cls) -> BridgesCache:
+        return cls()
+
     def __init__(self) -> None:
         super().__init__()
-        self.setting: CacheSetting = GlobalSetting.cache
         self._lock: threading.Lock = threading.Lock()
 
         # Basic attributes
@@ -64,8 +67,12 @@ class BridgesCache(
 
         # Set logging attributes
         self._set_log_prefix(f"BridgesCache({self._name})")
-        self.clean()  # Clean expired entries on initialization
         self.info("init OK.")
+        self.clean()
+
+    @property
+    def setting(self) -> BridgesCacheSetting:
+        return GlobalSetting.bridges.cache
 
     def _resolve_path(self) -> Path:
         path = Path(self.setting.path).expanduser().resolve()
@@ -348,6 +355,13 @@ class BridgesCache(
                 else:
                     self.debug(f"clean: expired entry '{identifier}' OK.")
 
+    def refresh(self) -> None:
+        self.close()
+        self.connect()
+        self.ensure_ttl_table()
+        self.clean()
+        self.info("refresh OK.")
+
     def export(self) -> dict:
         return {
             "name": self._name,
@@ -363,3 +377,9 @@ class BridgesCache(
             indent=4,
             ensure_ascii=False,
         )
+
+
+# ── 全局单例 ──────────────────────────────────────────────────────────────────────────────
+# 在模块加载时即创建全局单例，供全局访问和使用
+# 通过调用 `ModuleBridgesCache.refresh()` 可在运行时刷新配置
+ModuleBridgesCache: BridgesCache = BridgesCache.load()
