@@ -87,10 +87,10 @@ class TestTushareDefaults:
         assert _make().use_cache is True
 
     def test_jitter_min_seconds_default(self):
-        assert _make().jitter_min_seconds == 1.0
+        assert _make().jitter_min_seconds == 0.2
 
     def test_jitter_max_seconds_default(self):
-        assert _make().jitter_max_seconds == 1.5
+        assert _make().jitter_max_seconds == 1.0
 
 
 # ──────────────────────────────────────────────────────────────────────────────

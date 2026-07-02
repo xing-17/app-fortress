@@ -63,8 +63,8 @@ class TushareProviderSetting(BaseProviderSetting):
     ttl_seconds: int = 1800
     ttl_margin: int = 60
     use_cache: bool = True
-    jitter_min_seconds: float = 1.0
-    jitter_max_seconds: float = 1.5
+    jitter_min_seconds: float = 0.2
+    jitter_max_seconds: float = 1.0
 
     def export(self) -> dict:
         result = super().export()
@@ -125,11 +125,20 @@ class BridgesSetting(BaseSetting):
 
     def get_provider(
         self,
-        name: str,
+        name: str | None = None,
+        type: str | None = None,
     ) -> ProviderSetting:
-        if name not in self.providers:
-            raise KeyError(f"Provider not found: {name!r}")
-        return self.providers[name]
+        if type is not None:
+            for provider in self.providers.values():
+                if provider.type == type:
+                    return provider
+            raise KeyError(f"Provider not found: type {type!r}.")
+        if name is not None:
+            try:
+                return self.providers[name]
+            except KeyError:
+                raise KeyError(f"Provider not found: name {name!r}")
+        raise ValueError("Either 'name' or 'type' must be provided.")
 
     def get_cache(self) -> BridgesCacheSetting:
         return self.cache
