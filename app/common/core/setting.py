@@ -164,9 +164,13 @@ class CoreSetting(BaseModel):
 
     def get_provider(
         self,
-        name: str,
+        name: str | None = None,
+        type: str | None = None,
     ) -> BaseProviderSetting:
-        return self.bridges.get_provider(name)
+        return self.bridges.get_provider(
+            name=name,
+            type=type,
+        )
 
     def get_connection(
         self,
