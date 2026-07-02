@@ -101,7 +101,7 @@ class BaseProvider(
 
     def jit(self) -> None:
         seconds = self.jitter.jit()
-        self.debug(f"jit: {seconds} seconds.")
+        self.debug(f"jit: {seconds} seconds OK.")
 
     @abstractmethod
     def export(self) -> dict[str, Any]:
