@@ -11,6 +11,7 @@ from app.common.plugin import (
     StopwatchPlugin,
     TimePlugin,
 )
+from app.common.setting.bridges import BaseProviderSetting
 
 
 class BaseSession(
@@ -23,60 +24,50 @@ class BaseSession(
     会话管理基类。
 
     封装底层连接的创建、复用与过期刷新逻辑。内置 TTL 机制：连接超过
-    ttl_interval 秒后，get_session() 会自动触发 refresh()。
+    ttl_interval 秒后, get_session() 会自动触发 refresh()。
 
     Attributes:
-        ttl_seconds:  会话存活秒数，None 表示永不过期
-        ttl_margin:   刷新安全边界（秒），在到期前提前刷新，None 表示无边距
-        ttl_interval: 实际有效秒数（ttl_seconds - ttl_margin），None 表示永不过期
+        setting:      提供商配置，由构造器直接传入
+        name:         Provider 实例名称，来自 setting.name
+        ttl_seconds:  会话存活秒数, None 表示永不过期
+        ttl_margin:   刷新安全边界(秒), 在到期前提前刷新, None 表示无边距
+        ttl_interval: 实际有效秒数(ttl_seconds - ttl_margin), None 表示永不过期
         active_at:    当前会话最近激活时间
 
     Example:
         >>> class MySession(BaseSession):
         ...     def _create_session(self):
         ...         return create_connection()
-        >>> session = MySession(name="my", type="mock", region="cn")
-        >>> conn = session.get_session()  # 自动 connect，过期后自动 refresh
+        >>> session = MySession(setting=GlobalSetting.bridges.providers["my"])
+        >>> conn = session.get_session()  # 自动 connect, 过期后自动 refresh
 
     """
 
-    default_ttl_seconds: int | None = None
-    default_ttl_margin: int | None = None
-
     def __init__(
         self,
-        name: str | None = None,
-        type: str | None = None,
-        region: str | None = None,
-        ttl_seconds: int | None = None,
-        ttl_margin: int | None = None,
+        setting: BaseProviderSetting,
     ) -> None:
         super().__init__()
-        self.name = name
-        self.type = type
-        self.region = region
-        self._ttl_seconds: int | None = self._resolve_ttl_seconds(ttl_seconds)
-        self._ttl_margin: int | None = self._resolve_ttl_margin(ttl_margin)
+        self.setting: BaseProviderSetting = setting
+        self.name: str = setting.name
+        self._ttl_seconds: int | None = self._resolve_ttl_seconds()
+        self._ttl_margin: int | None = self._resolve_ttl_margin()
         self._session: Any | None = None
         self._active_at: datetime | None = None
         self._lock = RLock()
 
-    def _resolve_ttl_seconds(
-        self,
-        ttl_seconds: int | None = None,
-    ) -> int | None:
+    def _resolve_ttl_seconds(self) -> int | None:
+        ttl_seconds: int | None = self.setting.ttl_seconds
         if ttl_seconds is None:
-            return self.default_ttl_seconds
+            return ttl_seconds
         if ttl_seconds <= 0:
             raise ValueError("ttl_seconds must be > 0")
         return ttl_seconds
 
-    def _resolve_ttl_margin(
-        self,
-        ttl_margin: int | None = None,
-    ) -> int | None:
+    def _resolve_ttl_margin(self) -> int | None:
+        ttl_margin: int | None = self.setting.ttl_margin
         if ttl_margin is None:
-            return self.default_ttl_margin
+            return None
         if ttl_margin < 0:
             raise ValueError("ttl_margin must be >= 0")
         if self._ttl_seconds is not None and ttl_margin >= self._ttl_seconds:
@@ -181,6 +172,7 @@ class BaseSession(
             active_at_str = self.active_at.isoformat()
         else:
             active_at_str = None
+        
         return {
             "ttl_seconds": self.ttl_seconds,
             "ttl_margin": self.ttl_margin,

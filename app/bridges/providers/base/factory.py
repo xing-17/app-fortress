@@ -12,9 +12,9 @@ class ProviderFactory:
     bootstrap() 按 GlobalSetting.bridges.providers 批量创建所有 Provider。
 
     Methods:
-        register:  装饰器，将 Provider 子类注册到全局注册表
-        create:    按类型名创建并返回新的 Provider 实例
-        bootstrap: 按全局配置批量创建所有 Provider，返回 {type: instance} 字典
+        register:  装饰器，将 Provider 子类注册到全局注册表（key 为 type）
+        create:    按实例名创建并返回新的 Provider 实例
+        bootstrap: 按全局配置批量创建所有 Provider，返回 {name: instance} 字典
 
     Example:
         >>> @ProviderFactory.register("tushare")
@@ -22,8 +22,8 @@ class ProviderFactory:
         >>> providers = ProviderFactory.bootstrap()
 
     """
-
-    _registry: dict[str, type[BaseProvider]] = {}
+    
+    _registry: dict[str, type[BaseProvider]] = {} # type -> class
 
     @classmethod
     def register(
@@ -32,26 +32,29 @@ class ProviderFactory:
     ):
         def decorator(klass: type[BaseProvider]):
             if type in cls._registry:
-                raise ValueError(f"{type} Provider already registered.")
+                raise ValueError(f"Provider type '{type}' already registered.")
             cls._registry[type] = klass
             return klass
-
         return decorator
 
     @classmethod
     def create(
-        cls,
-        type: str,
+        cls, 
+        name: str,
     ) -> BaseProvider:
-        klass = cls._registry.get(type)
+        providers_setting = GlobalSetting.bridges.providers
+        if name not in providers_setting:
+            raise KeyError(f"Provider name '{name}' not found.")
+        provider_type = providers_setting[name].type
+        klass = cls._registry.get(provider_type)
         if klass is None:
-            raise KeyError(f"Unknown {type} provider type.")
-        return klass()
+            raise KeyError(f"Unknown provider type: '{provider_type}'.")
+        return klass(name=name)
 
     @classmethod
     def bootstrap(cls) -> dict[str, BaseProvider]:
         result: dict[str, BaseProvider] = {}
-        for type in GlobalSetting.bridges.providers:
-            provider = cls.create(type)
-            result[type] = provider
+        providers_setting = GlobalSetting.bridges.providers
+        for name in providers_setting.keys():
+            result[name] = cls.create(name=name) # name -> instance
         return result

@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import json
 from abc import ABC, abstractmethod
-from threading import RLock
 from typing import Any
 
 from app.bridges.accessory.jitter import Jitter
+from app.bridges.cache.cache import (
+    BridgesCache,
+    ModuleBridgesCache,
+)
 from app.bridges.providers.base.session import BaseSession
 from app.common.plugin import (
     LogPlugin,
@@ -13,6 +16,7 @@ from app.common.plugin import (
     TimePlugin,
 )
 from app.common.setting.bridges import BaseProviderSetting
+from app.common.core.setting import GlobalSetting
 
 
 class BaseProvider(
@@ -25,63 +29,57 @@ class BaseProvider(
     数据提供者基类。
 
     定义 bridge 层数据源的通用接口与生命周期管理。子类须实现
-    setting、_create_session、call、export 四个抽象成员。
+    _create_session、call、export 三个抽象成员。
 
     Attributes:
+        setting:   提供商配置，由 name 从 GlobalSetting 解析
+        name:      Provider 实例名称，来自 setting.name
         type:      Provider 类型标识，来自 setting.type
-        name:      Provider 名称，来自 setting.name
         region:    数据源所在区域，来自 setting.region
         use_cache: 是否启用缓存，来自 setting.use_cache
-        jitter:    随机延迟对象，由 _create_jitter() 创建
+        jitter:    随机延迟对象
 
     Example:
         >>> @ProviderFactory.register("my-type")
         ... class MyProvider(BaseProvider):
-        ...     @property
-        ...     def setting(self) -> BaseProviderSetting:
-        ...         return GlobalSetting.bridges.providers["my-type"]
         ...     def _create_session(self) -> BaseSession:
-        ...         return MySession(name=self.name, type=self.type, region=self.region)
+        ...         return MySession(setting=self.setting)
         ...     def call(self, method: str, *args, **kwargs) -> Any:
         ...         return self.get_session().request(method, **kwargs)
         ...     def export(self) -> dict:
         ...         return {"name": self.name, "type": self.type}
+        >>> provider = MyProvider(name="my-instance")
 
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        name: str,
+    ) -> None:
         super().__init__()
-        self.type: str = self.setting.type
+        self.setting: BaseProviderSetting = self._resolve_setting(name)
         self.name: str = self.setting.name
+        self.type: str = self.setting.type
         self.region: str = self.setting.region
-        self.use_cache: bool = self.setting.use_cache
-        self.jitter: Jitter = self._create_jitter()
+        self.cache: BridgesCache = ModuleBridgesCache
+        self.jitter: Jitter = Jitter(
+            min_seconds=self.setting.jitter_min_seconds,
+            max_seconds=self.setting.jitter_max_seconds,
+        )
         self._session: BaseSession = self._create_session()
-        self._lock = RLock()
 
+    def _resolve_setting(
+        self,
+        name: str,
+    ) -> BaseProviderSetting:
+        providers_setting = GlobalSetting.bridges.providers
+        if name not in providers_setting:
+            raise KeyError(f"Provider '{name}' not found.")
+        return providers_setting[name]
+    
     @property
-    @abstractmethod
-    def setting(self) -> BaseProviderSetting:
-        raise NotImplementedError("Subclasses must implement the 'setting' property.")
-
-    def _create_jitter(self) -> Jitter:
-        try:
-            jitter = Jitter(
-                min_seconds=getattr(
-                    self.setting,
-                    "jitter_min_seconds",
-                    None,
-                ),
-                max_seconds=getattr(
-                    self.setting,
-                    "jitter_max_seconds",
-                    None,
-                ),
-            )
-            return jitter
-        except Exception as e:
-            self.warning(f"Failed to create Jitter: {e}")
-            return Jitter()  # Return a default Jitter instance with no delay
+    def use_cache(self) -> bool:
+        return self.setting.use_cache
 
     @abstractmethod
     def _create_session(self) -> BaseSession:
