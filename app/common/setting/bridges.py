@@ -15,6 +15,11 @@ class BaseProviderSetting(BaseSetting):
         name: 提供商标识名
         type: 提供商类型
         region: 服务地区，默认 "cn"
+        use_cache: 是否启用缓存，默认 True
+        ttl_seconds: 缓存 TTL(秒)
+        ttl_margin: 缓存 TTL 边际(秒)
+        jitter_min_seconds: 请求抖动最小值(秒)
+        jitter_max_seconds: 请求抖动最大值(秒)
 
     Examples:
         >>> setting = BaseProviderSetting(
@@ -31,7 +36,10 @@ class BaseProviderSetting(BaseSetting):
     type: str = Field(..., description="提供商类型")
     region: str = Field("cn", description="服务地区")
     use_cache: bool = Field(True, description="是否启用缓存")
-
+    ttl_seconds: int = Field(None, description="缓存 TTL(秒)")
+    ttl_margin: int = Field(None, description="缓存 TTL 边际(秒)")
+    jitter_min_seconds: float = Field(None, description="请求抖动最小值(秒)")
+    jitter_max_seconds: float = Field(None, description="请求抖动最大值(秒)")
 
 class TushareProviderSetting(BaseProviderSetting):
     """
@@ -42,11 +50,11 @@ class TushareProviderSetting(BaseProviderSetting):
         name:                 固定为 "tushare"
         region:               服务地区，默认 "cn"
         secret:               Tushare API Token
-        ttl_seconds:          缓存 TTL（秒），默认 1800
-        ttl_margin:           缓存 TTL 边际（秒），默认 60
+        ttl_seconds:          缓存 TTL(秒)，默认 1800
+        ttl_margin:           缓存 TTL 边际(秒)，默认 60
         use_cache:            是否启用缓存，默认 True
-        jitter_min_seconds:   请求抖动最小值（秒），默认 1.0
-        jitter_max_seconds:   请求抖动最大值（秒），默认 1.5
+        jitter_min_seconds:   请求抖动最小值(秒)，默认 1.0
+        jitter_max_seconds:   请求抖动最大值(秒)，默认 1.5
 
     Examples:
         >>> ts = TushareProviderSetting(
@@ -59,7 +67,7 @@ class TushareProviderSetting(BaseProviderSetting):
     type: Literal["tushare"] = "tushare"
     name: str = "tushare"
     secret: str = Field(..., description="Tushare API Token")
-    timeout: int = Field(30, description="请求超时时间（秒）")
+    timeout: int = Field(30, description="请求超时时间(秒)")
     ttl_seconds: int = 1800
     ttl_margin: int = 60
     use_cache: bool = True
@@ -85,7 +93,7 @@ class BridgesCacheSetting(BaseSetting):
     Attributes:
         name: 缓存名称，默认 "cache"
         path: 缓存文件路径，默认 ".cache/bridges/cache.duckdb"
-        ttl_hours: 缓存过期时间（小时），默认 48
+        ttl_hours: 缓存过期时间(小时)，默认 48
         ttl_table: TTL 元数据表名，默认 "__system_ttl"
         hash_length: 哈希长度，默认 16
 
