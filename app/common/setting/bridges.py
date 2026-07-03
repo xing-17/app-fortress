@@ -7,6 +7,32 @@ from pydantic import Field
 from app.common.setting.base import BaseSetting
 
 
+class BridgesDestinationSetting(BaseSetting):
+    """
+    Destination 配置项（bridges.yml destinations[]）。
+
+    Attributes:
+        name:        Destination 标识名
+        connection:  引用 connections.yml 中的连接名
+        base_prefix: OSS 路径前缀（如 fortress/data/tushare）
+        format:      写出格式，当前仅支持 parquet
+
+    Examples:
+        >>> dest = BridgesDestinationSetting(
+        ...     name="oss_prod_tushare",
+        ...     connection="oss_prod",
+        ...     base_prefix="fortress/data/tushare",
+        ... )
+        >>> dest.connection  # "oss_prod"
+
+    """
+
+    name: str = Field(..., description="Destination 标识名")
+    connection: str = Field(..., description="引用 connections.yml 中的连接名")
+    base_prefix: str = Field(..., description="写出路径前缀")
+    format: Literal["parquet"] = Field("parquet", description="写出格式")
+
+
 class BaseProviderSetting(BaseSetting):
     """
     数据提供商基础配置。
@@ -127,8 +153,18 @@ class BridgesSetting(BaseSetting):
     """
 
     providers: dict[str, ProviderSetting]
-    source_paths: list[str] = Field(default_factory=list, description="配置来源路径列表")
-    cache: BridgesCacheSetting = Field(default_factory=BridgesCacheSetting, description="缓存配置")
+    destinations: list[BridgesDestinationSetting] = Field(
+        default_factory=list,
+        description="写出目标列表",
+    )
+    source_paths: list[str] = Field(
+        default_factory=list,
+        description="配置来源路径列表",
+    )
+    cache: BridgesCacheSetting = Field(
+        default_factory=BridgesCacheSetting,
+        description="缓存配置",
+    )
 
     def get_provider(
         self,
@@ -155,6 +191,7 @@ class BridgesSetting(BaseSetting):
         result["providers"] = {}
         for name, provider in self.providers.items():
             result["providers"][name] = provider.export()
+        result["destinations"] = [d.export() for d in self.destinations]
         result["source_paths"] = self.source_paths
         result["cache"] = self.cache.export()
         return result
