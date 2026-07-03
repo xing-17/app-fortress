@@ -34,12 +34,11 @@ class _AlphaSession(BaseSession):
 
 
 class _AlphaProvider(BaseProvider):
-    @property
-    def setting(self) -> BaseProviderSetting:
+    def _resolve_setting(self, name: str) -> BaseProviderSetting:
         return _ALPHA_SETTING
 
     def _create_session(self) -> _AlphaSession:
-        return _AlphaSession(name=self.name, type=self.type, region=self.region)
+        return _AlphaSession(setting=self.setting)
 
     def call(self, method: str, *args: Any, **kwargs: Any) -> Any:
         return None
@@ -91,22 +90,26 @@ class TestRegister:
 class TestCreate:
     def test_create_returns_correct_type(self, monkeypatch):
         monkeypatch.setattr(ProviderFactory, "_registry", {"alpha": _AlphaProvider})
+        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": _ALPHA_SETTING})
         result = ProviderFactory.create("alpha")
         assert isinstance(result, _AlphaProvider)
 
     def test_create_returns_base_provider_instance(self, monkeypatch):
         monkeypatch.setattr(ProviderFactory, "_registry", {"alpha": _AlphaProvider})
+        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": _ALPHA_SETTING})
         result = ProviderFactory.create("alpha")
         assert isinstance(result, BaseProvider)
 
     def test_create_returns_new_instance_each_call(self, monkeypatch):
         monkeypatch.setattr(ProviderFactory, "_registry", {"alpha": _AlphaProvider})
+        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": _ALPHA_SETTING})
         a = ProviderFactory.create("alpha")
         b = ProviderFactory.create("alpha")
         assert a is not b
 
-    def test_create_unknown_type_raises_key_error(self, monkeypatch):
+    def test_create_unknown_name_raises_key_error(self, monkeypatch):
         monkeypatch.setattr(ProviderFactory, "_registry", {})
+        monkeypatch.setattr(GlobalSetting.bridges, "providers", {})
         with pytest.raises(KeyError):
             ProviderFactory.create("nonexistent")
 
@@ -119,24 +122,24 @@ class TestCreate:
 class TestBootstrap:
     def test_bootstrap_returns_dict(self, monkeypatch):
         monkeypatch.setattr(ProviderFactory, "_registry", {"alpha": _AlphaProvider})
-        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": None})
+        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": _ALPHA_SETTING})
         result = ProviderFactory.bootstrap()
         assert isinstance(result, dict)
 
     def test_bootstrap_keys_match_setting_providers(self, monkeypatch):
         monkeypatch.setattr(ProviderFactory, "_registry", {"alpha": _AlphaProvider})
-        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": None})
+        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": _ALPHA_SETTING})
         result = ProviderFactory.bootstrap()
         assert set(result.keys()) == {"alpha"}
 
     def test_bootstrap_values_are_provider_instances(self, monkeypatch):
         monkeypatch.setattr(ProviderFactory, "_registry", {"alpha": _AlphaProvider})
-        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": None})
+        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": _ALPHA_SETTING})
         result = ProviderFactory.bootstrap()
         assert isinstance(result["alpha"], BaseProvider)
 
     def test_bootstrap_providers_not_connected(self, monkeypatch):
         monkeypatch.setattr(ProviderFactory, "_registry", {"alpha": _AlphaProvider})
-        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": None})
+        monkeypatch.setattr(GlobalSetting.bridges, "providers", {"alpha": _ALPHA_SETTING})
         result = ProviderFactory.bootstrap()
         assert not result["alpha"]._session.is_ready()

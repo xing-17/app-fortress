@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.bridges.providers.base.session import BaseSession
+from app.common.setting.bridges import BaseProviderSetting
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helper
@@ -31,10 +32,10 @@ from app.bridges.providers.base.session import BaseSession
 class _CountingSession(BaseSession):
     """每次 _create_session 返回递增整数，方便区分新旧 session 实例。"""
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, setting: BaseProviderSetting) -> None:
         self._counter = 0
         self._closed: list[Any] = []
-        super().__init__(**kwargs)
+        super().__init__(setting=setting)
 
     def _create_session(self) -> int:
         self._counter += 1
@@ -45,13 +46,8 @@ class _CountingSession(BaseSession):
 
 
 def _make(ttl_seconds: int | None = None, ttl_margin: int | None = None) -> _CountingSession:
-    return _CountingSession(
-        name="test",
-        type="mock",
-        region="cn",
-        ttl_seconds=ttl_seconds,
-        ttl_margin=ttl_margin,
-    )
+    setting = BaseProviderSetting(name="test", type="mock", ttl_seconds=ttl_seconds, ttl_margin=ttl_margin)
+    return _CountingSession(setting=setting)
 
 
 _FIXED_DT = datetime(2026, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
@@ -331,7 +327,8 @@ class TestGetSession:
             def _create_session(self) -> Any:
                 raise RuntimeError("connection refused")
 
-        s = _BrokenSession(name="x", type="mock", region="cn")
+        setting = BaseProviderSetting(name="x", type="mock")
+        s = _BrokenSession(setting=setting)
         with pytest.raises(RuntimeError, match="connection refused"):
             s.get_session()
 
