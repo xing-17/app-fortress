@@ -42,7 +42,7 @@ _VALID_PROVIDERS_DATA = {
     }
 }
 
-_REQUIRED = {"secret": "testtoken1234567890abcdef"}
+_REQUIRED = {"name": "tushare", "secret": "testtoken1234567890abcdef"}
 
 _ALL_EXPORT_KEYS = [
     "category",
@@ -237,9 +237,13 @@ class TestFromYaml:
         real_path = Path(__file__).parent.parent.parent.parent.parent / "setting" / "bridges.yml"
         if not real_path.is_file():
             pytest.skip("setting/bridges.yml not present")
-        ts = BridgesSetting.from_yaml(real_path).get_provider("tushare")
+        bridges = BridgesSetting.from_yaml(real_path)
+        ts = next(
+            (p for p in bridges.providers.values() if p.type == "tushare" and p.secret),
+            None,
+        )
+        assert ts is not None, "No tushare provider with secret found in bridges.yml"
         assert isinstance(ts, TushareProviderSetting)
-        assert ts.secret
         assert ts.ttl_seconds > 0
 
 

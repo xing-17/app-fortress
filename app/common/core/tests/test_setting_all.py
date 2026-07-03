@@ -20,7 +20,7 @@ import pytest
 import yaml
 
 from app.common.core.setting import CoreSetting, GlobalSetting
-from app.common.setting.bridges import BridgesSetting, TushareProviderSetting
+from app.common.setting.bridges import BridgesSetting
 from app.common.setting.centre import CentreSetting
 from app.common.setting.connections import ConnectionsSetting, OssConnectionSetting
 from app.common.setting.system import SystemSetting
@@ -279,10 +279,6 @@ class TestGetShortcuts:
         with pytest.raises(KeyError):
             GlobalSetting.get_connection("nonexistent")
 
-    def test_get_provider_returns_tushare_setting(self):
-        provider = GlobalSetting.get_provider("tushare")
-        assert isinstance(provider, TushareProviderSetting)
-
     def test_get_provider_missing_raises_keyerror(self):
         with pytest.raises(KeyError):
             GlobalSetting.get_provider("nonexistent")
@@ -314,6 +310,3 @@ class TestSingleton:
 
     def test_global_setting_get_connection_prod(self):
         assert isinstance(GlobalSetting.get_connection("prod"), OssConnectionSetting)
-
-    def test_global_setting_get_provider_tushare(self):
-        assert isinstance(GlobalSetting.get_provider("tushare"), TushareProviderSetting)

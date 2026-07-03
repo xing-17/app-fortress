@@ -36,10 +36,11 @@ class BaseProviderSetting(BaseSetting):
     type: str = Field(..., description="提供商类型")
     region: str = Field("cn", description="服务地区")
     use_cache: bool = Field(True, description="是否启用缓存")
-    ttl_seconds: int = Field(None, description="缓存 TTL(秒)")
-    ttl_margin: int = Field(None, description="缓存 TTL 边际(秒)")
-    jitter_min_seconds: float = Field(None, description="请求抖动最小值(秒)")
-    jitter_max_seconds: float = Field(None, description="请求抖动最大值(秒)")
+    ttl_seconds: int | None = Field(None, description="缓存 TTL(秒)")
+    ttl_margin: int | None = Field(None, description="缓存 TTL 边际(秒)")
+    jitter_min_seconds: float | None = Field(None, description="请求抖动最小值(秒)")
+    jitter_max_seconds: float | None = Field(None, description="请求抖动最大值(秒)")
+
 
 class TushareProviderSetting(BaseProviderSetting):
     """
@@ -47,9 +48,8 @@ class TushareProviderSetting(BaseProviderSetting):
 
     Attributes:
         type:                 固定为 "tushare"，用于类型分发
-        name:                 固定为 "tushare"
         region:               服务地区，默认 "cn"
-        secret:               Tushare API Token
+        secret:               Tushare API Token，可选（dev 实例可不配置）
         ttl_seconds:          缓存 TTL(秒)，默认 1800
         ttl_margin:           缓存 TTL 边际(秒)，默认 60
         use_cache:            是否启用缓存，默认 True
@@ -65,18 +65,17 @@ class TushareProviderSetting(BaseProviderSetting):
     """
 
     type: Literal["tushare"] = "tushare"
-    name: str = "tushare"
-    secret: str = Field(..., description="Tushare API Token")
-    timeout: int = Field(30, description="请求超时时间(秒)")
-    ttl_seconds: int = 1800
-    ttl_margin: int = 60
+    secret: str | None = Field(None, description="Tushare API Token")
+    timeout: int | None = Field(30, description="请求超时时间(秒)")
+    ttl_seconds: int | None = 1800
+    ttl_margin: int | None = 60
     use_cache: bool = True
-    jitter_min_seconds: float = 0.2
-    jitter_max_seconds: float = 1.0
+    jitter_min_seconds: float | None = 0.2
+    jitter_max_seconds: float | None = 1.0
 
     def export(self) -> dict:
         result = super().export()
-        result["secret"] = self.secret[:4] + "***"
+        result["secret"] = (self.secret[:4] + "***") if self.secret else None
         return result
 
 
@@ -105,7 +104,7 @@ class BridgesCacheSetting(BaseSetting):
 
     name: str = "cache"
     path: str = ".cache/bridges/cache.duckdb"
-    ttl_hours: int = 48
+    ttl_hours: int | None = 48
     ttl_table: str = "__system_ttl"
     hash_length: int = 16
 

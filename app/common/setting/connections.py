@@ -49,7 +49,7 @@ class OssConnectionSetting(BaseConnectionSetting):
     endpoint: str
     region: str
     bucket: str
-    url_style: str = "vhost"
+    url_style: str | None = "vhost"
 
     def export(self) -> dict:
         result = super().export()
