@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.bridges.providers.base.provider import BaseProvider
+from app.common.setting.bridges import ProviderSetting
 from app.common.core.setting import GlobalSetting
 
 
@@ -8,13 +9,10 @@ class ProviderFactory:
     """
     Provider 注册工厂。
 
-    基于类级注册表，通过 @ProviderFactory.register(type) 装饰器注册子类；
-    bootstrap() 按 GlobalSetting.bridges.providers 批量创建所有 Provider。
-
     Methods:
-        register:  装饰器，将 Provider 子类注册到全局注册表（key 为 type）
-        create:    按实例名创建并返回新的 Provider 实例
-        bootstrap: 按全局配置批量创建所有 Provider，返回 {name: instance} 字典
+        register(type):  装饰器，将 Provider 子类注册到全局注册表（key 为 type）
+        create(name):    按实例名创建并返回新的 Provider 实例
+        bootstrap():     按全局配置批量创建所有 Provider，返回 {name: instance} 字典
 
     Example:
         >>> @ProviderFactory.register("tushare")
@@ -42,7 +40,7 @@ class ProviderFactory:
         cls, 
         name: str,
     ) -> BaseProvider:
-        providers_setting = GlobalSetting.bridges.providers
+        providers_setting: dict[str, ProviderSetting] = GlobalSetting.bridges.providers
         if name not in providers_setting:
             raise KeyError(f"Provider name '{name}' not found.")
         provider_type = providers_setting[name].type
@@ -54,7 +52,7 @@ class ProviderFactory:
     @classmethod
     def bootstrap(cls) -> dict[str, BaseProvider]:
         result: dict[str, BaseProvider] = {}
-        providers_setting = GlobalSetting.bridges.providers
+        providers_setting: dict[str, ProviderSetting] = GlobalSetting.bridges.providers
         for name in providers_setting.keys():
             result[name] = cls.create(name=name) # name -> instance
         return result
