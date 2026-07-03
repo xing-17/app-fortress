@@ -1,21 +1,18 @@
 """
-综合测试：connections.base.connection + connections.oss.connection
+综合测试：connections.base.connection
 
 覆盖范围
 --------
 - TestBaseConnection   抽象约束、get_connection 懒加载单例、connect / close / is_connected
-- TestOSSConnection    属性初始化、_create_connection（mock oss2）、ping、export
 """
 
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
 from app.bridges.connections.base.connection import BaseConnection
-from app.bridges.connections.oss.connection import OSSConnection
 from app.common.setting.connections import OssConnectionSetting
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -148,60 +145,3 @@ class TestBaseConnection:
 
         result = json.loads(_CountingConnection().describe())
         assert isinstance(result, dict)
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# TestOSSConnection
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-class TestOSSConnection:
-    def test_bucket_name_from_setting(self):
-        assert OSSConnection(setting=_OSS_SETTING).bucket_name == "test-bucket"
-
-    def test_endpoint_from_setting(self):
-        assert OSSConnection(setting=_OSS_SETTING).endpoint == "oss-cn-test.aliyuncs.com"
-
-    def test_region_from_setting(self):
-        assert OSSConnection(setting=_OSS_SETTING).region == "cn-test"
-
-    def test_connection_not_created_on_init(self):
-        assert OSSConnection(setting=_OSS_SETTING)._connection is None
-
-    def test_create_connection_returns_oss_bucket(self, monkeypatch):
-        import oss2
-
-        mock_bucket = MagicMock(spec=oss2.Bucket)
-        monkeypatch.setattr(oss2, "Auth", lambda **kw: MagicMock())
-        monkeypatch.setattr(oss2, "Bucket", lambda **kw: mock_bucket)
-        conn = OSSConnection(setting=_OSS_SETTING)
-        assert conn.get_connection() is mock_bucket
-
-    def test_ping_returns_true_on_success(self, monkeypatch):
-        import oss2
-
-        mock_bucket = MagicMock(spec=oss2.Bucket)
-        mock_bucket.get_bucket_info.return_value = {}
-        monkeypatch.setattr(oss2, "Auth", lambda **kw: MagicMock())
-        monkeypatch.setattr(oss2, "Bucket", lambda **kw: mock_bucket)
-        assert OSSConnection(setting=_OSS_SETTING).ping() is True
-
-    def test_ping_returns_false_on_exception(self, monkeypatch):
-        import oss2
-
-        mock_bucket = MagicMock(spec=oss2.Bucket)
-        mock_bucket.get_bucket_info.side_effect = Exception("refused")
-        monkeypatch.setattr(oss2, "Auth", lambda **kw: MagicMock())
-        monkeypatch.setattr(oss2, "Bucket", lambda **kw: mock_bucket)
-        assert OSSConnection(setting=_OSS_SETTING).ping() is False
-
-    def test_export_contains_bucket(self):
-        assert OSSConnection(setting=_OSS_SETTING).export()["bucket"] == "test-bucket"
-
-    def test_export_contains_endpoint(self):
-        assert OSSConnection(setting=_OSS_SETTING).export()["endpoint"] == "oss-cn-test.aliyuncs.com"
-
-    def test_export_does_not_contain_credentials(self):
-        exported = OSSConnection(setting=_OSS_SETTING).export()
-        assert "access_key_id" not in exported
-        assert "access_key_secret" not in exported
