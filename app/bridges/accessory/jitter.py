@@ -36,6 +36,7 @@ class Jitter(BaseAccessory):
         self.min_seconds: float | None = self._resolve_seconds(min_seconds)
         self.max_seconds: float | None = self._resolve_seconds(max_seconds)
         self._validate()
+        self._set_log_prefix(f"Jitter({self.uuid})")
 
     def _resolve_seconds(
         self,
@@ -70,6 +71,7 @@ class Jitter(BaseAccessory):
             delay = random.uniform(self.min_seconds, self.max_seconds)
             delay_rounded = round(delay, 3)
             time.sleep(delay_rounded)
+            self.debug(f"jit delay: {delay_rounded} seconds")
             return delay_rounded
         else:
             return None
