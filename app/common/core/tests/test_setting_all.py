@@ -119,6 +119,22 @@ def all_custom_paths(
     )
 
 
+@pytest.fixture
+def mock_global_setting(
+    valid_yaml_path,
+    valid_conns_yaml_path,
+    valid_centre_yaml_path,
+    valid_bridges_yaml_path,
+) -> CoreSetting:
+    """创建一个完全独立的 mock CoreSetting，不依赖真实 setting 文件。"""
+    return CoreSetting.load(
+        system_path=valid_yaml_path,
+        conns_path=valid_conns_yaml_path,
+        centre_path=valid_centre_yaml_path,
+        bridges_path=valid_bridges_yaml_path,
+    )
+
+
 @pytest.fixture(autouse=True)
 def restore_class_paths():
     """Restore all CoreSetting class-level paths after each test."""
@@ -271,17 +287,20 @@ class TestDescribe:
 
 
 class TestGetShortcuts:
-    def test_get_connection_returns_oss_setting(self):
-        conn = GlobalSetting.get_connection("prod")
+    def test_get_connection_returns_oss_setting(self, mock_global_setting):
+        """测试 get_connection() 返回正确的 OSS 连接配置（使用 mock 数据）。"""
+        conn = mock_global_setting.get_connection("prod")
         assert isinstance(conn, OssConnectionSetting)
 
-    def test_get_connection_missing_raises_keyerror(self):
+    def test_get_connection_missing_raises_keyerror(self, mock_global_setting):
+        """测试获取不存在的连接时抛出 KeyError（使用 mock 数据）。"""
         with pytest.raises(KeyError):
-            GlobalSetting.get_connection("nonexistent")
+            mock_global_setting.get_connection("nonexistent")
 
-    def test_get_provider_missing_raises_keyerror(self):
+    def test_get_provider_missing_raises_keyerror(self, mock_global_setting):
+        """测试获取不存在的 provider 时抛出 KeyError（使用 mock 数据）。"""
         with pytest.raises(KeyError):
-            GlobalSetting.get_provider("nonexistent")
+            mock_global_setting.get_provider("nonexistent")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -290,23 +309,30 @@ class TestGetShortcuts:
 
 
 class TestSingleton:
-    def test_global_setting_is_coresetting(self):
-        assert isinstance(GlobalSetting, CoreSetting)
+    def test_global_setting_is_coresetting(self, mock_global_setting):
+        """测试 GlobalSetting 是 CoreSetting 实例（使用 mock 数据）。"""
+        assert isinstance(mock_global_setting, CoreSetting)
 
-    def test_global_setting_system_name(self):
-        assert GlobalSetting.system.name == "fortress"
+    def test_global_setting_system_name(self, mock_global_setting):
+        """测试 GlobalSetting system.name（使用 mock 数据）。"""
+        assert mock_global_setting.system.name == "test-fortress"
 
-    def test_global_setting_has_system(self):
-        assert isinstance(GlobalSetting.system, SystemSetting)
+    def test_global_setting_has_system(self, mock_global_setting):
+        """测试 GlobalSetting 包含 system 配置（使用 mock 数据）。"""
+        assert isinstance(mock_global_setting.system, SystemSetting)
 
-    def test_global_setting_has_connections(self):
-        assert isinstance(GlobalSetting.connections, ConnectionsSetting)
+    def test_global_setting_has_connections(self, mock_global_setting):
+        """测试 GlobalSetting 包含 connections 配置（使用 mock 数据）。"""
+        assert isinstance(mock_global_setting.connections, ConnectionsSetting)
 
-    def test_global_setting_has_centre(self):
-        assert isinstance(GlobalSetting.centre, CentreSetting)
+    def test_global_setting_has_centre(self, mock_global_setting):
+        """测试 GlobalSetting 包含 centre 配置（使用 mock 数据）。"""
+        assert isinstance(mock_global_setting.centre, CentreSetting)
 
-    def test_global_setting_has_bridges(self):
-        assert isinstance(GlobalSetting.bridges, BridgesSetting)
+    def test_global_setting_has_bridges(self, mock_global_setting):
+        """测试 GlobalSetting 包含 bridges 配置（使用 mock 数据）。"""
+        assert isinstance(mock_global_setting.bridges, BridgesSetting)
 
-    def test_global_setting_get_connection_prod(self):
-        assert isinstance(GlobalSetting.get_connection("prod"), OssConnectionSetting)
+    def test_global_setting_get_connection_prod(self, mock_global_setting):
+        """测试 GlobalSetting.get_connection('prod') 返回 OSS 连接（使用 mock 数据）。"""
+        assert isinstance(mock_global_setting.get_connection("prod"), OssConnectionSetting)
