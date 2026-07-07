@@ -98,8 +98,7 @@ class BaseProvider(
         raise NotImplementedError("Subclasses must implement the 'call' method.")
 
     def jit(self) -> None:
-        seconds = self.jitter.jit()
-        self.debug(f"jit: {seconds} seconds OK.")
+        self.jitter.jit()
 
     @abstractmethod
     def export(self) -> dict[str, Any]:
