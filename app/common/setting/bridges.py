@@ -30,7 +30,7 @@ class BridgesDestinationSetting(BaseSetting):
     name: str = Field(..., description="Destination 标识名")
     connection: str = Field(..., description="引用 connections.yml 中的连接名")
     base_prefix: str = Field(..., description="写出路径前缀")
-    format: Literal["parquet"] = Field("parquet", description="写出格式")
+    format: Literal["parquet", "csv"] = Field("parquet", description="写出格式")
 
 
 class BaseProviderSetting(BaseSetting):
@@ -185,6 +185,15 @@ class BridgesSetting(BaseSetting):
 
     def get_cache(self) -> BridgesCacheSetting:
         return self.cache
+
+    def get_destination(
+        self,
+        name: str | None = None,
+    ) -> BridgesDestinationSetting:
+        for dest in self.destinations:
+            if dest.name == name:
+                return dest
+        raise KeyError(f"Destination not found: {name!r}")
 
     def export(self) -> dict:
         result = {}
