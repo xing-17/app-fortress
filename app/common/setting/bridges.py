@@ -9,13 +9,13 @@ from app.common.setting.base import BaseSetting
 
 class BridgesDestinationSetting(BaseSetting):
     """
-    Destination 配置项（bridges.yml destinations[]）。
+    Destination 配置项(bridges.yml destinations[])。
 
     Attributes:
         name:        Destination 标识名
         connection:  引用 connections.yml 中的连接名
-        base_prefix: OSS 路径前缀（如 fortress/data/tushare）
-        format:      写出格式，当前仅支持 parquet
+        base_prefix: OSS 路径前缀(如 fortress/data/tushare)
+        format:      写出格式, 当前仅支持 parquet
 
     Examples:
         >>> dest = BridgesDestinationSetting(
@@ -27,10 +27,22 @@ class BridgesDestinationSetting(BaseSetting):
 
     """
 
-    name: str = Field(..., description="Destination 标识名")
-    connection: str = Field(..., description="引用 connections.yml 中的连接名")
-    base_prefix: str = Field(..., description="写出路径前缀")
-    format: Literal["parquet", "csv"] = Field("parquet", description="写出格式")
+    name: str = Field(
+        ...,
+        description="Destination 标识名",
+    )
+    connection: str = Field(
+        ...,
+        description="引用 connections.yml 中的连接名",
+    )
+    base_prefix: str = Field(
+        ...,
+        description="写出路径前缀",
+    )
+    format: Literal["parquet", "csv"] = Field(
+        "parquet",
+        description="写出格式",
+    )
 
 
 class BaseProviderSetting(BaseSetting):
@@ -40,8 +52,8 @@ class BaseProviderSetting(BaseSetting):
     Attributes:
         name: 提供商标识名
         type: 提供商类型
-        region: 服务地区，默认 "cn"
-        use_cache: 是否启用缓存，默认 True
+        region: 服务地区, 默认 "cn"
+        use_cache: 是否启用缓存, 默认 True
         ttl_seconds: 缓存 TTL(秒)
         ttl_margin: 缓存 TTL 边际(秒)
         jitter_min_seconds: 请求抖动最小值(秒)
@@ -58,14 +70,43 @@ class BaseProviderSetting(BaseSetting):
         >>> print(setting.region)  # cn
     """
 
-    name: str = Field(..., description="提供商标识名")
-    type: str = Field(..., description="提供商类型")
-    region: str = Field("cn", description="服务地区")
-    use_cache: bool = Field(True, description="是否启用缓存")
-    ttl_seconds: int | None = Field(None, description="缓存 TTL(秒)")
-    ttl_margin: int | None = Field(None, description="缓存 TTL 边际(秒)")
-    jitter_min_seconds: float | None = Field(None, description="请求抖动最小值(秒)")
-    jitter_max_seconds: float | None = Field(None, description="请求抖动最大值(秒)")
+    name: str = Field(
+        ...,
+        description="提供商标识名",
+    )
+    type: str = Field(
+        ...,
+        description="提供商类型",
+    )
+    region: str = Field(
+        "cn",
+        description="服务地区",
+    )
+    use_cache: bool = Field(
+        True,
+        description="是否启用缓存",
+    )
+    ttl_seconds: int | None = Field(
+        None,
+        description="缓存 TTL(秒)",
+    )
+    ttl_margin: int | None = Field(
+        None,
+        description="缓存 TTL 边际(秒)",
+    )
+    jitter_min_seconds: float | None = Field(
+        None,
+        description="请求抖动最小值(秒)",
+    )
+    jitter_max_seconds: float | None = Field(
+        None,
+        description="请求抖动最大值(秒)",
+    )
+    max_threads: int = Field(
+        1,
+        description="Provider 内并发线程数(1=串行, N>1=并发执行 SourceContext)",
+        ge=1,
+    )
 
 
 class TushareProviderSetting(BaseProviderSetting):
@@ -73,14 +114,14 @@ class TushareProviderSetting(BaseProviderSetting):
     Tushare 数据提供商配置。
 
     Attributes:
-        type:                 固定为 "tushare"，用于类型分发
-        region:               服务地区，默认 "cn"
-        secret:               Tushare API Token，可选（dev 实例可不配置）
-        ttl_seconds:          缓存 TTL(秒)，默认 1800
-        ttl_margin:           缓存 TTL 边际(秒)，默认 60
-        use_cache:            是否启用缓存，默认 True
-        jitter_min_seconds:   请求抖动最小值(秒)，默认 1.0
-        jitter_max_seconds:   请求抖动最大值(秒)，默认 1.5
+        type:                 固定为 "tushare", 用于类型分发
+        region:               服务地区, 默认 "cn"
+        secret:               Tushare API Token, 可选(dev 实例可不配置)
+        ttl_seconds:          缓存 TTL(秒), 默认 1800
+        ttl_margin:           缓存 TTL 边际(秒), 默认 60
+        use_cache:            是否启用缓存, 默认 True
+        jitter_min_seconds:   请求抖动最小值(秒), 默认 1.0
+        jitter_max_seconds:   请求抖动最大值(秒), 默认 1.5
 
     Examples:
         >>> ts = TushareProviderSetting(
@@ -111,16 +152,36 @@ ProviderSetting = Annotated[
 ]
 
 
+class BridgesExecutionSetting(BaseSetting):
+    """
+    Bridges 执行配置(bridges.yml bridges 节)。
+
+    Attributes:
+        max_threads: 跨 provider 并发线程数。
+                     1 = 串行执行(默认); N > 1 = 同时执行 N 个 PipelineContext。
+
+    Examples:
+        >>> exec_setting = BridgesExecutionSetting(max_threads=4)
+        >>> print(exec_setting.max_threads)  # 4
+    """
+
+    max_threads: int = Field(
+        1,
+        description="跨 provider 并发线程数(1=串行, N>1=并发执行 PipelineContext)",
+        ge=1,
+    )
+
+
 class BridgesCacheSetting(BaseSetting):
     """
     缓存配置。
 
     Attributes:
-        name: 缓存名称，默认 "cache"
-        path: 缓存文件路径，默认 ".cache/bridges/cache.duckdb"
-        ttl_hours: 缓存过期时间(小时)，默认 48
-        ttl_table: TTL 元数据表名，默认 "__system_ttl"
-        hash_length: 哈希长度，默认 16
+        name: 缓存名称, 默认 "cache"
+        path: 缓存文件路径, 默认 ".cache/bridges/cache.duckdb"
+        ttl_hours: 缓存过期时间(小时), 默认 48
+        ttl_table: TTL 元数据表名, 默认 "__system_ttl"
+        hash_length: 哈希长度, 默认 16
 
     Examples:
         >>> cache_setting = BridgesCacheSetting()
@@ -140,7 +201,7 @@ class BridgesSetting(BaseSetting):
     数据提供商配置集合。
 
     Attributes:
-        providers: 提供商配置字典，键为提供商名称，值为具体的提供商配置
+        providers: 提供商配置字典, 键为提供商名称, 值为具体的提供商配置
 
     Methods:
         get_provider: 根据提供商名称获取对应的提供商配置
@@ -152,6 +213,10 @@ class BridgesSetting(BaseSetting):
 
     """
 
+    bridges: BridgesExecutionSetting = Field(
+        default_factory=BridgesExecutionSetting,
+        description="Bridges 执行配置",
+    )
     providers: dict[str, ProviderSetting]
     destinations: list[BridgesDestinationSetting] = Field(
         default_factory=list,
@@ -197,6 +262,7 @@ class BridgesSetting(BaseSetting):
 
     def export(self) -> dict:
         result = {}
+        result["bridges"] = self.bridges.export()
         result["providers"] = {}
         for name, provider in self.providers.items():
             result["providers"][name] = provider.export()
