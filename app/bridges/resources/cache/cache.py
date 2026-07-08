@@ -156,7 +156,7 @@ class BridgesCache(
         else:
             raise ValueError(f"Unsupported data type: {type(data)}")
 
-    def list_tables(self) -> list[str]:
+    def _list_tables(self) -> list[str]:
         query = f"""
             SELECT table_name 
             FROM information_schema.tables 
@@ -215,7 +215,7 @@ class BridgesCache(
     ) -> int:
         n_count = 0
         if identifier is None:
-            for _identifier in self.list_tables():
+            for _identifier in self._list_tables():
                 if not self._check_valid(_identifier):
                     self._delete_table(_identifier)
                     n_count += 1
@@ -338,7 +338,7 @@ class BridgesCache(
         with self._lock:
             if key is None:
                 # 删除全部
-                identifiers = self.list_tables()
+                identifiers = self._list_tables()
                 for identifier in identifiers:
                     self._delete_table(identifier)
                 self.debug(f"reset: all {len(identifiers)} entries OK.")
@@ -374,9 +374,10 @@ class BridgesCache(
         self.debug(f"clean: duration {seconds:.3f}s.")
 
     def refresh(self) -> None:
-        self.close()
-        self.connect()
-        self.ensure_ttl_table()
+        with self._lock:
+            self.close()
+            self.connect()
+            self.ensure_ttl_table()
         self.clean()
         self.info("refresh OK.")
 

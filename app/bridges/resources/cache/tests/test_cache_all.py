@@ -348,7 +348,7 @@ class TestReset:
         cache.write("k1", _SAMPLE_DF)
         cache.write("k2", _SAMPLE_DF)
         cache.reset()
-        assert cache.list_tables() == []
+        assert cache._list_tables() == []
 
     def test_reset_all_clears_ttl_table(self, cache: BridgesCache):
         cache.write("k1", _SAMPLE_DF)
@@ -420,29 +420,29 @@ class TestClean:
 
 class TestListTables:
     def test_empty_db_returns_empty_list(self, cache: BridgesCache):
-        assert cache.list_tables() == []
+        assert cache._list_tables() == []
 
     def test_returns_all_data_tables(self, cache: BridgesCache):
         cache.write("k1", _SAMPLE_DF)
         cache.write("k2", _SAMPLE_DF)
-        tables = cache.list_tables()
+        tables = cache._list_tables()
         assert len(tables) == 2
 
     def test_does_not_include_ttl_table(self, cache: BridgesCache):
         cache.write("k1", _SAMPLE_DF)
-        tables = cache.list_tables()
+        tables = cache._list_tables()
         assert cache._ttl_table not in tables
 
     def test_count_increases_with_each_write(self, cache: BridgesCache):
         cache.write("k1", _SAMPLE_DF)
-        assert len(cache.list_tables()) == 1
+        assert len(cache._list_tables()) == 1
         cache.write("k2", _SAMPLE_DF)
-        assert len(cache.list_tables()) == 2
+        assert len(cache._list_tables()) == 2
 
     def test_overwrite_does_not_increase_count(self, cache: BridgesCache):
         cache.write("k1", _SAMPLE_DF)
         cache.write("k1", _SAMPLE_DF)
-        assert len(cache.list_tables()) == 1
+        assert len(cache._list_tables()) == 1
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -461,7 +461,7 @@ class TestPartitionIsolation:
         df_b = pl.DataFrame({"val": [2]})
         cache.write("key", df_a, partition=["p=A"])
         cache.write("key", df_b, partition=["p=B"])
-        assert len(cache.list_tables()) == 2
+        assert len(cache._list_tables()) == 2
 
     def test_partition_data_is_independent(self, cache: BridgesCache):
         df_a = pl.DataFrame({"val": [111]})
@@ -482,7 +482,7 @@ class TestPartitionIsolation:
     def test_no_partition_and_with_partition_are_independent(self, cache: BridgesCache):
         cache.write("key", _SAMPLE_DF)
         cache.write("key", _SAMPLE_DF, partition=["p=X"])
-        assert len(cache.list_tables()) == 2
+        assert len(cache._list_tables()) == 2
 
 
 # ──────────────────────────────────────────────────────────────────────────────
