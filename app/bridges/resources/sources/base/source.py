@@ -93,10 +93,6 @@ class BaseSource(
         self.coolant = self._resolve_coolant()
         self.paginate = self._resolve_paginate()
 
-        # 主动初始化 LogPlugin 的 _log_stream（延迟初始化机制）
-        # 确保在 _call_with_retry 中使用 before_sleep_log 时不会报错
-        self.debug("")  # 触发 _log_stream 初始化
-
     def _resolve_coolant(self) -> Coolant:
         return Coolant(
             interval=self.setting.coolant.interval,

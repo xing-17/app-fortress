@@ -1,0 +1,49 @@
+name: tushare_stock_capflow
+provider_type: tushare
+method: moneyflow
+strategy: by_tradedate
+partition:
+  prefix: date
+  column: "trade_date"
+paginate:
+  page_size: 6000
+  max_pages: 10
+coolant:
+  interval: 0
+retry:
+  max_retries: 2
+  interval: 30
+  backoff_rate: 1
+  ignore_patterns:
+    - "不存在"
+params:
+  - trade_date
+fields:
+  - ts_code
+  - trade_date
+  - buy_sm_vol
+  - buy_sm_amount
+  - sell_sm_vol
+  - sell_sm_amount
+  - buy_md_vol
+  - buy_md_amount
+  - sell_md_vol
+  - sell_md_amount
+  - buy_lg_vol
+  - buy_lg_amount
+  - sell_lg_vol
+  - sell_lg_amount
+  - buy_elg_vol
+  - buy_elg_amount
+  - sell_elg_vol
+  - sell_elg_amount
+  - net_mf_vol
+  - net_mf_amount
+tags:
+  name: tushare_stock_capflow
+  region: cn
+  provider: tushare
+  domain: stock
+  subdomain: capflow
+  frequency: day
+  position: after_market
