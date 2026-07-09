@@ -11,20 +11,34 @@ from app.common.core.setting import GlobalSetting
 
 class SourceFactory:
     """
-    Source 注册工厂。
+    数据源注册工厂。
 
-    按 provider_type 注册 Source 子类，并依据 bridges.yml 的
-    source_paths 扫描所有 YAML 文件完成批量发现。
+    提供基于 provider_type 的注册机制和自动发现功能，支持：
+    - 装饰器注册：@SourceFactory.register("provider_type")
+    - 单文件加载：from_yaml(path)
+    - 批量发现：bootstrap() 扫描 source_paths 下的所有 YAML 文件
+
+    Attributes:
+        _registry (dict): provider_type → Source 类的映射表
 
     Methods:
-        register(provider_type): 装饰器，将 Source 子类注册到注册表
-        from_yaml(path):         从单个 YAML 文件构建 Source 实例
-        bootstrap():             扫描 source_paths，返回 {name: source}
+        register(provider_type): 装饰器，注册 Source 子类
+        from_yaml(path): 从单个 YAML 文件构建 Source 实例
+        bootstrap(): 扫描 source_paths，返回 {name: source} 字典
 
     Example:
+        >>> # 注册 Source 子类
         >>> @SourceFactory.register("tushare")
-        ... class TushareSource(BaseSource): ...
+        ... class TushareSource(BaseSource):
+        ...     pass
+        >>>
+        >>> # 从单个文件加载
+        >>> source = SourceFactory.from_yaml("items/tushare/tushare_stock_daily.yaml")
+        >>>
+        >>> # 批量发现所有 source
         >>> sources = SourceFactory.bootstrap()
+        >>> print(sources.keys())
+        dict_keys(['tushare_stock_daily', 'tushare_stock_capflow', ...])
 
     """
 

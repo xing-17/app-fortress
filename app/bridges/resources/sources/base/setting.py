@@ -85,6 +85,10 @@ class RetrySetting(BaseSetting):
         None,
         description="退避倍率, 1.0 = 固定间隔, 2.0 = 指数退避",
     )
+    ignore_patterns: list[str] = Field(
+        default_factory=list,
+        description="忽略重试的异常",
+    )
 
 
 class BaseSourceSetting(BaseSetting):
@@ -119,6 +123,7 @@ class BaseSourceSetting(BaseSetting):
         ...,
         description="数据流唯一标识",
     )
+    setting_type: str = "base"
     provider_type: str = Field(
         ...,
         description="provider类型, 如 tushare",
@@ -131,16 +136,22 @@ class BaseSourceSetting(BaseSetting):
         ...,
         description="数据流策略",
     )
-
     partition: PartitionSetting = Field(
         ...,
         description="分区设置",
+    )
+    paginate: PaginateSetting = Field(
+        default_factory=PaginateSetting,
+        description="分页设置",
+    )
+    coolant: CoolantSetting = Field(
+        default_factory=CoolantSetting,
+        description="冷却设置",
     )
     retry: RetrySetting = Field(
         default_factory=RetrySetting,
         description="重试设置",
     )
-
     params: list[str] = Field(
         default_factory=list,
         description="可用运行时参数名",
@@ -157,10 +168,13 @@ class BaseSourceSetting(BaseSetting):
     def export(self) -> dict[str, Any]:
         return {
             "name": self.name,
+            "setting_type": self.setting_type,
             "provider_type": self.provider_type,
             "method": self.method,
             "strategy": self.strategy,
             "partition": self.partition.export(),
+            "paginate": self.paginate.export(),
+            "coolant": self.coolant.export(),
             "retry": self.retry.export(),
             "params": self.params,
             "fields": self.fields,
