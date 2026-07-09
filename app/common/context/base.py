@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
@@ -54,15 +55,33 @@ class BaseContext(
 
     """
 
+    id_prefix: ClassVar[str] = ""
+    id_length: ClassVar[int] = 8
+
     created_at: datetime | None = Field(default=None, frozen=True)
+    id: str | None = Field(default=None, frozen=True)
+
+    @classmethod
+    def _generate_ctx_id(cls) -> str:
+        value = uuid.uuid4().hex[: cls.id_length]
+        if cls.id_prefix:
+            return f"{cls.id_prefix}-{value}"
+        else:
+            return value
 
     @model_validator(mode="after")
-    def set_created_at(self) -> BaseContext:
+    def set_system_fields(self) -> BaseContext:
         if self.created_at is None:
             object.__setattr__(
                 self,
                 "created_at",
                 self._get_current_datetime(),
+            )
+        if self.id is None:
+            object.__setattr__(
+                self,
+                "id",
+                self._generate_ctx_id(),
             )
         return self
 

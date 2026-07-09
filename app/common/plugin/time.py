@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
 
 from app.common.core.setting import GlobalSetting
@@ -39,5 +39,48 @@ class TimePlugin:
     def _get_current_datetime(self) -> datetime:
         return datetime.now(self._time_zoneinfo)
 
-    def _get_current_date(self) -> datetime.date:
+    def _get_current_date(self) -> date:
         return datetime.now(self._time_zoneinfo).date()
+
+    def _read_date(
+        self,
+        value: str | date | None = None,
+        format: str | None = "%Y-%m-%d",
+    ) -> date:
+        if value is None or value == "":
+            return self._get_current_date()
+        if isinstance(value, date):
+            return value
+        return datetime.strptime(value, format).date()
+
+    def _read_time(
+        self,
+        value: str | time | None = None,
+        format: str | None = "%H:%M:%S",
+    ) -> time:
+        if value is None or value == "":
+            return self._get_current_datetime().time()
+        if isinstance(value, time):
+            return value
+        return datetime.strptime(value, format).time()
+
+    def _read_datetime(
+        self,
+        value: str | datetime | None = None,
+        format: str | None = "%Y-%m-%d %H:%M:%S",
+    ) -> datetime:
+        if value is None or value == "":
+            return self._get_current_datetime()
+        if isinstance(value, datetime):
+            return value
+        return datetime.strptime(value, format)
+
+    def _read_timestamp(
+        self,
+        value: str | float | int | None = None,
+    ) -> float:
+        if value is None or value == "":
+            return self._get_current_timestamp()
+        if isinstance(value, (float, int)):
+            return float(value)
+        return float(value)
