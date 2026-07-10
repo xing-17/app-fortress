@@ -160,8 +160,8 @@ class TestRun:
         with patch.object(strategy, "_get_stock_tradedates") as mock_get_dates:
             mock_get_dates.return_value = [date(2024, 1, 2), date(2024, 1, 3)]
             result = strategy.run(mock_provider, params)
-            assert result[0]["trade_date"] == "2024-01-02"
-            assert result[1]["trade_date"] == "2024-01-03"
+            assert result[0]["trade_date"] == "20240102"
+            assert result[1]["trade_date"] == "20240103"
 
     def test_run_preserves_other_params(self, strategy, mock_provider):
         """测试 run() 保留其他参数"""

@@ -69,7 +69,7 @@ class TushareByTradedate(BaseStrategy):
         params.pop("end_date", None)
         for d in all_dates:
             payload = params.copy()
-            payload["trade_date"] = d.strftime("%Y-%m-%d")
+            payload["trade_date"] = d.strftime("%Y%m%d")
             result.append(payload)
         return result
 
