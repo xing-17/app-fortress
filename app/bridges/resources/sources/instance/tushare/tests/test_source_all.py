@@ -223,7 +223,7 @@ class TestBuildParams:
 
     def test_build_params_with_fields_joins_to_string(self):
         """验证有 fields 时拼接为逗号分隔字符串"""
-        setting = _create_minimal_setting(fields=["ts_code", "trade_date", "close"])
+        setting = _create_minimal_setting(fields=["ts_code", "trade_date", "close"], extra={"include_fields": True})
         source = TushareSource(setting=setting)
         result = source.build_params({"date": "20240101"})
         assert result["fields"] == "ts_code,trade_date,close"
@@ -654,6 +654,7 @@ class TestIntegration:
             coolant=CoolantSetting(interval=0.01),
             params=["trade_date"],
             fields=["ts_code", "close"],
+            extra={"include_fields": True},
         )
         source = TushareSource(setting=setting)
 

@@ -18,27 +18,69 @@ retry:
     - "不存在"
 params:
   - trade_date
+extra:
+  include_fields: true
 fields:
-  - ts_code
-  - trade_date
-  - buy_sm_vol
-  - buy_sm_amount
-  - sell_sm_vol
-  - sell_sm_amount
-  - buy_md_vol
-  - buy_md_amount
-  - sell_md_vol
-  - sell_md_amount
-  - buy_lg_vol
-  - buy_lg_amount
-  - sell_lg_vol
-  - sell_lg_amount
-  - buy_elg_vol
-  - buy_elg_amount
-  - sell_elg_vol
-  - sell_elg_amount
-  - net_mf_vol
-  - net_mf_amount
+  - name: ts_code
+    type: Utf8
+    description: 股票代码
+  - name: trade_date
+    type: Date
+    description: 交易日期
+  - name: buy_sm_vol
+    type: Float64
+    description: 小单买入量 (手)
+  - name: buy_sm_amount
+    type: Float64
+    description: 小单买入额 (万元)
+  - name: sell_sm_vol
+    type: Float64
+    description: 小单卖出量 (手)
+  - name: sell_sm_amount
+    type: Float64
+    description: 小单卖出额 (万元)
+  - name: buy_md_vol
+    type: Float64
+    description: 中单买入量 (手)
+  - name: buy_md_amount
+    type: Float64
+    description: 中单买入额 (万元)
+  - name: sell_md_vol
+    type: Float64
+    description: 中单卖出量 (手)
+  - name: sell_md_amount
+    type: Float64
+    description: 中单卖出额 (万元)
+  - name: buy_lg_vol
+    type: Float64
+    description: 大单买入量 (手)
+  - name: buy_lg_amount
+    type: Float64
+    description: 大单买入额 (万元)
+  - name: sell_lg_vol
+    type: Float64
+    description: 大单卖出量 (手)
+  - name: sell_lg_amount
+    type: Float64
+    description: 大单卖出额 (万元)
+  - name: buy_elg_vol
+    type: Float64
+    description: 超大单买入量 (手)
+  - name: buy_elg_amount
+    type: Float64
+    description: 超大单买入额 (万元)
+  - name: sell_elg_vol
+    type: Float64
+    description: 超大单卖出量 (手)
+  - name: sell_elg_amount
+    type: Float64
+    description: 超大单卖出额 (万元)
+  - name: net_mf_vol
+    type: Float64
+    description: 净流入量 (手)
+  - name: net_mf_amount
+    type: Float64
+    description: 净流入额 (万元)
 tags:
   name: tushare_stock_capflow
   region: cn

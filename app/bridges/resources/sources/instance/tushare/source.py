@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import polars as pl
@@ -62,9 +63,10 @@ class TushareSource(BaseSource):
 
         """
         result = params.copy()
-        if self.setting.fields:
-            # Tushare 特有: 部分source需要指定fields参数
-            result["fields"] = ",".join(self.setting.fields)
+        if "include_fields" in self.setting.extra:
+            result.pop("include_fields", None)
+            field_names = ",".join(self.setting.field_names)
+            result["fields"] = field_names
         return result
 
     def _fetch_all(
@@ -106,6 +108,12 @@ class TushareSource(BaseSource):
             frame_params = params.copy()
             frame_params["offset"] = self.paginate.offset
             frame_params["limit"] = self.paginate.page_size
+            frame_params_repr = json.dumps(
+                frame_params,
+                indent=4,
+                ensure_ascii=False,
+            )
+            self.debug(f"_fetch_all: calling {self.setting.method}, params={frame_params_repr}")
             df = self._call_with_retry(
                 provider=provider,
                 method=self.setting.method,
@@ -127,6 +135,37 @@ class TushareSource(BaseSource):
             self.coolant.run()
 
         if frames:
-            return pl.concat(frames)
+            result = pl.concat(frames)
+            del frames
+            return result
         else:
             return pl.DataFrame()
+
+    def transform(
+        self,
+        data: pl.DataFrame,
+    ) -> pl.DataFrame:
+        if data.is_empty():
+            return data
+
+        for field in self.setting.field_schemas:
+            if field.name not in data.columns:
+                continue
+
+            # Date 类型：解析 + 格式化
+            if field.type == "Date":
+                data = data.with_columns(pl.col(field.name).str.to_date("%Y%m%d").dt.strftime("%Y-%m-%d"))
+
+            # Float64 类型：强转（通常已正确，防御性代码）
+            elif field.type == "Float64":
+                data = data.with_columns(pl.col(field.name).cast(pl.Float64))
+
+            # Int64 类型：强转
+            elif field.type == "Int64":
+                data = data.with_columns(pl.col(field.name).cast(pl.Int64))
+
+            # Utf8 类型：强转字符串
+            elif field.type == "Utf8":
+                data = data.with_columns(pl.col(field.name).cast(pl.Utf8))
+
+        return data

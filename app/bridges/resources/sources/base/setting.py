@@ -91,6 +91,22 @@ class RetrySetting(BaseSetting):
     )
 
 
+class FieldSchema(BaseSetting):
+    """
+    单个字段的 schema。
+
+    Attributes:
+        name: 字段名
+        type: 字段类型，如 Utf8, Float64, Date, Int64，None 表示不指定类型
+        description: 字段描述，None 表示不指定描述
+
+    """
+
+    name: str
+    type: str | None = None  # Utf8, Float64, Date, Int64
+    description: str | None = None  # 字段描述
+
+
 class BaseSourceSetting(BaseSetting):
     """
     数据源配置基类。
@@ -156,7 +172,11 @@ class BaseSourceSetting(BaseSetting):
         default_factory=list,
         description="可用运行时参数名",
     )
-    fields: list[str] = Field(
+    extra: dict[str, Any] = Field(
+        default_factory=dict,
+        description="额外配置",
+    )
+    fields: list[str | FieldSchema] = Field(
         default_factory=list,
         description="请求字段列表",
     )
@@ -164,6 +184,26 @@ class BaseSourceSetting(BaseSetting):
         default_factory=dict,
         description="数据流标签列表",
     )
+
+    @property
+    def field_schemas(self) -> list[FieldSchema]:
+        result = []
+        for f in self.fields:
+            if isinstance(f, str):
+                result.append(FieldSchema(name=f))
+            else:
+                result.append(f)
+        return result
+
+    @property
+    def field_names(self) -> list[str]:
+        names = []
+        for f in self.fields:
+            if isinstance(f, str):
+                names.append(f)
+            else:
+                names.append(f.name)
+        return names
 
     def export(self) -> dict[str, Any]:
         return {
@@ -177,6 +217,7 @@ class BaseSourceSetting(BaseSetting):
             "coolant": self.coolant.export(),
             "retry": self.retry.export(),
             "params": self.params,
-            "fields": self.fields,
+            "extra": self.extra,
+            "fields": self.field_names,
             "tags": self.tags,
         }

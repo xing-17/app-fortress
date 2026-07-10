@@ -92,6 +92,7 @@ class BaseSource(
         self.tags = setting.tags
         self.coolant = self._resolve_coolant()
         self.paginate = self._resolve_paginate()
+        self._set_log_prefix(f"Source({self.name})")
 
     def _resolve_coolant(self) -> Coolant:
         return Coolant(
@@ -127,7 +128,6 @@ class BaseSource(
         if use_cache and cache.check(cache_key, cache_partition):
             data = cache.read(cache_key, cache_partition)
             if data is not None and not data.is_empty():
-                self.debug(f"run: cache found [{cache_key}, {cache_partition}]")
                 return data
 
         # Cache miss: fetch
@@ -219,6 +219,13 @@ class BaseSource(
         params: dict[str, Any],
     ) -> pl.DataFrame:
         raise NotImplementedError
+
+    def transform(
+        self,
+        data: pl.DataFrame,
+    ) -> pl.DataFrame:
+        # Optional for subclasses to override for data transformation
+        return data
 
     def export(self) -> dict:
         return {
