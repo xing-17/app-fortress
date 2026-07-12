@@ -155,12 +155,12 @@ class TestOSSDestinationWrite:
     def test_missing_partition_col_raises_value_error(self):
         dest, _ = _make_dest()
         with pytest.raises(ValueError, match="Partition column"):
-            dest.write(pl.DataFrame({"a": [1]}), "tbl", "trade_date", "date")
+            dest.write_source(pl.DataFrame({"a": [1]}), "tbl", "trade_date", "date")
 
     def test_writes_one_file_per_unique_partition(self):
         mb = _MockBucket()
         dest, _ = _make_dest(bucket=mb)
-        dest.write(
+        dest.write_source(
             pl.DataFrame({"trade_date": ["2024-01-01", "2024-01-02"], "v": [1.0, 2.0]}),
             "tbl",
             "trade_date",
@@ -171,31 +171,31 @@ class TestOSSDestinationWrite:
     def test_path_contains_base_prefix(self):
         mb = _MockBucket()
         dest, _ = _make_dest(bucket=mb, base_prefix="fortress/data")
-        dest.write(pl.DataFrame({"d": ["2024-01-01"], "v": [1]}), "tbl", "d", "date")
+        dest.write_source(pl.DataFrame({"d": ["2024-01-01"], "v": [1]}), "tbl", "d", "date")
         assert mb.put_calls[0][0].startswith("fortress/data/")
 
     def test_path_contains_table_name(self):
         mb = _MockBucket()
         dest, _ = _make_dest(bucket=mb)
-        dest.write(pl.DataFrame({"d": ["2024-01-01"], "v": [1]}), "my_table", "d", "date")
+        dest.write_source(pl.DataFrame({"d": ["2024-01-01"], "v": [1]}), "my_table", "d", "date")
         assert "/my_table/" in mb.put_calls[0][0]
 
     def test_path_contains_partition_segment(self):
         mb = _MockBucket()
         dest, _ = _make_dest(bucket=mb)
-        dest.write(pl.DataFrame({"d": ["2024-01-05"], "v": [1]}), "tbl", "d", "date")
+        dest.write_source(pl.DataFrame({"d": ["2024-01-05"], "v": [1]}), "tbl", "d", "date")
         assert "/date=2024-01-05/" in mb.put_calls[0][0]
 
     def test_path_extension_matches_parquet_format(self):
         mb = _MockBucket()
         dest, _ = _make_dest(bucket=mb, format="parquet")
-        dest.write(pl.DataFrame({"d": ["2024-01-01"], "v": [1]}), "tbl", "d", "date")
+        dest.write_source(pl.DataFrame({"d": ["2024-01-01"], "v": [1]}), "tbl", "d", "date")
         assert mb.put_calls[0][0].endswith(".parquet")
 
     def test_path_extension_matches_csv_format(self):
         mb = _MockBucket()
         dest, _ = _make_dest(bucket=mb, format="csv")
-        dest.write(pl.DataFrame({"d": ["2024-01-01"], "v": [1]}), "tbl", "d", "date")
+        dest.write_source(pl.DataFrame({"d": ["2024-01-01"], "v": [1]}), "tbl", "d", "date")
         assert mb.put_calls[0][0].endswith(".csv")
 
 

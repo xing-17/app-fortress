@@ -105,6 +105,7 @@ class FieldSchema(BaseSetting):
     name: str
     type: str | None = None  # Utf8, Float64, Date, Int64
     description: str | None = None  # 字段描述
+    is_primary: bool = False  # 是否主键
 
 
 class BaseSourceSetting(BaseSetting):
@@ -176,6 +177,10 @@ class BaseSourceSetting(BaseSetting):
         default_factory=dict,
         description="额外配置",
     )
+    quality_enabled: bool = Field(
+        default=False,
+        description="是否启用数据质量检查",
+    )
     fields: list[str | FieldSchema] = Field(
         default_factory=list,
         description="请求字段列表",
@@ -205,7 +210,24 @@ class BaseSourceSetting(BaseSetting):
                 names.append(f.name)
         return names
 
+    @property
+    def primary_fields(self) -> list[str]:
+        primary_names = []
+        for f in self.fields:
+            if isinstance(f, str):
+                continue
+            if f.is_primary:
+                primary_names.append(f.name)
+        return primary_names
+
     def export(self) -> dict[str, Any]:
+        _fields_export: list[dict[str, Any]] = []
+        for f in self.fields:
+            if isinstance(f, str):
+                _fields_export.append({"name": f})
+            else:
+                _fields_export.append(f.export())
+
         return {
             "name": self.name,
             "setting_type": self.setting_type,
@@ -218,6 +240,6 @@ class BaseSourceSetting(BaseSetting):
             "retry": self.retry.export(),
             "params": self.params,
             "extra": self.extra,
-            "fields": self.field_names,
+            "fields": _fields_export,
             "tags": self.tags,
         }

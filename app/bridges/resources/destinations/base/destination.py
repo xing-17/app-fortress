@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import dlt
 import polars as pl
@@ -18,6 +18,9 @@ from app.common.plugin import (
 )
 from app.common.setting.bridges import BridgesDestinationSetting
 
+if TYPE_CHECKING:
+    from app.bridges.sources.quality import SourceQuality
+
 
 class BaseDestination(
     LogPlugin,
@@ -28,7 +31,8 @@ class BaseDestination(
     """
     数据写出目标基类。
 
-    定义 bridges 层写出的通用接口与生命周期管理。子类须实现 write() 和 export()。
+    定义 bridges 层写出的通用接口与生命周期管理。子类须实现 write_source()、
+    write_source_quality() 和 export()。
 
     通过 as_dlt_destination() 将写出逻辑包装为 dlt Destination 对象，
     由 dlt pipeline 负责调用，并获得增量状态管理和 schema 演进能力。
@@ -38,10 +42,16 @@ class BaseDestination(
         name:       实例标识名，来自 setting.name
         connection: 底层连接对象（由 DestinationFactory 注入，可跨实例共享）
 
+    Abstract Methods:
+        write_source():         写出数据源数据（DataFrame）
+        write_source_quality(): 写出数据质量报告
+        export():               导出 destination 配置信息
+
     Example:
         >>> @DestinationFactory.register("oss")
         ... class OSSDestination(BaseDestination):
-        ...     def write(self, df, table_name, partition_col, partition_prefix): ...
+        ...     def write_source(self, df, table_name, partition_col, partition_prefix): ...
+        ...     def write_source_quality(self, quality): ...
         ...     def export(self) -> dict: ...
         >>> dest = OSSDestination(name="oss_prod_tushare", connection=conn)
         >>> dlt_dest = dest.as_dlt_destination(
@@ -71,12 +81,19 @@ class BaseDestination(
         return bridges_setting.get_destination(name=name)
 
     @abstractmethod
-    def write(
+    def write_source(
         self,
         df: pl.DataFrame,
         table_name: str,
         partition_col: str,
         partition_prefix: str,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def write_source_quality(
+        self,
+        quality: SourceQuality,
     ) -> None:
         raise NotImplementedError
 
@@ -96,7 +113,7 @@ class BaseDestination(
             items: pa.Table,
             table: TTableSchema,
         ) -> None:
-            dest_self.write(
+            dest_self.write_source(
                 df=pl.from_arrow(items),
                 table_name=table["name"],
                 partition_col=partition_col,

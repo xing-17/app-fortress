@@ -24,9 +24,11 @@ fields:
   - name: ts_code
     type: Utf8
     description: 股票代码
+    is_primary: true
   - name: trade_date
     type: Date
     description: 交易日期
+    is_primary: true
   - name: buy_sm_vol
     type: Float64
     description: 小单买入量 (手)

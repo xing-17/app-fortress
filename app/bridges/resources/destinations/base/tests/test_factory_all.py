@@ -55,7 +55,10 @@ class _AlphaDestination(BaseDestination):
     def _resolve_setting(self, name: str) -> BridgesDestinationSetting:
         return _DEST_SETTING
 
-    def write(self, df: Any, table_name: str, partition_col: str, partition_prefix: str) -> None:
+    def write_source(self, df: Any, table_name: str, partition_col: str, partition_prefix: str) -> None:
+        pass
+
+    def write_source_quality(self, quality: Any) -> None:
         pass
 
     def export(self) -> dict:

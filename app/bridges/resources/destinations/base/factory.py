@@ -10,9 +10,9 @@ class DestinationFactory:
     Destination 注册工厂。
 
     Methods:
-        register(type): 装饰器，注册 Destination 子类
-        create(name):   按名称创建单个 Destination 实例
-        bootstrap():    按 bridges.yml destinations 批量创建所有实例
+        register(type):             装饰器，注册 Destination 子类
+        create(name, conn):         按名称和连接创建单个 Destination 实例
+        bootstrap(connections):     按 bridges.yml destinations 批量创建所有实例
 
     Example:
         >>> @DestinationFactory.register("oss")

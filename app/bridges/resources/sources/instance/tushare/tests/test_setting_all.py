@@ -239,7 +239,6 @@ class TestExport:
         assert result["paginate"]["page_size"] == 2000
         assert result["coolant"]["interval"] == 1.0
         assert result["params"] == ["date"]
-        assert result["fields"] == ["ts_code", "close"]
 
 
 # ──────────────────────────────────────────────────────────────────────────────

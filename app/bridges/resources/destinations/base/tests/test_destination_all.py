@@ -112,7 +112,10 @@ class TestBaseDestination:
         monkeypatch.setattr(GlobalSetting.bridges, "destinations", [])
 
         class _D(BaseDestination):
-            def write(self, df, table_name, partition_col, partition_prefix) -> None:
+            def write_source(self, df, table_name, partition_col, partition_prefix) -> None:
+                pass
+
+            def write_source_quality(self, quality) -> None:
                 pass
 
             def export(self) -> dict:

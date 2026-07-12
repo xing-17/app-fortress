@@ -306,7 +306,7 @@ class TestBaseSourceSetting:
         assert "partition" in exported
         assert "retry" in exported
         assert exported["params"] == ["date"]
-        assert exported["fields"] == ["close"]
+        assert exported["fields"] == [{"name": "close"}]
 
     def test_export_partition_is_dict(self):
         s = BaseSourceSetting(
