@@ -106,9 +106,15 @@ class BridgesRequestState(TimePlugin):
         self.failed = sum(1 for s in states if s.status == PipeStatus.FAILED)
         self.canceled = sum(1 for s in states if s.status == PipeStatus.CANCELED)
 
-    def finish(self, pipe_nodes):
+    def finish(
+        self,
+        pipe_nodes: list[PipeNode],
+    ) -> None:
         self.pipe_nodes = pipe_nodes
         self.update(pipe_nodes)
+        if self._is_cancelled():
+            # cancel() 已设置 finished_at 和 status，不再覆盖
+            return
         self.finished_at = self._get_current_datetime()
         active = self.success + self.partial
         if active > 0 and self.failed == 0:

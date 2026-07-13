@@ -184,10 +184,10 @@ class BridgesCluster(
                         futures[future] = node
                 for _ in as_completed(futures):
                     req_state.update(nodes)
-                    self._registry.upsert(
-                        request_id=request.id,
-                        data=req_state.export(),
-                    )
+                    # self._registry.upsert(
+                    #     request_id=request.id,
+                    #     data=req_state.export(),
+                    # )
                     if req_state._is_cancelled():
                         for f in futures:
                             f.cancel()  # 尝试取消排队中的 future
@@ -199,10 +199,10 @@ class BridgesCluster(
                     continue
                 node.run()
                 req_state.update(nodes)
-                self._registry.upsert(
-                    request_id=request.id,
-                    data=req_state.export(),
-                )
+                # self._registry.upsert(
+                #     request_id=request.id,
+                #     data=req_state.export(),
+                # )
 
         # Update final state after all nodes have finished
         req_state.finish(nodes)

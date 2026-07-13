@@ -112,14 +112,6 @@ class BridgesResources(
 
     # --------------- Sources Access Methods ---------------
 
-    def get_sources(
-        self,
-        name: str,
-    ) -> list[BaseSource]:
-        if name not in self._sources:
-            raise ValueError(f"Source '{name}' not found.")
-        return [self._sources.get(name)]
-
     def get_sources_by_tags(self, tags: dict[str, str]) -> list[BaseSource]:
         result = []
         for source in self._sources.values():

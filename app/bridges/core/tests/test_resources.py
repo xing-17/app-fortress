@@ -107,15 +107,6 @@ class TestDestinationsAccess:
 
 
 class TestSourcesAccess:
-    def test_get_sources_raises_on_missing(self):
-        """测试 get_sources() 在找不到时抛出异常。"""
-        resources = BridgesResources()
-        try:
-            resources.get_sources("nonexistent_source")
-            assert False, "应该抛出 ValueError"
-        except ValueError as e:
-            assert "not found" in str(e)
-
     def test_get_sources_by_tags_returns_list(self):
         """测试 get_sources_by_tags() 返回列表。"""
         resources = BridgesResources()

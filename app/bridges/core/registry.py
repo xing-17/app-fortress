@@ -58,7 +58,7 @@ class BridgesClusterRegistry(
     def load(self) -> None:
         if not self._path.exists():
             self._data = {}
-            self.info("load: no existing registry, starting fresh.")
+            self.info("load: no existing registry, created new.")
             return
         try:
             with open(self._path, "r", encoding="utf-8") as f:
@@ -66,7 +66,7 @@ class BridgesClusterRegistry(
             self.info(f"load: {len(self._data)} records restored.")
         except Exception as e:
             self._data = {}
-            self.warning(f"load: failed ({e}), starting fresh.")
+            self.warning(f"load: failed ({e}), created new.")
 
     def _flush(self) -> None:
         self._path.parent.mkdir(
