@@ -108,12 +108,14 @@ class TushareSource(BaseSource):
             frame_params = params.copy()
             frame_params["offset"] = self.paginate.offset
             frame_params["limit"] = self.paginate.page_size
-            frame_params_repr = json.dumps(
+            _ = json.dumps(
                 frame_params,
                 indent=4,
                 ensure_ascii=False,
             )
-            self.debug(f"_fetch_all: calling {self.setting.method}, params={frame_params_repr}")
+            self.debug(f"_fetch_all: calling {self.setting.method}")
+            for k, v in frame_params.items():
+                self.debug(f"_fetch_all: param -> {k}: {v}")
             df = self._call_with_retry(
                 provider=provider,
                 method=self.setting.method,

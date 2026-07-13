@@ -20,6 +20,7 @@ params:
   - trade_date
 extra:
   include_fields: true
+quality_enabled: true
 fields:
   - name: ts_code
     type: Utf8
