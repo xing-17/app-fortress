@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import json
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pydantic import Field
 
@@ -54,7 +53,7 @@ class BridgesRequest(BaseContext):
         description="输出目标列表, 例: [file, database]",
     )
 
-    def export(self) -> dict[str, any]:
+    def export(self) -> dict[str, Any]:
         result = super().export()
         result.update(
             {
@@ -65,10 +64,3 @@ class BridgesRequest(BaseContext):
             }
         )
         return result
-
-    def describe(self) -> str:
-        return json.dumps(
-            self.export(),
-            indent=4,
-            ensure_ascii=False,
-        )
