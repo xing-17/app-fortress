@@ -118,11 +118,10 @@ class PipeState(TimePlugin):
             self.status = PipeStatus.PARTIAL
         elif self.failed > 0:
             self.status = PipeStatus.FAILED
+        elif self.total > 0:
+            self.status = PipeStatus.CANCELED  # 有节点但全部被取消
         else:
-            if self.total != 0:  # 全部被取消
-                self.status = PipeStatus.CANCELED
-            else:  # 无节点
-                self.status = PipeStatus.DONE
+            self.status = PipeStatus.DONE  # 无节点，视为成功
 
     # ── 只读属性 ──────────────────────────────────────────────
     @property
