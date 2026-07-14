@@ -8,7 +8,7 @@ from typing import Any
 from app.common.plugin import LogPlugin, TimePlugin
 
 
-class BridgesClusterRegistry(
+class BridgesCoreClusterRegistry(
     LogPlugin,
     TimePlugin,
 ):
@@ -30,7 +30,7 @@ class BridgesClusterRegistry(
         export(): 导出注册表的元信息，包括路径和记录数。
 
     Example:
-        >>> registry = BridgesClusterRegistry(".cache/bridges/registry.json")
+        >>> registry = BridgesCoreClusterRegistry(".cache/bridges/registry.json")
         >>> registry.upsert(
         ...     "req_123",
         ...         {
@@ -52,7 +52,7 @@ class BridgesClusterRegistry(
         self._lock = threading.Lock()
         self._data: dict[str, Any] = {}
         self.file_name = self._path.name
-        self._set_log_prefix(f"BridgesClusterRegistry({self.file_name})")
+        self._set_log_prefix(f"BridgesCoreClusterRegistry({self.file_name})")
         self.load()
 
     def load(self) -> None:

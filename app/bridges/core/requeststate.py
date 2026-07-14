@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from app.bridges.core.request import BridgesRequest
+from app.bridges.core.request import BridgesCoreRequest
 from app.bridges.pipelines.state import PipeStatus
 from app.bridges.sources.state import SourceStatus
 from app.common.plugin import TimePlugin
@@ -15,9 +15,9 @@ if TYPE_CHECKING:
     from app.bridges.pipelines.node import PipeNode
 
 
-class BridgesRequestStatus(str, Enum):
+class BridgesCoreRequestStatus(str, Enum):
     """
-    BridgesRequest 的状态枚举。
+    BridgesCoreRequest 的状态枚举。
 
     Attributes:
         PENDING:  请求已创建，但尚未开始执行。
@@ -43,9 +43,9 @@ class BridgesRequestStatus(str, Enum):
 
 
 @dataclass
-class BridgesRequestState(TimePlugin):
+class BridgesCoreRequestState(TimePlugin):
     """
-    单次 BridgesRequest 的执行状态追踪对象。
+    单次 BridgesCoreRequest 的执行状态追踪对象。
 
     Attributes:
         request:     对应的 BridgesRequest（不可变）
@@ -62,8 +62,8 @@ class BridgesRequestState(TimePlugin):
 
     """
 
-    request: BridgesRequest
-    status: BridgesRequestStatus = BridgesRequestStatus.PENDING
+    request: BridgesCoreRequest
+    status: BridgesCoreRequestStatus = BridgesCoreRequestStatus.PENDING
     pipe_nodes: list[PipeNode] = field(default_factory=list)
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -84,15 +84,15 @@ class BridgesRequestState(TimePlugin):
         self.pipe_nodes = pipe_nodes
         self.total = len(pipe_nodes)
         self.pending = self.total
-        self.status = BridgesRequestStatus.RUNNING
+        self.status = BridgesCoreRequestStatus.RUNNING
         self.started_at = self._get_current_datetime()
 
     def cancel(self) -> None:
-        self.status = BridgesRequestStatus.CANCELED
+        self.status = BridgesCoreRequestStatus.CANCELED
         self.finished_at = self._get_current_datetime()
 
     def _is_cancelled(self) -> bool:
-        return self.status == BridgesRequestStatus.CANCELED
+        return self.status == BridgesCoreRequestStatus.CANCELED
 
     def update(
         self,
@@ -119,13 +119,13 @@ class BridgesRequestState(TimePlugin):
         self.finished_at = self._get_current_datetime()
         active = self.success + self.partial
         if active > 0 and self.failed == 0:
-            self.status = BridgesRequestStatus.DONE
+            self.status = BridgesCoreRequestStatus.DONE
         elif active > 0 and self.failed > 0:
-            self.status = BridgesRequestStatus.PARTIAL
+            self.status = BridgesCoreRequestStatus.PARTIAL
         elif self.failed > 0:
-            self.status = BridgesRequestStatus.FAILED
+            self.status = BridgesCoreRequestStatus.FAILED
         else:
-            self.status = BridgesRequestStatus.CANCELED
+            self.status = BridgesCoreRequestStatus.CANCELED
 
     # ── 只读属性 ──────────────────────────────────────────────
 
@@ -137,15 +137,15 @@ class BridgesRequestState(TimePlugin):
 
     @property
     def succeeded(self) -> bool:
-        return self.status == BridgesRequestStatus.DONE
+        return self.status == BridgesCoreRequestStatus.DONE
 
     @property
     def finished(self) -> bool:
         return self.status in {
-            BridgesRequestStatus.DONE,
-            BridgesRequestStatus.PARTIAL,
-            BridgesRequestStatus.FAILED,
-            BridgesRequestStatus.CANCELED,
+            BridgesCoreRequestStatus.DONE,
+            BridgesCoreRequestStatus.PARTIAL,
+            BridgesCoreRequestStatus.FAILED,
+            BridgesCoreRequestStatus.CANCELED,
         }
 
     @property

@@ -14,7 +14,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from app.bridges.core.registry import BridgesClusterRegistry
+from app.bridges.core.registry import BridgesCoreClusterRegistry
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TestRegistryBasic
@@ -26,7 +26,7 @@ class TestRegistryBasic:
         """测试创建新的注册表文件。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
             assert registry._path == path
             assert registry._data == {}
 
@@ -45,7 +45,7 @@ class TestRegistryBasic:
                 json.dump(existing_data, f)
 
             # 加载注册表
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
             assert len(registry._data) == 2
             assert "req_123" in registry._data
             assert "req_456" in registry._data
@@ -54,7 +54,7 @@ class TestRegistryBasic:
         """测试 file_name 属性。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "my_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
             assert registry.file_name == "my_registry.json"
 
 
@@ -68,7 +68,7 @@ class TestRegistryOperations:
         """测试插入新记录。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             data = {"status": "DONE", "rows": 100}
             registry.upsert("req_123", data)
@@ -80,7 +80,7 @@ class TestRegistryOperations:
         """测试更新现有记录。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             # 插入初始数据
             registry.upsert("req_123", {"status": "RUNNING"})
@@ -94,7 +94,7 @@ class TestRegistryOperations:
         """测试 upsert 持久化到文件。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             data = {"status": "DONE"}
             registry.upsert("req_123", data)
@@ -110,7 +110,7 @@ class TestRegistryOperations:
         """测试 get() 返回现有记录。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             data = {"status": "DONE"}
             registry.upsert("req_123", data)
@@ -122,7 +122,7 @@ class TestRegistryOperations:
         """测试 get() 对不存在的记录返回 None。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             result = registry.get("nonexistent")
             assert result is None
@@ -131,7 +131,7 @@ class TestRegistryOperations:
         """测试 all() 返回数据副本。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             registry.upsert("req_123", {"status": "DONE"})
             registry.upsert("req_456", {"status": "FAILED"})
@@ -145,7 +145,7 @@ class TestRegistryOperations:
         """测试 all() 返回独立副本（修改不影响原数据）。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             registry.upsert("req_123", {"status": "DONE"})
             all_data = registry.all()
@@ -165,7 +165,7 @@ class TestRegistryExport:
         """测试 export() 返回字典。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             result = registry.export()
             assert isinstance(result, dict)
@@ -174,7 +174,7 @@ class TestRegistryExport:
         """测试导出包含路径。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             result = registry.export()
             assert "path" in result
@@ -184,7 +184,7 @@ class TestRegistryExport:
         """测试导出包含记录数。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             registry.upsert("req_123", {"status": "DONE"})
             registry.upsert("req_456", {"status": "FAILED"})
@@ -196,7 +196,7 @@ class TestRegistryExport:
         """测试导出包含数据。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             registry.upsert("req_123", {"status": "DONE"})
 
@@ -208,7 +208,7 @@ class TestRegistryExport:
         """测试 describe() 返回 JSON 字符串。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             result = registry.describe()
             assert isinstance(result, str)
@@ -219,7 +219,7 @@ class TestRegistryExport:
         """测试 describe() 包含与 export() 相同的数据。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             registry.upsert("req_123", {"status": "DONE"})
 
@@ -240,7 +240,7 @@ class TestRegistryThreadSafety:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "test_registry.json"
-            registry = BridgesClusterRegistry(str(path))
+            registry = BridgesCoreClusterRegistry(str(path))
 
             def upsert_data(i):
                 registry.upsert(f"req_{i}", {"status": "DONE", "index": i})

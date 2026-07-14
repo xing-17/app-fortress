@@ -6,12 +6,12 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import Any
 
-from app.bridges.core.registry import BridgesClusterRegistry
-from app.bridges.core.request import BridgesRequest
-from app.bridges.core.requeststate import BridgesRequestState
-from app.bridges.core.resources import BridgesResources, ModuleBridgesResources
+from app.bridges.core.registry import BridgesCoreClusterRegistry
+from app.bridges.core.request import BridgesCoreRequest
+from app.bridges.core.requeststate import BridgesCoreRequestState
 from app.bridges.pipelines.context import PipeContext
 from app.bridges.pipelines.node import PipeNode
+from app.bridges.resources._warehouse.warehouse import BridgesWarehouse, ModuleBridgesWarehouse
 from app.bridges.resources.destinations.base.destination import BaseDestination
 from app.bridges.resources.providers.base.provider import BaseProvider
 from app.bridges.resources.sources.base.source import BaseSource
@@ -24,7 +24,7 @@ from app.common.plugin import (
 from app.common.setting.bridges import BridgesSetting
 
 
-class BridgesCluster(
+class BridgesCoreCluster(
     LogPlugin,
     TimePlugin,
     StopwatchPlugin,
@@ -36,10 +36,10 @@ class BridgesCluster(
 
     Attributes:
         setting (BridgesSetting): 全局 Bridges 配置。
-        resources (BridgesResources): 管理所有资源的实例。
+        resources (BridgesWarehouse): 管理所有资源的实例。
 
     Methods:
-        derive(request: BridgesRequest) -> list[PipeContext]: 根据请求解析出 Pipeline 上下文。
+        derive(request: BridgesCoreRequest) -> list[PipeContext]: 根据请求解析出 Pipeline 上下文。
         refresh(): 刷新资源。
         export() -> dict[str, str]: 导出资源信息。
         describe() -> str: 返回资源信息的 JSON 字符串。
@@ -48,11 +48,11 @@ class BridgesCluster(
 
     def __init__(self):
         self.setting: BridgesSetting = GlobalSetting.bridges
-        self.resources: BridgesResources = ModuleBridgesResources
-        self._live: dict[str, BridgesRequestState] = {}
-        self._registry: BridgesClusterRegistry = self._load_registry()
+        self.resources: BridgesWarehouse = ModuleBridgesWarehouse
+        self._live: dict[str, BridgesCoreRequestState] = {}
+        self._registry: BridgesCoreClusterRegistry = self._load_registry()
         self._queue_size_limit = self.setting.bridges.max_queue_size
-        self._queue: queue.Queue[BridgesRequest] = queue.Queue(
+        self._queue: queue.Queue[BridgesCoreRequest] = queue.Queue(
             maxsize=self._queue_size_limit,
         )
         # 串行消费队列
@@ -62,11 +62,11 @@ class BridgesCluster(
             name="BridgesClusterWorker",
         )
         self._worker.start()
-        self._set_log_prefix("BridgesCluster()")
+        self._set_log_prefix("BridgesCoreCluster()")
 
     def _load_registry(self):
         path = self.setting.bridges.registry_path
-        self._registry = BridgesClusterRegistry(path)
+        self._registry = BridgesCoreClusterRegistry(path)
         return self._registry
 
     def _worker_loop(self) -> None:
@@ -87,7 +87,7 @@ class BridgesCluster(
 
     def derive(
         self,
-        request: BridgesRequest,
+        request: BridgesCoreRequest,
     ) -> list[PipeNode]:
         # Prepare configs for pipeline
         sources: list[BaseSource] = self._derive_sources(request)
@@ -118,7 +118,7 @@ class BridgesCluster(
 
     def _derive_destinations(
         self,
-        request: BridgesRequest,
+        request: BridgesCoreRequest,
     ) -> list[BaseDestination]:
         names = request.destinations
         if not names:
@@ -134,13 +134,13 @@ class BridgesCluster(
 
     def _derive_params(
         self,
-        request: BridgesRequest,
+        request: BridgesCoreRequest,
     ) -> dict[str, Any]:
         return request.params.copy()
 
     def _derive_sources(
         self,
-        request: BridgesRequest,
+        request: BridgesCoreRequest,
     ) -> list[BaseSource]:
         sources = self.resources.get_sources_by_tags(
             tags=request.sources_by_tags,
@@ -151,7 +151,7 @@ class BridgesCluster(
 
     def _derive_providers(
         self,
-        request: BridgesRequest,
+        request: BridgesCoreRequest,
         sources: list[BaseSource],
     ) -> dict[BaseSource, BaseProvider]:
         overrides = request.providers
@@ -184,11 +184,11 @@ class BridgesCluster(
 
     def run(
         self,
-        request: BridgesRequest,
-    ) -> BridgesRequestState:
+        request: BridgesCoreRequest,
+    ) -> BridgesCoreRequestState:
         self.tick("run")
         nodes = self.derive(request)
-        req_state = BridgesRequestState(request=request)
+        req_state = BridgesCoreRequestState(request=request)
         self._live[request.id] = req_state
 
         # Start the request
@@ -240,9 +240,9 @@ class BridgesCluster(
 
     def submit(
         self,
-        request: BridgesRequest,
-    ) -> Future[BridgesRequestState]:
-        self._live[request.id] = BridgesRequestState(request=request)
+        request: BridgesCoreRequest,
+    ) -> Future[BridgesCoreRequestState]:
+        self._live[request.id] = BridgesCoreRequestState(request=request)
         self._queue.put(request)
         return request.id
 

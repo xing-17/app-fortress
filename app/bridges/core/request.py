@@ -7,7 +7,7 @@ from pydantic import Field
 from app.common.context.base import BaseContext
 
 
-class BridgesRequest(BaseContext):
+class BridgesCoreRequest(BaseContext):
     """
     Bridges 请求对象，包含请求的详细信息。
 
@@ -22,7 +22,7 @@ class BridgesRequest(BaseContext):
         describe(): 导出请求配置为 JSON 字符串
 
     Example:
-        >>> request = BridgesRequest(
+        >>> request = BridgesCoreRequest(
         ...     providers={"tushare": "tushare_prod"},
         ...     sources_by_tags={"region": "us", "type": "stock"},
         ...     params={"start_date": "2023-01-01"},
