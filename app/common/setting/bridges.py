@@ -159,6 +159,9 @@ class BridgesExecutionSetting(BaseSetting):
     Attributes:
         max_threads: 跨 provider 并发线程数。
                      1 = 串行执行(默认); N > 1 = 同时执行 N 个 PipelineContext。
+        registry_enabled: 是否启用 Registry 功能, 默认 False
+        registry_connection: Registry 连接名, 需在 connections.yml 中配置
+        registry_path: Registry 文件路径, 需在 Registry 连接中可写
 
     Examples:
         >>> exec_setting = BridgesExecutionSetting(max_threads=4)
@@ -169,6 +172,10 @@ class BridgesExecutionSetting(BaseSetting):
         1,
         description="跨 provider 并发线程数(1=串行, N>1=并发执行 PipelineContext)",
         ge=1,
+    )
+    registry_path: str = Field(
+        ".cache/bridges/registry.json",
+        description="Registry 文件路径, 需在 Registry 连接中可写",
     )
 
 
