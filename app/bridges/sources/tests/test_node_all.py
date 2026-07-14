@@ -113,36 +113,40 @@ class TestNodeRun:
         # Mock invoke to return data
         test_df = pl.DataFrame({"id": [1, 2, 3]})
         with patch.object(node, "invoke", return_value=test_df) as mock_invoke:
-            with patch.object(node, "write"):
+            with patch.object(node, "_write_data"), patch.object(node, "_write_quality"):
                 state = node.run()
             mock_invoke.assert_called_once()
 
         assert state.status == SourceStatus.SUCCESS
 
     def test_run_calls_write_when_data_not_empty(self):
-        """测试 run() 在数据非空时调用 write()。"""
+        """测试 run() 在数据非空时调用 _write_data() 和 _write_quality()。"""
         context = _create_mock_context()
         node = SourceNode(context)
 
         test_df = pl.DataFrame({"id": [1, 2, 3]})
         with patch.object(node, "invoke", return_value=test_df):
-            with patch.object(node, "write") as mock_write:
-                state = node.run()
+            with patch.object(node, "_write_data") as mock_write_data:
+                with patch.object(node, "_write_quality") as mock_write_quality:
+                    state = node.run()
 
-        mock_write.assert_called_once()
+        mock_write_data.assert_called_once()
+        mock_write_quality.assert_called_once()
         assert state.rows == 3
 
     def test_run_does_not_call_write_when_empty(self):
-        """测试 run() 在数据为空时不调用 write()。"""
+        """测试 run() 在数据为空时不调用 _write_data() 和 _write_quality()。"""
         context = _create_mock_context()
         node = SourceNode(context)
 
         test_df = pl.DataFrame()
         with patch.object(node, "invoke", return_value=test_df):
-            with patch.object(node, "write") as mock_write:
-                state = node.run()
+            with patch.object(node, "_write_data") as mock_write_data:
+                with patch.object(node, "_write_quality") as mock_write_quality:
+                    state = node.run()
 
-        mock_write.assert_not_called()
+        mock_write_data.assert_not_called()
+        mock_write_quality.assert_not_called()
         assert state.rows == 0
 
     def test_run_sets_state_to_success_on_completion(self):
@@ -152,7 +156,7 @@ class TestNodeRun:
 
         test_df = pl.DataFrame({"id": [1, 2, 3]})
         with patch.object(node, "invoke", return_value=test_df):
-            with patch.object(node, "write"):
+            with patch.object(node, "_write_data"), patch.object(node, "_write_quality"):
                 state = node.run()
 
         assert state.status == SourceStatus.SUCCESS
@@ -265,7 +269,7 @@ class TestNodeState:
 
         test_df = pl.DataFrame({"id": [1, 2, 3]})
         with patch.object(node, "invoke", return_value=test_df):
-            with patch.object(node, "write"):
+            with patch.object(node, "_write_data"), patch.object(node, "_write_quality"):
                 state = node.run()
 
         assert state.rows == 3

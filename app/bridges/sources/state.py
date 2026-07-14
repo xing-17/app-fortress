@@ -74,11 +74,11 @@ class SourceState(TimePlugin):
         >>> state = SourceState()
         >>> state.status
         <SourceStatus.PENDING: 'PENDING'>
-        
+
         >>> state.start()
         >>> state.status
         <SourceStatus.RUNNING: 'RUNNING'>
-        
+
         >>> state.finish(rows=1000)
         >>> state.succeeded
         True

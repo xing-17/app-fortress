@@ -34,8 +34,8 @@ class SourceNode(
         1. start() - 标记开始，设置状态为 RUNNING
         2. invoke() - 调用 source.run() 获取原始数据
         3. invoke() - 调用 source.transform() 转换数据
-        4. write() - 写入所有 destinations
-        5. write() - 生成数据质量报告（如果启用）
+        4. _write_data() - 写入所有目标存储
+        5. _write_quality() - 如果启用质量检查，生成并写入质量报告
         6. finish() - 标记完成，设置状态为 SUCCESS
 
     取消机制：
@@ -62,8 +62,10 @@ class SourceNode(
             调用数据源获取并转换数据。
             先调用 source.run() 获取原始数据，再调用 source.transform() 转换。
 
-        write(data: pl.DataFrame) -> None:
+        _write_data(data: pl.DataFrame) -> None:
             将数据写入所有目标存储。
+
+        _write_quality(data: pl.DataFrame) -> None:
             如果启用质量检查，生成并写入质量报告。
 
         cancel() -> None:
@@ -83,7 +85,7 @@ class SourceNode(
         >>> node = SourceNode(context)
         >>> state = node.run()
         >>> print(f"Status: {state.status}, Rows: {state.rows}")
-        
+
         >>> # 取消执行
         >>> node = SourceNode(context)
         >>> node.cancel()
@@ -125,15 +127,24 @@ class SourceNode(
             data = self.invoke()
             rows = data.height
             if not data.is_empty():
-                self.write(data)
+                self._write_data(data)
             self.state.finish(rows=rows)
         except Exception as e:
             self.error(f"run: source {self.source.name} failed: {e}")
             self.error(f"run: traceback:\n{traceback.format_exc()}")
             self.state.fail(error=str(e))
-        finally:
-            if data is not None:
-                del data
+
+        # Quality write is non-fatal
+        if self.state.succeeded:
+            if data is not None and not data.is_empty():
+                try:
+                    self._write_quality(data)
+                except Exception as e:
+                    self.warning(f"run: quality write failed (non-fatal): {e}")
+
+        if data is not None:
+            del data
+
         status = self.state.status.value
         duration = self.tock("run")
         self.info(f"run: source {self.source.name} finished {status}.")
@@ -158,11 +169,28 @@ class SourceNode(
     def _is_cancelled(self) -> bool:
         return self._cancel_event.is_set()
 
-    def write(
+    def _write_data(
         self,
         data: pl.DataFrame,
     ) -> None:
-        self.tick("write")
+        self.tick("_write_data")
+        # Write data to all destinations
+        n_dests = len(self.destinations)
+        for destination in self.destinations:
+            self._write_source_to_destination(
+                data=data,
+                destination=destination,
+            )
+
+        duration = self.tock("_write_data")
+        self.debug(f"write: {data.height} rows to {n_dests} destinations OK.")
+        self.debug(f"write: duration {duration:.2f}s.")
+
+    def _write_quality(
+        self,
+        data: pl.DataFrame,
+    ) -> None:
+        self.tick("_write_quality")
 
         # Generate quality report if enabled
         is_quality_enabled = self.source.setting.quality_enabled
@@ -185,18 +213,13 @@ class SourceNode(
                     quality=self.quality,
                     destination=destination,
                 )
+            self.debug("write_quality: quality report write OK.")
 
-        # Write data to all destinations
-        n_dests = len(self.destinations)
-        for destination in self.destinations:
-            self._write_source_to_destination(
-                data=data,
-                destination=destination,
-            )
+        else:
+            self.debug("write_quality: quality report disabled, skipped.")
 
-        duration = self.tock("write")
-        self.debug(f"write: {data.height} rows to {n_dests} destinations OK.")
-        self.debug(f"write: duration {duration:.2f}s.")
+        duration = self.tock("_write_quality")
+        self.debug(f"_write_quality: duration {duration:.2f}s.")
 
     def _write_source_to_destination(
         self,
