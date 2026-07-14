@@ -1,0 +1,21 @@
+# --------------------------------------------------------------
+# Fortress Connections Configuration
+# --------------------------------------------------------------
+
+# Connections Settings 
+connections:
+  # ── prod ─────────────────────
+  oss_prod:
+    name: "oss_prod"                                    # 连接配置名称
+    type: "oss"                                         # 阿里云OSS 连接类型
+
+    # ── General ──────────────────
+    access_key_id: "..."                                # 阿里云OSS Access Key ID#
+    access_key_secret: "..."                            # 阿里云OSS Access Key Secret
+    # endpoint: oss-cn-shanghai-internal.aliyuncs.com   # FOR ALICLOUD INTERNAL ONLY
+    endpoint: "oss-cn-shanghai.aliyuncs.com"            # 阿里云OSS Endpoint
+    region: "cn-shanghai"                               # 阿里云OSS Region
+    bucket: "..."                                       # 阿里云OSS Bucket 名称
+
+    # ── dbt / DuckDB httpfs ────────────────────
+    url_style: vhost

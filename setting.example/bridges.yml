@@ -1,0 +1,37 @@
+# --------------------------------------------------------------
+# Fortress Providers Configuration
+# --------------------------------------------------------------
+
+bridges:
+  max_threads: 1
+  registry_path: ".cache/bridges/registry.json"
+
+providers:
+  # Tushare Configuration
+  tushare_prod:
+    type: "tushare"
+    name: "tushare_prod"
+    region: "cn"
+    secret: "..."
+    ttl_seconds: 1800
+    ttl_margin: 60 
+    use_cache: true
+    jitter_min_seconds: 0.1
+    jitter_max_seconds: 0.8
+    max_threads: 1
+
+cache:
+  name: "cache"
+  path: ".cache/bridges/cache.duckdb"
+  ttl_hours: 48
+  ttl_table: "__system_ttl"
+  hash_length: 16
+
+source_paths:
+  - "app/bridges/resources/sources/items/tushare/"
+
+destinations:
+  - name: oss_prod
+    connection: oss_prod
+    base_prefix: fortress/bridges/
+    format: parquet
