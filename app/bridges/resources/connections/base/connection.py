@@ -65,6 +65,17 @@ class BaseConnection(
     def ping(self) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
+    def ingest(self) -> str:
+        """
+        生成 DuckDB 的 Secret 创建语句。
+
+        Returns:
+            str: DuckDB 的 Secret 创建语句
+
+        """
+        raise NotImplementedError
+
     def get_connection(self) -> Any:
         self.connect()
         return self._connection

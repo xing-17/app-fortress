@@ -44,6 +44,9 @@ class _CountingConnection(BaseConnection):
     def ping(self) -> bool:
         return True
 
+    def ingest(self) -> str:
+        return "CREATE"
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TestBaseConnection

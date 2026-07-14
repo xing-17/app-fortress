@@ -47,6 +47,26 @@ class OSSConnection(BaseConnection):
             connect_timeout=120,
         )
 
+    def ingest(self) -> str:
+        """
+        生成 DuckDB 的 OSS Secret 创建语句。
+
+        Returns:
+            str: DuckDB 的 OSS Secret 创建语句
+
+        """
+        ingestion = "CREATE OR REPLACE SECRET oss_secret ("
+        ingestion += "TYPE s3, "
+        ingestion += "PROVIDER config, "
+        ingestion += f"KEY_ID '{self.setting.access_key_id}', "
+        ingestion += f"SECRET '{self.setting.access_key_secret}', "
+        ingestion += f"REGION '{self.setting.region}', "
+        ingestion += f"ENDPOINT '{self.setting.endpoint}', "
+        ingestion += "URL_STYLE 'vhost', "
+        ingestion += "USE_SSL true"
+        ingestion += ")"
+        return ingestion
+
     def ping(self) -> bool:
         try:
             self.tick("ping")

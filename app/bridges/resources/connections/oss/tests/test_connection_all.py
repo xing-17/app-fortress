@@ -36,6 +36,7 @@ def _make_conn(monkeypatch=None, bucket=None) -> OSSConnection:
 
         monkeypatch.setattr(oss2, "Auth", lambda **kw: MagicMock())
         monkeypatch.setattr(oss2, "Bucket", lambda **kw: bucket)
+
     return conn
 
 
