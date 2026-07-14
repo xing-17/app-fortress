@@ -128,6 +128,17 @@ class BridgesWarehouse(
                     result.append(source)
             return result
 
+    # --------------- Connections Access Methods ---------------
+
+    def get_connection(
+        self,
+        name: str,
+    ) -> BaseConnection:
+        with self._lock:
+            if name not in self._connections:
+                raise ValueError(f"Connection '{name}' not found.")
+            return self._connections.get(name)
+
     # --------------- Export Methods ---------------
 
     def _export_providers(self) -> dict:
