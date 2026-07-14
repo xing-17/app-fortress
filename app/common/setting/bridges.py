@@ -152,15 +152,14 @@ ProviderSetting = Annotated[
 ]
 
 
-class BridgesExecutionSetting(BaseSetting):
+class BridgesCoreSetting(BaseSetting):
     """
     Bridges 执行配置(bridges.yml bridges 节)。
 
     Attributes:
         max_threads: 跨 provider 并发线程数。
                      1 = 串行执行(默认); N > 1 = 同时执行 N 个 PipelineContext。
-        registry_enabled: 是否启用 Registry 功能, 默认 False
-        registry_connection: Registry 连接名, 需在 connections.yml 中配置
+        max_queue_size: 请求队列最大长度, 超过则拒绝新请求
         registry_path: Registry 文件路径, 需在 Registry 连接中可写
 
     Examples:
@@ -183,6 +182,35 @@ class BridgesExecutionSetting(BaseSetting):
         description="Registry 文件路径, 需在 Registry 连接中可写",
     )
 
+class BridgesMigrateSetting(BaseSetting):
+    """
+    Bridges Migrate 执行配置(bridges.yml bridges.migrate 节)。
+
+    Attributes:
+        max_threads: 跨 provider 并发线程数。
+                     1 = 串行执行(默认); N > 1 = 同时执行 N 个 PipelineContext。
+        max_queue_size: 请求队列最大长度, 超过则拒绝新请求
+        registry_path: Registry 文件路径, 需在 Registry 连接中可写
+    
+    Examples:
+        >>> migrate_setting = BridgesMigrateSetting(max_threads=2)
+        >>> print(migrate_setting.max_threads)  # 2
+    """
+
+    max_threads: int = Field(
+        1,
+        description="跨 provider 并发线程数(1=串行, N>1=并发执行 PipelineContext)",
+        ge=1,
+    )
+    max_queue_size: int = Field(
+        100,
+        description="请求队列最大长度, 超过则拒绝新请求",
+        ge=1,
+    )
+    registry_path: str = Field(
+        ".cache/bridges/registry/migrate.json",
+        description="Registry 文件路径, 需在 Registry 连接中可写",
+    )
 
 class BridgesCacheSetting(BaseSetting):
     """
@@ -225,9 +253,13 @@ class BridgesSetting(BaseSetting):
 
     """
 
-    bridges: BridgesExecutionSetting = Field(
-        default_factory=BridgesExecutionSetting,
-        description="Bridges 执行配置",
+    bridges: BridgesCoreSetting = Field(
+        default_factory=BridgesCoreSetting,
+        description="Bridges Core 执行配置",
+    )
+    migrate: BridgesMigrateSetting = Field(
+        default_factory=BridgesMigrateSetting,
+        description="Bridges Migrate 执行配置",
     )
     providers: dict[str, ProviderSetting]
     destinations: list[BridgesDestinationSetting] = Field(
