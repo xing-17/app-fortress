@@ -85,19 +85,21 @@ class BridgesWarehouse(
         self,
         name: str,
     ) -> BaseProvider:
-        if name not in self._providers:
-            raise ValueError(f"Provider '{name}' not found.")
-        return self._providers.get(name)
+        with self._lock:
+            if name not in self._providers:
+                raise ValueError(f"Provider '{name}' not found.")
+            return self._providers.get(name)
 
     # resources.py
     def get_first_provider_by_type(
         self,
         type: str,
     ) -> BaseProvider:
-        for provider in self._providers.values():
-            if provider.type == type:
-                return provider
-        raise ValueError(f"No provider found for type '{type}'.")
+        with self._lock:
+            for provider in self._providers.values():
+                if provider.type == type:
+                    return provider
+            raise ValueError(f"No provider found for type '{type}'.")
 
     # --------------- Destinations Access Methods ---------------
 
@@ -105,49 +107,56 @@ class BridgesWarehouse(
         self,
         name: str,
     ) -> BaseDestination:
-        if name not in self._destinations:
-            raise ValueError(f"Destination '{name}' not found.")
-        return self._destinations.get(name)
+        with self._lock:
+            if name not in self._destinations:
+                raise ValueError(f"Destination '{name}' not found.")
+            return self._destinations.get(name)
 
     def list_destinations(
         self,
     ) -> list[BaseDestination]:
-        return list(self._destinations.values())
+        with self._lock:
+            return list(self._destinations.values())
 
     # --------------- Sources Access Methods ---------------
 
     def get_sources_by_tags(self, tags: dict[str, str]) -> list[BaseSource]:
-        result = []
-        for source in self._sources.values():
-            if all(source.tags.get(k) == v for k, v in tags.items()):
-                result.append(source)
-        return result
+        with self._lock:
+            result = []
+            for source in self._sources.values():
+                if all(source.tags.get(k) == v for k, v in tags.items()):
+                    result.append(source)
+            return result
 
     # --------------- Export Methods ---------------
 
     def _export_providers(self) -> dict:
-        result = {}
-        for name, provider in self._providers.items():
-            result[name] = provider.export()
-        return result
+        with self._lock:
+            result = {}
+            for name, provider in self._providers.items():
+                result[name] = provider.export()
+            return result
 
     def _export_connections(self) -> dict:
-        result = {}
-        for name, connection in self._connections.items():
-            result[name] = connection.export()
-        return result
+        with self._lock:
+            result = {}
+            for name, connection in self._connections.items():
+                result[name] = connection.export()
+            return result
 
     def _export_destinations(self) -> dict:
-        result = {}
-        for name, destination in self._destinations.items():
-            result[name] = destination.export()
-        return result
+        with self._lock:
+            result = {}
+            for name, destination in self._destinations.items():
+                result[name] = destination.export()
+            return result
 
     def _export_sources(self) -> dict:
-        result = {}
-        for name, source in self._sources.items():
-            result[name] = source.export()
-        return result
+        with self._lock:
+            result = {}
+            for name, source in self._sources.items():
+                result[name] = source.export()
+            return result
 
     def export(self) -> dict:
         return {
