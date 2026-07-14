@@ -68,6 +68,12 @@ class BridgesClusterRegistry(
             self._data = {}
             self.warning(f"load: failed ({e}), created new.")
 
+    def clean(self) -> None:
+        with self._lock:
+            self._data = {}
+            self.info("clean: registry cleared.")
+            self._flush()
+
     def _flush(self) -> None:
         self._path.parent.mkdir(
             parents=True,

@@ -135,6 +135,15 @@ class PipeState(TimePlugin):
         return self.status == PipeStatus.DONE
 
     @property
+    def finished(self) -> bool:
+        return self.status in {
+            PipeStatus.DONE,
+            PipeStatus.PARTIAL,
+            PipeStatus.FAILED,
+            PipeStatus.CANCELED,
+        }
+
+    @property
     def start_at_repr(self) -> str | None:
         if self.started_at:
             return self.started_at.isoformat()

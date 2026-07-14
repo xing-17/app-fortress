@@ -12,11 +12,13 @@
 from __future__ import annotations
 
 import json
+import time
 from unittest.mock import Mock
 
 from app.bridges.core.request import BridgesRequest
 from app.bridges.core.requeststate import BridgesRequestState, BridgesRequestStatus
 from app.bridges.pipelines.state import PipeStatus
+from app.bridges.sources.state import SourceStatus
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TestBridgesRequestStatus
@@ -315,6 +317,16 @@ class TestExport:
         assert "total" in result["pipes"]
         assert "success" in result["pipes"]
 
+    def test_export_contains_progress_fields(self):
+        """测试导出包含进度相关字段。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        result = state.export()
+        assert "elapsed_seconds" in result
+        assert "progress" in result
+        assert "progress_pct" in result
+        assert "eta_seconds" in result
+
     def test_describe_returns_json_string(self):
         """测试 describe() 返回 JSON 字符串。"""
         request = BridgesRequest()
@@ -323,6 +335,194 @@ class TestExport:
         assert isinstance(result, str)
         parsed = json.loads(result)
         assert isinstance(parsed, dict)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TestProgressAndETA
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestProgressAndETA:
+    """测试进度和 ETA 相关功能。"""
+
+    def _create_mock_pipe_node_with_source_nodes(self, source_statuses: list[SourceStatus]):
+        """创建包含指定状态 source nodes 的 mock PipeNode。"""
+        source_nodes = []
+        for status in source_statuses:
+            mock_source_state = Mock()
+            mock_source_state.status = status
+            mock_source_state.rows = 100
+            mock_source_node = Mock()
+            mock_source_node.state = mock_source_state
+            source_nodes.append(mock_source_node)
+
+        # 根据 source nodes 推导 pipe 状态
+        success = sum(1 for s in source_statuses if s == SourceStatus.SUCCESS)
+        failed = sum(1 for s in source_statuses if s == SourceStatus.FAILED)
+        if success > 0 and failed == 0:
+            pipe_status = PipeStatus.DONE
+        elif success > 0 and failed > 0:
+            pipe_status = PipeStatus.PARTIAL
+        elif failed > 0:
+            pipe_status = PipeStatus.FAILED
+        else:
+            pipe_status = PipeStatus.RUNNING
+
+        mock_pipe_state = Mock()
+        mock_pipe_state.status = pipe_status
+        mock_pipe_node = Mock()
+        mock_pipe_node.state = mock_pipe_state
+        mock_pipe_node.source_nodes = source_nodes
+        return mock_pipe_node
+
+    def test_elapsed_seconds_is_none_before_start(self):
+        """测试启动前 elapsed_seconds 为 None。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        assert state.elapsed_seconds is None
+
+    def test_elapsed_seconds_returns_value_after_start(self):
+        """测试启动后 elapsed_seconds 返回有效值。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        state.start([])
+        time.sleep(0.1)  # 等待一小段时间
+        assert state.elapsed_seconds is not None
+        assert state.elapsed_seconds > 0
+
+    def test_elapsed_seconds_uses_finished_at_when_done(self):
+        """测试完成后 elapsed_seconds 使用 finished_at。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        nodes = []
+        state.start(nodes)
+        time.sleep(0.1)
+        state.finish(nodes)
+        elapsed = state.elapsed_seconds
+        assert elapsed is not None
+        time.sleep(0.1)
+        # 完成后再次查询，elapsed_seconds 应该不变
+        assert state.elapsed_seconds == elapsed
+
+    def test_progress_is_1_when_no_nodes(self):
+        """测试无节点时 progress 为 1.0。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        assert state.progress == 1.0
+
+    def test_progress_uses_pipe_nodes_when_no_source_nodes(self):
+        """测试没有 source nodes 时使用 pipe nodes 计算进度。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        nodes = [
+            self._create_mock_pipe_node_with_source_nodes([]),  # 空的 source_nodes
+            self._create_mock_pipe_node_with_source_nodes([]),
+            self._create_mock_pipe_node_with_source_nodes([]),
+        ]
+        # 手动设置 pipe 状态
+        nodes[0].state.status = PipeStatus.DONE
+        nodes[1].state.status = PipeStatus.RUNNING
+        nodes[2].state.status = PipeStatus.PENDING
+
+        state.start(nodes)
+        state.update(nodes)
+        # 1 完成 / 3 总数 = 0.333...
+        assert 0.33 <= state.progress <= 0.34
+
+    def test_progress_uses_source_nodes_when_available(self):
+        """测试有 source nodes 时使用其计算进度。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        nodes = [
+            self._create_mock_pipe_node_with_source_nodes(
+                [
+                    SourceStatus.SUCCESS,
+                    SourceStatus.SUCCESS,
+                    SourceStatus.RUNNING,
+                    SourceStatus.PENDING,
+                ]
+            ),
+        ]
+        state.start(nodes)
+        state.update(nodes)
+        # 2 完成 / 4 总数 = 0.5
+        assert state.progress == 0.5
+
+    def test_progress_pct_returns_percentage(self):
+        """测试 progress_pct 返回百分比。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        nodes = [
+            self._create_mock_pipe_node_with_source_nodes(
+                [
+                    SourceStatus.SUCCESS,
+                    SourceStatus.PENDING,
+                ]
+            ),
+        ]
+        state.start(nodes)
+        state.update(nodes)
+        # 1/2 = 0.5 = 50.0%
+        assert state.progress_pct == 50.0
+
+    def test_eta_seconds_is_none_before_start(self):
+        """测试启动前 eta_seconds 为 None。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        assert state.eta_seconds is None
+
+    def test_eta_seconds_is_none_when_no_progress(self):
+        """测试无进度时 eta_seconds 为 None。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        nodes = [
+            self._create_mock_pipe_node_with_source_nodes(
+                [
+                    SourceStatus.PENDING,
+                    SourceStatus.PENDING,
+                ]
+            ),
+        ]
+        state.start(nodes)
+        state.update(nodes)
+        # progress = 0，无法推算 ETA
+        assert state.eta_seconds is None
+
+    def test_eta_seconds_returns_estimate_with_progress(self):
+        """测试有进度时 eta_seconds 返回估算值。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        nodes = [
+            self._create_mock_pipe_node_with_source_nodes(
+                [
+                    SourceStatus.SUCCESS,
+                    SourceStatus.PENDING,
+                ]
+            ),
+        ]
+        state.start(nodes)
+        time.sleep(0.1)
+        state.update(nodes)
+        # progress = 0.5，已用 0.1s，预计还需 0.1s
+        eta = state.eta_seconds
+        assert eta is not None
+        assert eta > 0
+
+    def test_eta_seconds_is_zero_when_finished(self):
+        """测试完成后 eta_seconds 为 0.0。"""
+        request = BridgesRequest()
+        state = BridgesRequestState(request=request)
+        nodes = [
+            self._create_mock_pipe_node_with_source_nodes(
+                [
+                    SourceStatus.SUCCESS,
+                    SourceStatus.SUCCESS,
+                ]
+            ),
+        ]
+        state.start(nodes)
+        state.finish(nodes)
+        assert state.eta_seconds == 0.0
 
     def test_report_returns_dict(self):
         """测试 report() 返回字典。"""

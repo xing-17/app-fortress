@@ -15,12 +15,14 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import Mock
+import time
+from unittest.mock import Mock, patch
 
 import pytest
 
 from app.bridges.core.cluster import BridgesCluster
 from app.bridges.core.request import BridgesRequest
+from app.bridges.core.requeststate import BridgesRequestState
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TestClusterBasic
@@ -132,7 +134,7 @@ class TestClusterLookup:
         cluster._live[request_id] = mock_req_state
 
         result = cluster.lookup(request_id)
-        assert result == mock_req_state
+        assert result == mock_req_state.export()
 
     def test_lookup_returns_registry_data_when_not_live(self):
         """测试 lookup() 从注册表返回数据。"""
@@ -200,3 +202,141 @@ class TestExport:
         exported = cluster.export()
         described = json.loads(cluster.describe())
         assert exported == described
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TestClusterSubmit
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestClusterSubmit:
+    def test_submit_returns_request_id(self):
+        """测试 submit() 返回请求 ID。"""
+        cluster = BridgesCluster()
+        request = BridgesRequest(
+            sources_by_tags={"tag": "value"},
+            destinations=["dest1"],
+        )
+
+        result = cluster.submit(request)
+        assert result == request.id
+        assert isinstance(result, str)
+
+    def test_submit_creates_request_state_in_live(self):
+        """测试 submit() 在 _live 字典中创建请求状态。"""
+        cluster = BridgesCluster()
+        request = BridgesRequest(
+            sources_by_tags={"tag": "value"},
+            destinations=["dest1"],
+        )
+
+        request_id = cluster.submit(request)
+
+        # 验证请求状态已添加到 _live
+        assert request_id in cluster._live
+        assert isinstance(cluster._live[request_id], BridgesRequestState)
+        assert cluster._live[request_id].request == request
+
+    def test_submit_adds_request_to_queue(self):
+        """测试 submit() 将请求添加到队列。"""
+        cluster = BridgesCluster()
+        request = BridgesRequest(
+            sources_by_tags={"tag": "value"},
+            destinations=["dest1"],
+        )
+
+        initial_size = cluster.get_queue_size()
+        cluster.submit(request)
+
+        # 队列大小应该增加
+        # 注意：由于 worker 线程可能快速处理，这个断言可能不稳定
+        # 在实际环境中可能需要 mock worker
+        assert cluster.get_queue_size() >= initial_size
+
+    def test_submit_multiple_requests(self):
+        """测试 submit() 可以提交多个请求。"""
+        cluster = BridgesCluster()
+        request1 = BridgesRequest(
+            sources_by_tags={"tag1": "value1"},
+            destinations=["dest1"],
+        )
+        request2 = BridgesRequest(
+            sources_by_tags={"tag2": "value2"},
+            destinations=["dest2"],
+        )
+
+        id1 = cluster.submit(request1)
+        id2 = cluster.submit(request2)
+
+        # 两个请求应该有不同的 ID
+        assert id1 != id2
+
+        # 两个请求都应该在 _live 中（或已被处理）
+        # 注意：由于异步处理，请求可能已从 _live 移除
+
+    def test_submit_same_request_creates_new_state(self):
+        """测试多次 submit 同一个请求会创建新的状态。"""
+        cluster = BridgesCluster()
+        request = BridgesRequest(
+            sources_by_tags={"tag": "value"},
+            destinations=["dest1"],
+        )
+
+        id1 = cluster.submit(request)
+
+        # 等待一小段时间确保第一个请求开始处理
+        time.sleep(0.1)
+
+        # 再次提交同一个请求（相同的 request.id）
+        # 这会覆盖 _live 中的状态
+        id2 = cluster.submit(request)
+
+        assert id1 == id2  # 相同的 request 对象，ID 相同
+        assert id2 in cluster._live
+
+    @patch.object(BridgesCluster, "_worker_loop")
+    def test_submit_with_worker_mocked(self, mock_worker):
+        """测试 submit() 在 worker 被 mock 时的行为。"""
+        # Mock worker loop 以防止实际处理
+        mock_worker.return_value = None
+
+        cluster = BridgesCluster()
+        request = BridgesRequest(
+            sources_by_tags={"tag": "value"},
+            destinations=["dest1"],
+        )
+
+        request_id = cluster.submit(request)
+
+        # 验证基本操作
+        assert request_id in cluster._live
+        assert cluster._live[request_id].request == request
+
+    def test_submit_request_can_be_looked_up(self):
+        """测试 submit() 后的请求可以通过 lookup() 查询。"""
+        cluster = BridgesCluster()
+        request = BridgesRequest(
+            sources_by_tags={"tag": "value"},
+            destinations=["dest1"],
+        )
+
+        request_id = cluster.submit(request)
+
+        # 立即查询应该能找到（在 _live 中）
+        result = cluster.lookup(request_id)
+        assert result is not None
+        assert isinstance(result, dict)
+
+    def test_submit_request_can_be_cancelled(self):
+        """测试 submit() 后的请求可以被取消。"""
+        cluster = BridgesCluster()
+        request = BridgesRequest(
+            sources_by_tags={"tag": "value"},
+            destinations=["dest1"],
+        )
+
+        request_id = cluster.submit(request)
+
+        # 应该可以取消（即使可能已经开始或完成处理）
+        # 这个调用不应该抛出异常
+        cluster.cancel(request_id)

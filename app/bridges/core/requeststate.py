@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.bridges.core.request import BridgesRequest
 from app.bridges.pipelines.state import PipeStatus
+from app.bridges.sources.state import SourceStatus
 from app.common.plugin import TimePlugin
 
 if TYPE_CHECKING:
@@ -139,6 +140,15 @@ class BridgesRequestState(TimePlugin):
         return self.status == BridgesRequestStatus.DONE
 
     @property
+    def finished(self) -> bool:
+        return self.status in {
+            BridgesRequestStatus.DONE,
+            BridgesRequestStatus.PARTIAL,
+            BridgesRequestStatus.FAILED,
+            BridgesRequestStatus.CANCELED,
+        }
+
+    @property
     def start_at_repr(self) -> str | None:
         if self.started_at:
             return self.started_at.isoformat()
@@ -165,6 +175,50 @@ class BridgesRequestState(TimePlugin):
             result.extend(pipe_node.source_nodes)
         return result
 
+    @property
+    def elapsed_seconds(self) -> float | None:
+        if not self.started_at:
+            return None
+        end = self.finished_at or self._get_current_datetime()
+        return (end - self.started_at).total_seconds()
+
+    @property
+    def progress(self) -> float:
+        all_source_nodes = self.source_nodes
+        sn_total = len(all_source_nodes)
+        if sn_total > 0:
+            done = sum(
+                1
+                for sn in all_source_nodes
+                if sn.state.status
+                not in {
+                    SourceStatus.PENDING,
+                    SourceStatus.RUNNING,
+                }
+            )
+            return done / sn_total
+        else:
+            if self.total == 0:
+                return 1.0
+            completed = self.success + self.partial + self.failed + self.canceled
+            return completed / self.total
+
+    @property
+    def progress_pct(self) -> float:
+        return round(self.progress * 100, 1)
+
+    @property
+    def eta_seconds(self) -> float | None:
+        if self.finished_at:
+            return 0.0
+        p = self.progress
+        if p <= 0:
+            return None
+        elapsed = self.elapsed_seconds
+        if not elapsed:
+            return None
+        return elapsed / p * (1.0 - p)
+
     # ── 导出 ──────────────────────────────────────────────────
 
     def export(self) -> dict[str, Any]:
@@ -174,6 +228,10 @@ class BridgesRequestState(TimePlugin):
             "started_at": self.start_at_repr,
             "finished_at": self.finish_at_repr,
             "duration_seconds": self.duration_seconds,
+            "elapsed_seconds": self.elapsed_seconds,
+            "progress": self.progress,
+            "progress_pct": self.progress_pct,
+            "eta_seconds": self.eta_seconds,
             "total_rows": self.total_rows,
             "pipes": {
                 "total": self.total,

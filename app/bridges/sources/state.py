@@ -128,6 +128,14 @@ class SourceState(TimePlugin):
         return self.status == SourceStatus.SUCCESS
 
     @property
+    def finished(self) -> bool:
+        return self.status in {
+            SourceStatus.SUCCESS,
+            SourceStatus.FAILED,
+            SourceStatus.CANCELED,
+        }
+
+    @property
     def start_at_repr(self) -> str | None:
         if self.started_at:
             return self.started_at.isoformat()
