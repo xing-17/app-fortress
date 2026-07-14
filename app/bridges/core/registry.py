@@ -1,17 +1,9 @@
 from __future__ import annotations
 
-import json
-import threading
-from pathlib import Path
-from typing import Any
-
-from app.common.plugin import LogPlugin, TimePlugin
+from app.bridges.resources._registry.registry import BaseRegistry
 
 
-class BridgesCoreClusterRegistry(
-    LogPlugin,
-    TimePlugin,
-):
+class BridgesCoreClusterRegistry(BaseRegistry):
     """
     集群执行历史的本地 JSON 持久化注册表。
 
@@ -47,79 +39,9 @@ class BridgesCoreClusterRegistry(
         self,
         path: str,
     ) -> None:
-        super().__init__()
-        self._path = Path(path)
-        self._lock = threading.Lock()
-        self._data: dict[str, Any] = {}
-        self.file_name = self._path.name
+        super().__init__(
+            name="core",
+            path=path,
+        )
         self._set_log_prefix(f"BridgesCoreClusterRegistry({self.file_name})")
         self.load()
-
-    def load(self) -> None:
-        if not self._path.exists():
-            self._data = {}
-            self.info("load: no existing registry, created new.")
-            return
-        try:
-            with open(self._path, "r", encoding="utf-8") as f:
-                self._data = json.load(f)
-            self.info(f"load: {len(self._data)} records restored.")
-        except Exception as e:
-            self._data = {}
-            self.warning(f"load: failed ({e}), created new.")
-
-    def clean(self) -> None:
-        with self._lock:
-            self._data = {}
-            self.info("clean: registry cleared.")
-            self._flush()
-
-    def _flush(self) -> None:
-        self._path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-        with open(self._path, "w", encoding="utf-8") as f:
-            json.dump(
-                self._data,
-                f,
-                indent=4,
-                ensure_ascii=False,
-                default=str,
-            )
-
-    def upsert(
-        self,
-        request_id: str,
-        data: dict,
-    ) -> None:
-        with self._lock:
-            self._data[request_id] = data
-            self._flush()
-
-    def get(
-        self,
-        request_id: str,
-    ) -> dict | None:
-        return self._data.get(request_id)
-
-    def all(self) -> dict[str, Any]:
-        return dict(self._data)
-
-    def export(self) -> dict:
-        _data_export = {}
-        for request_id, state in self._data.items():
-            _data_export[request_id] = state
-
-        return {
-            "path": str(self._path),
-            "count": len(self._data),
-            "data": _data_export,
-        }
-
-    def describe(self) -> str:
-        return json.dumps(
-            self.export(),
-            indent=4,
-            ensure_ascii=False,
-        )
