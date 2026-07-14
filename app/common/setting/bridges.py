@@ -173,6 +173,11 @@ class BridgesExecutionSetting(BaseSetting):
         description="跨 provider 并发线程数(1=串行, N>1=并发执行 PipelineContext)",
         ge=1,
     )
+    max_queue_size: int = Field(
+        100,
+        description="请求队列最大长度, 超过则拒绝新请求",
+        ge=1,
+    )
     registry_path: str = Field(
         ".cache/bridges/registry.json",
         description="Registry 文件路径, 需在 Registry 连接中可写",
