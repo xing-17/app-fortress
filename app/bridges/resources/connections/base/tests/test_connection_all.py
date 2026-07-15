@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Tuple
 
 import pytest
 
@@ -44,8 +44,8 @@ class _CountingConnection(BaseConnection):
     def ping(self) -> bool:
         return True
 
-    def ingest(self) -> str:
-        return "CREATE"
+    def ingest_to_duckdb(self, conn: Any) -> Tuple[str, Any]:
+        return "secret_name", conn
 
 
 # ──────────────────────────────────────────────────────────────────────────────

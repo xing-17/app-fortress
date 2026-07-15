@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from threading import RLock
-from typing import Any
+from typing import Any, Tuple
+
+import duckdb
 
 from app.common.plugin import (
     LogPlugin,
@@ -66,12 +68,18 @@ class BaseConnection(
         raise NotImplementedError
 
     @abstractmethod
-    def ingest(self) -> str:
+    def ingest_to_duckdb(
+        self,
+        conn: duckdb.DuckDBPyConnection,
+    ) -> Tuple[str, duckdb.DuckDBPyConnection]:
         """
-        生成 DuckDB 的 Secret 创建语句。
+        将连接的凭证注入 DuckDB 作为 Secret。
+
+        Args:
+            conn: DuckDB 连接实例
 
         Returns:
-            str: DuckDB 的 Secret 创建语句
+            tuple: 包含 DuckDB Secret 名称和 DuckDB 连接实例的元组
 
         """
         raise NotImplementedError

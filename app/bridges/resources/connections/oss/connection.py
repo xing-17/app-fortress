@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Tuple
+
+import duckdb
 import oss2
 
 from app.bridges.resources.connections.base.connection import BaseConnection
@@ -47,25 +50,25 @@ class OSSConnection(BaseConnection):
             connect_timeout=120,
         )
 
-    def ingest(self) -> str:
+    def ingest_to_duckdb(
+        self,
+        conn: duckdb.DuckDBPyConnection,
+    ) -> Tuple[str, duckdb.DuckDBPyConnection]:
+        secret_name = f"oss_secret_{self.name}"
+        script = f"""
+            CREATE OR REPLACE SECRET {secret_name} (
+                TYPE s3,
+                PROVIDER config,
+                KEY_ID '{self.setting.access_key_id}',
+                SECRET '{self.setting.access_key_secret}',
+                REGION '{self.setting.region}',
+                ENDPOINT '{self.setting.endpoint}',
+                URL_STYLE '{self.setting.url_style}',
+                USE_SSL true
+            );
         """
-        生成 DuckDB 的 OSS Secret 创建语句。
-
-        Returns:
-            str: DuckDB 的 OSS Secret 创建语句
-
-        """
-        ingestion = "CREATE OR REPLACE SECRET oss_secret ("
-        ingestion += "TYPE s3, "
-        ingestion += "PROVIDER config, "
-        ingestion += f"KEY_ID '{self.setting.access_key_id}', "
-        ingestion += f"SECRET '{self.setting.access_key_secret}', "
-        ingestion += f"REGION '{self.setting.region}', "
-        ingestion += f"ENDPOINT '{self.setting.endpoint}', "
-        ingestion += "URL_STYLE 'vhost', "
-        ingestion += "USE_SSL true"
-        ingestion += ")"
-        return ingestion
+        conn.execute(script)
+        return secret_name, conn
 
     def ping(self) -> bool:
         try:

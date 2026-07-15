@@ -8,7 +8,7 @@
 - TestBootstrap  bootstrap() 按 resources.connections.yml 批量创建所有实例
 """
 
-from __future__ import annotations
+from typing import Any, Tuple
 
 import pytest
 
@@ -39,8 +39,8 @@ class _AlphaConnection(BaseConnection):
     def ping(self) -> bool:
         return True
 
-    def ingest(self) -> str:
-        return "CREATE"
+    def ingest_to_duckdb(self, conn: Any) -> Tuple[str, Any]:
+        return "CREATE", conn
 
 
 # ──────────────────────────────────────────────────────────────────────────────
