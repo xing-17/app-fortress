@@ -22,7 +22,7 @@ import pytest
 
 from app.bridges.core.cluster import BridgesCoreCluster
 from app.bridges.core.request import BridgesCoreRequest
-from app.bridges.core.requeststate import BridgesCoreRequestState
+from app.bridges.core.state import BridgesCoreRequestState
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TestClusterBasic

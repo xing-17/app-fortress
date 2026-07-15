@@ -8,7 +8,7 @@ from typing import Any
 
 from app.bridges.core.registry import BridgesCoreClusterRegistry
 from app.bridges.core.request import BridgesCoreRequest
-from app.bridges.core.requeststate import BridgesCoreRequestState
+from app.bridges.core.state import BridgesCoreRequestState
 from app.bridges.pipelines.context import PipeContext
 from app.bridges.pipelines.node import PipeNode
 from app.bridges.resources._warehouse.warehouse import BridgesWarehouse, ModuleBridgesWarehouse

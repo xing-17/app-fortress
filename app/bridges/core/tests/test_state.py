@@ -1,5 +1,5 @@
 """
-综合测试：app.bridges.core.requeststate
+综合测试：app.bridges.core.state
 
 覆盖范围
 --------
@@ -16,7 +16,7 @@ import time
 from unittest.mock import Mock
 
 from app.bridges.core.request import BridgesCoreRequest
-from app.bridges.core.requeststate import BridgesCoreRequestState, BridgesCoreRequestStatus
+from app.bridges.core.state import BridgesCoreRequestState, BridgesCoreRequestStatus
 from app.bridges.pipelines.state import PipeStatus
 from app.bridges.sources.state import SourceStatus
 
