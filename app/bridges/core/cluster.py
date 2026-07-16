@@ -51,6 +51,7 @@ class BridgesCoreCluster(
         self.resources: BridgesWarehouse = ModuleBridgesWarehouse
         self._live: dict[str, BridgesCoreRequestState] = {}
         self._registry: BridgesCoreClusterRegistry = self._load_registry()
+        # 串行队列
         self._queue_size_limit = self.setting.bridges.max_queue_size
         self._queue: queue.Queue[BridgesCoreRequest] = queue.Queue(
             maxsize=self._queue_size_limit,
@@ -59,13 +60,15 @@ class BridgesCoreCluster(
         self._worker = threading.Thread(
             target=self._worker_loop,
             daemon=True,
-            name="BridgesClusterWorker",
+            name="BridgesCore",
         )
         self._worker.start()
-        self._set_log_prefix("BridgesCoreCluster()")
+        self._set_log_prefix("BridgesCore()")
+
+    # ────────────────────INTERNAL─────────────────────────
 
     def _load_registry(self):
-        path = self.setting.bridges.registry_path
+        path: str = self.setting.bridges.registry_path
         self._registry = BridgesCoreClusterRegistry(path)
         return self._registry
 
@@ -74,7 +77,7 @@ class BridgesCoreCluster(
             request = self._queue.get()
             state = self._live.get(request.id)
 
-            # 如果已经被 cancel（在队列里等待时），直接跳过
+            #  Skip requests cancelled while waiting in the queue
             if state and state._is_cancelled():
                 self._queue.task_done()
                 continue
@@ -84,6 +87,8 @@ class BridgesCoreCluster(
                 self.error(f"run() failed for {request.id}: {e}")
             finally:
                 self._queue.task_done()
+
+    # ────────────────────EXTERNAL─────────────────────────
 
     def derive(
         self,
@@ -182,11 +187,22 @@ class BridgesCoreCluster(
             pipe_node.cancel()
         req_state.cancel()
 
+    def submit(
+        self,
+        request: BridgesCoreRequest,
+    ) -> Future[BridgesCoreRequestState]:
+        self._live[request.id] = BridgesCoreRequestState(
+            request=request,
+        )
+        self._queue.put(request)
+        self.debug(f"submit(): queued {request.id} OK.")
+        return request.id
+
     def run(
         self,
         request: BridgesCoreRequest,
     ) -> BridgesCoreRequestState:
-        self.tick("run")
+        self.tick(f"run:{request.id}")
         nodes = self.derive(request)
         req_state = BridgesCoreRequestState(request=request)
         self._live[request.id] = req_state
@@ -234,17 +250,9 @@ class BridgesCoreCluster(
         self._live.pop(request.id, None)
 
         # Show duration for the entire run
-        duration = self.tock("run")
+        duration = self.tock(f"run:{request.id}")
         self.debug(f"run(): {len(nodes)} pipe nodes finished in {duration:.2f}s")
         return req_state
-
-    def submit(
-        self,
-        request: BridgesCoreRequest,
-    ) -> Future[BridgesCoreRequestState]:
-        self._live[request.id] = BridgesCoreRequestState(request=request)
-        self._queue.put(request)
-        return request.id
 
     def get_queue_size(self) -> int:
         return self._queue.qsize()

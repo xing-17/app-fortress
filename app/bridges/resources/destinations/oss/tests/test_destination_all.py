@@ -69,6 +69,12 @@ class _MockOSSConnection(OSSConnection):
     def ping(self) -> bool:
         return True
 
+    def get_duckdb_base_location(self) -> str:
+        return f"s3://{self.bucket_name}"
+
+    def get_duckdb_base_uri(self) -> str:
+        return f"s3://{self.bucket_name}/{_OSS_CONN_SETTING.base_prefix}"
+
 
 def _make_dest(
     bucket: _MockBucket | None = None,

@@ -77,6 +77,19 @@ class OSSDestination(BaseDestination):
         df_sorted.write_parquet(buf)
         return hashlib.sha256(buf.getvalue()).hexdigest()[:32]
 
+    def get_duckdb_base_location(self) -> str:
+        return posixpath.join(
+            "s3://",
+            self.connection.bucket_name,
+        )
+
+    def get_duckdb_base_uri(self) -> str:
+        return posixpath.join(
+            "s3://",
+            self.connection.bucket_name,
+            self._base_prefix,
+        )
+
     def write_source(
         self,
         df: pl.DataFrame,

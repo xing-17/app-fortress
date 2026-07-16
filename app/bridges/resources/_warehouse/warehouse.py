@@ -120,7 +120,19 @@ class BridgesWarehouse(
 
     # --------------- Sources Access Methods ---------------
 
-    def get_sources_by_tags(self, tags: dict[str, str]) -> list[BaseSource]:
+    def get_source(
+        self,
+        name: str,
+    ) -> BaseSource:
+        with self._lock:
+            if name not in self._sources:
+                raise ValueError(f"Source '{name}' not found.")
+            return self._sources.get(name)
+
+    def get_sources_by_tags(
+        self,
+        tags: dict[str, str],
+    ) -> list[BaseSource]:
         with self._lock:
             result = []
             for source in self._sources.values():

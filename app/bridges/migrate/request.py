@@ -58,17 +58,13 @@ class BridgesMigrateRequest(BaseContext):
         ...,
         description="源 Destination 名称(从该 destination 所在 bucket 读取文件列表)",
     )
-    from_prefix: str = Field(
+    from_glob: str = Field(
         ...,
-        description="源文件的 OSS 路径前缀",
+        description="源文件的 OSS 路径glob(如 s3://bucket/prefix/**/*.parquet)",
     )
     to_destination: str = Field(
         ...,
         description="目标 Destination 名称(将文件写入该 destination 所在 bucket)",
-    )
-    to_prefix: str | None = Field(
-        None,
-        description=("目标路径前缀(不含 bucket 名称)。为 None 时由 node 自动推导"),
     )
     transform_sql: str | None = Field(
         None,
@@ -78,13 +74,18 @@ class BridgesMigrateRequest(BaseContext):
             "例：SELECT * EXCLUDE(stock_code) FROM <source>"
         ),
     )
+    options: list[str] = Field(
+        default_factory=list,
+        description=(
+            "DuckDB COPY TO 选项列表。例：['FORMAT parquet', 'COMPRESSION snappy', 'OVERWRITE_OR_IGNORE true']"
+        ),
+    )
 
     def export(self) -> dict[str, str]:
         result = super().export()
         result["source_name"] = self.source_name
         result["from_destination"] = self.from_destination
-        result["from_prefix"] = self.from_prefix
+        result["from_glob"] = self.from_glob
         result["to_destination"] = self.to_destination
-        result["to_prefix"] = self.to_prefix
         result["transform_sql"] = self.transform_sql
         return result

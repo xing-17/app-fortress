@@ -63,6 +63,12 @@ class _MockOSSConnection(OSSConnection):
     def ping(self) -> bool:
         return True
 
+    def get_duckdb_base_location(self) -> str:
+        return f"s3://{self.bucket_name}"
+
+    def get_duckdb_base_uri(self) -> str:
+        return f"s3://{self.bucket_name}/{_DEST_SETTING.base_prefix}"
+
 
 def _make_dest(
     format: str = "parquet",
@@ -112,6 +118,12 @@ class TestBaseDestination:
         monkeypatch.setattr(GlobalSetting.bridges, "destinations", [])
 
         class _D(BaseDestination):
+            def get_duckdb_base_location(self) -> str:
+                pass
+
+            def get_duckdb_base_uri(self) -> str:
+                pass
+
             def write_source(self, df, table_name, partition_col, partition_prefix) -> None:
                 pass
 

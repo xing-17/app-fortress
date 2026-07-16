@@ -50,6 +50,9 @@ class _AlphaConnection(BaseConnection):
     def ping(self) -> bool:
         return True
 
+    def ingest_to_duckdb(self, conn: Any) -> tuple[str, Any]:
+        return "alpha-secret", conn
+
 
 class _AlphaDestination(BaseDestination):
     def _resolve_setting(self, name: str) -> BridgesDestinationSetting:
@@ -57,6 +60,15 @@ class _AlphaDestination(BaseDestination):
 
     def write_source(self, df: Any, table_name: str, partition_col: str, partition_prefix: str) -> None:
         pass
+
+    def get_duckdb_location(self) -> str:
+        return f"s3://{self.setting.bucket}/{_DEST_SETTING.base_prefix}"
+
+    def get_duckdb_base_location(self) -> str:
+        return f"s3://{self.setting.bucket}"
+
+    def get_duckdb_base_uri(self) -> str:
+        return f"s3://{self.setting.bucket}/{_DEST_SETTING.base_prefix}"
 
     def write_source_quality(self, quality: Any) -> None:
         pass

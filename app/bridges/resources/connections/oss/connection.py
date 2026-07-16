@@ -64,7 +64,8 @@ class OSSConnection(BaseConnection):
                 REGION '{self.setting.region}',
                 ENDPOINT '{self.setting.endpoint}',
                 URL_STYLE '{self.setting.url_style}',
-                USE_SSL true
+                USE_SSL true,
+                SCOPE 's3://{self.bucket_name}'
             );
         """
         conn.execute(script)

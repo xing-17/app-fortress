@@ -182,6 +182,7 @@ class BridgesCoreSetting(BaseSetting):
         description="Registry 文件路径, 需在 Registry 连接中可写",
     )
 
+
 class BridgesMigrateSetting(BaseSetting):
     """
     Bridges Migrate 执行配置(bridges.yml bridges.migrate 节)。
@@ -191,7 +192,7 @@ class BridgesMigrateSetting(BaseSetting):
                      1 = 串行执行(默认); N > 1 = 同时执行 N 个 PipelineContext。
         max_queue_size: 请求队列最大长度, 超过则拒绝新请求
         registry_path: Registry 文件路径, 需在 Registry 连接中可写
-    
+
     Examples:
         >>> migrate_setting = BridgesMigrateSetting(max_threads=2)
         >>> print(migrate_setting.max_threads)  # 2
@@ -199,7 +200,7 @@ class BridgesMigrateSetting(BaseSetting):
 
     max_threads: int = Field(
         1,
-        description="跨 provider 并发线程数(1=串行, N>1=并发执行 PipelineContext)",
+        description="服务端request并发线程数(1=串行, N>1=并发执行)",
         ge=1,
     )
     max_queue_size: int = Field(
@@ -207,10 +208,27 @@ class BridgesMigrateSetting(BaseSetting):
         description="请求队列最大长度, 超过则拒绝新请求",
         ge=1,
     )
+    memory_limit: str = Field(
+        "4GB",
+        description="内存限制",
+    )
+    max_workers: int = Field(
+        2,
+        description="DuckDB 最大并发线程数",
+    )
+    extensions: list[str] = Field(
+        default_factory=list,
+        description="DuckDB 扩展列表",
+    )
+    temp_directory: str = Field(
+        ".cache/bridges/temp/migrate",
+        description="临时目录",
+    )
     registry_path: str = Field(
         ".cache/bridges/registry/migrate.json",
         description="Registry 文件路径, 需在 Registry 连接中可写",
     )
+
 
 class BridgesCacheSetting(BaseSetting):
     """

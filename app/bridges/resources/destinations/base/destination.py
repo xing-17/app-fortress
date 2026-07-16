@@ -81,6 +81,14 @@ class BaseDestination(
         return bridges_setting.get_destination(name=name)
 
     @abstractmethod
+    def get_duckdb_base_location(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_duckdb_base_uri(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
     def write_source(
         self,
         df: pl.DataFrame,
