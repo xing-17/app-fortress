@@ -61,14 +61,14 @@ class BridgesCache(
         self._ttl_hours: int = self.setting.ttl_hours
         self._ttl_table: str = self.setting.ttl_table
         self._hash_length: int = self.setting.hash_length
+        self._set_log_prefix(f"BridgesCache({self._name})")
 
         # Set up DuckDB connection and TTL table
         self.conn: duckdb.DuckDBPyConnection = self._resolve_connection()
         self.ensure_ttl_table()
 
         # Set logging attributes
-        self._set_log_prefix(f"BridgesCache({self._name})")
-        self.info("init OK.")
+        self.info("init: OK.")
         self.clean()
 
     @property
@@ -90,6 +90,7 @@ class BridgesCache(
         )
         timezone = GlobalSetting.system.timezone
         conn.execute("SET TimeZone = ?", [timezone])
+        self.debug(f"_resolve_connection: timezone set to '{timezone}' OK.")
         return conn
 
     def ensure_ttl_table(self) -> str:
@@ -99,7 +100,7 @@ class BridgesCache(
                 expire_at    TIMESTAMPTZ NOT NULL
             )
         """)
-        self.debug(f"TTL table '{self._ttl_table}' init OK.")
+        self.debug(f"ensure_ttl_table: '{self._ttl_table}' OK.")
         return self._ttl_table
 
     def connect(self) -> None:
@@ -111,7 +112,7 @@ class BridgesCache(
         if hasattr(self, "conn") and self.conn:
             self.conn.close()
             self.conn = None
-            self.info("connection closed.")
+            self.info("close: OK.")
 
     def __enter__(self) -> BridgesCache:
         self.connect()
@@ -203,7 +204,9 @@ class BridgesCache(
         self,
         identifier: str,
     ) -> None:
-        self.conn.execute(f'DROP TABLE IF EXISTS "{identifier}"')
+        self.conn.execute(
+            f'DROP TABLE IF EXISTS "{identifier}"',
+        )
         self.conn.execute(
             f"DELETE FROM {self._ttl_table} WHERE key = ?",
             [identifier],
@@ -315,8 +318,9 @@ class BridgesCache(
             finally:
                 self.conn.unregister(buffer_table)
 
+            seconds = self.tock("write")
             self.debug(
-                f"write: {identifier} {len(data)} rows cached OK.",
+                f"write: {identifier} {len(data)} rows OK.",
                 context={
                     "key": identifier,
                     "partition": partition,
@@ -325,7 +329,6 @@ class BridgesCache(
                     "expires_at": expire_ts,
                 },
             )
-            seconds = self.tock("write")
             self.debug(f"write: duration {seconds:.3f}s.")
 
     def reset(
@@ -346,9 +349,9 @@ class BridgesCache(
                 identifier = self.resolve_identifier(key, partition)
                 if self._check_exist(identifier):
                     self._delete_table(identifier)
-                    self.debug(f"reset: entry for '{identifier}' OK.")
+                    self.debug(f"reset: '{identifier}' OK.")
                 else:
-                    self.debug(f"reset: not found for '{identifier}'.")
+                    self.warning(f"reset: '{identifier}' not found.")
 
         seconds = self.tock("reset")
         self.debug(f"reset: duration {seconds:.3f}s.")
@@ -367,9 +370,9 @@ class BridgesCache(
                 identifier = self.resolve_identifier(key, partition)
                 n_count = self._clean_expired_entries(identifier)
                 if n_count < 1:
-                    self.debug(f"clean: no expired entry for '{identifier}'.")
+                    self.debug(f"clean: no expire entry for '{identifier}'.")
                 else:
-                    self.debug(f"clean: expired entry '{identifier}' OK.")
+                    self.debug(f"clean: expire entry '{identifier}' OK.")
         seconds = self.tock("clean")
         self.debug(f"clean: duration {seconds:.3f}s.")
 
@@ -379,7 +382,7 @@ class BridgesCache(
             self.connect()
             self.ensure_ttl_table()
         self.clean()
-        self.info("refresh OK.")
+        self.info("refresh: OK.")
 
     def export(self) -> dict:
         return {
