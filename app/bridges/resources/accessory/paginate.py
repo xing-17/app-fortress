@@ -73,12 +73,12 @@ class Paginate(BaseAccessory):
     def reset(self) -> None:
         self.offset = self._default_offset
         self._count = 0
-        self.debug(f"reset: offset at {self.offset} OK.")
+        self.debug(f"reset: (offset {self.offset}) OK.")
 
     def next(self) -> tuple[int, int]:
         current = self.offset
         self.offset += self.page_size
-        self.debug(f"next: offset at {self.offset} OK.")
+        self.debug(f"next: (offset {self.offset}) OK.")
         return (current, self.page_size)
 
     def __enter__(self) -> Paginate:

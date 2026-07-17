@@ -46,7 +46,7 @@ class Coolant(BaseAccessory):
     def run(self) -> None:
         if self.interval > 0:
             time.sleep(self.interval)
-            self.debug(f"run: sleep {self.interval:.3f}s.")
+            self.debug(f"run: (sleep {self.interval:.3f}s) OK.")
 
     def __enter__(self) -> Coolant:
         return self

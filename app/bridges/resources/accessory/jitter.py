@@ -63,15 +63,18 @@ class Jitter(BaseAccessory):
         if self.min_seconds >= self.max_seconds:
             raise ValueError("min_seconds must be < max_seconds")
 
-    def jit(self) -> float | None:
+    def run(self) -> float | None:
         if self.is_enabled:
             delay = random.uniform(self.min_seconds, self.max_seconds)
             delay_rounded = round(delay, 3)
             time.sleep(delay_rounded)
-            self.debug(f"jit: delay {delay_rounded} seconds")
+            self.debug(f"run: (delay {delay_rounded}s) OK.")
             return delay_rounded
         else:
             return None
+
+    def jit(self) -> float | None:
+        return self.run()
 
     def export(self) -> dict[str, Any]:
         result = super().export()
