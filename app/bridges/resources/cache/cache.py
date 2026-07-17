@@ -320,7 +320,7 @@ class BridgesCache(
 
             seconds = self.tock("write")
             self.debug(
-                f"write: {identifier} {len(data)} rows OK.",
+                f"write: '{identifier}' {len(data)} rows OK.",
                 context={
                     "key": identifier,
                     "partition": partition,
@@ -344,7 +344,7 @@ class BridgesCache(
                 identifiers = self._list_tables()
                 for identifier in identifiers:
                     self._delete_table(identifier)
-                self.debug(f"reset: all {len(identifiers)} entries OK.")
+                self.debug(f"reset: {len(identifiers)} rows OK.")
             else:
                 identifier = self.resolve_identifier(key, partition)
                 if self._check_exist(identifier):
@@ -365,7 +365,7 @@ class BridgesCache(
         with self._lock:
             if key is None:
                 n_count = self._clean_expired_entries()
-                self.debug(f"clean: {n_count} expired entries OK.")
+                self.debug(f"clean: {n_count} expired rows OK.")
             else:
                 identifier = self.resolve_identifier(key, partition)
                 n_count = self._clean_expired_entries(identifier)

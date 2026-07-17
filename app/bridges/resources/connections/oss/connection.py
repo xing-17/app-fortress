@@ -64,21 +64,25 @@ class OSSConnection(BaseConnection):
         return _is_success
 
     def get_duckdb_secret(self) -> SecretDuckdb:
-        name = f"_oss_conn_secret_{self.name}"
-        secret = SecretDuckdb.from_params(
-            type="s3",
-            name=name,
-            params={
-                "KEY_ID": self.setting.access_key_id,
-                "SECRET": self.setting.access_key_secret,
-                "REGION": self.setting.region,
-                "ENDPOINT": self.setting.endpoint,
-                "URL_STYLE": self.setting.url_style,
-                "USE_SSL": str(self.setting.use_ssl).lower(),
-            },
-            scope=f"s3://{self.bucket_name}",
-        )
-        return secret
+        try:
+            name = f"_oss_conn_secret_{self.name}"
+            secret = SecretDuckdb.from_params(
+                type="s3",
+                name=name,
+                params={
+                    "KEY_ID": self.setting.access_key_id,
+                    "SECRET": self.setting.access_key_secret,
+                    "REGION": self.setting.region,
+                    "ENDPOINT": self.setting.endpoint,
+                    "URL_STYLE": self.setting.url_style,
+                    "USE_SSL": str(self.setting.use_ssl).lower(),
+                },
+                scope=f"s3://{self.bucket_name}",
+            )
+            return secret
+        except Exception as e:
+            self.error(f"get_duckdb_secret: fail {e}")
+            raise
 
     def export(self) -> dict:
         result = super().export()

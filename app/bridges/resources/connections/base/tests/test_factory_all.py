@@ -8,7 +8,6 @@
 - TestBootstrap  bootstrap() 按 resources.connections.yml 批量创建所有实例
 """
 
-
 import pytest
 
 from app.bridges.resources.connections.base.connection import BaseConnection
