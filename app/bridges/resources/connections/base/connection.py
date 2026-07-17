@@ -110,7 +110,7 @@ class BaseConnection(
                 self._connection = self._create_connection()
                 self.info("connect: OK.")
                 seconds = self.tock("connect")
-                self.debug(f"connect: (duration {seconds:.3f}s) OK.")
+                self.debug(f"connect: duration {seconds:.3f}s.")
 
     def close(self) -> None:
         self.tick("close")

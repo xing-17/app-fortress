@@ -50,18 +50,18 @@ class OSSConnection(BaseConnection):
         )
 
     def ping(self) -> bool:
+        _is_success = False
         try:
             self.tick("ping")
-
             self.get_connection().get_bucket_info()
             self.info("ping: OK.")
-
+            _is_success = True
+        except Exception as e:
+            self.error(f"ping: fail {e}")
+        finally:
             seconds = self.tock("ping")
             self.debug(f"ping: duration {seconds:.3f}s.")
-            return True
-        except Exception as e:
-            self.warning(f"ping: fail {e}")
-            return False
+        return _is_success
 
     def get_duckdb_secret(self) -> SecretDuckdb:
         name = f"_oss_conn_secret_{self.name}"
