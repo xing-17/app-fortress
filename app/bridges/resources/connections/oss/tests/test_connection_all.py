@@ -3,7 +3,7 @@
 
 覆盖范围
 --------
-- TestOSSConnection   属性初始化、_create_connection（mock oss2）、ping、export
+- TestOSSConnection   属性初始化、_create_connection（mock oss2）、ping、get_duckdb_secret、export
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from app.bridges.resources.connections.oss.connection import OSSConnection
+from app.bridges.resources.secret.duckdb import SecretDuckdb
 from app.common.setting.connections import OssConnectionSetting
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -158,3 +159,55 @@ class TestOSSConnection:
         exported = OSSConnection(setting=_OSS_SETTING).export()
         assert "access_key_id" not in exported
         assert "access_key_secret" not in exported
+
+    # ── get_duckdb_secret ────────────────────────────────────────────────────
+
+    def test_get_duckdb_secret_returns_secret_duckdb(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert isinstance(secret, SecretDuckdb)
+
+    def test_get_duckdb_secret_name_includes_connection_name(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert secret.name == "_oss_conn_secret_test_conn"
+
+    def test_get_duckdb_secret_type_is_s3(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert secret.config.type == "s3"
+
+    def test_get_duckdb_secret_scope_includes_bucket(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert secret.config.scope == "s3://test-bucket"
+
+    def test_get_duckdb_secret_params_contains_key_id(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert secret.config.params["KEY_ID"] == "test_access_key"
+
+    def test_get_duckdb_secret_params_contains_secret(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert secret.config.params["SECRET"] == "test_secret_key"
+
+    def test_get_duckdb_secret_params_contains_region(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert secret.config.params["REGION"] == "cn-test"
+
+    def test_get_duckdb_secret_params_contains_endpoint(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert secret.config.params["ENDPOINT"] == "oss-cn-test.aliyuncs.com"
+
+    def test_get_duckdb_secret_params_contains_url_style(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert "URL_STYLE" in secret.config.params
+
+    def test_get_duckdb_secret_params_contains_use_ssl(self):
+        conn = OSSConnection(setting=_OSS_SETTING)
+        secret = conn.get_duckdb_secret()
+        assert "USE_SSL" in secret.config.params

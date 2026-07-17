@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from typing import Tuple
-
-import duckdb
 import oss2
 
 from app.bridges.resources.connections.base.connection import BaseConnection
 from app.bridges.resources.connections.base.factory import ConnectionFactory
+from app.bridges.resources.secret.duckdb import SecretDuckdb
 from app.common.setting.connections import OssConnectionSetting
 
 
@@ -37,6 +35,7 @@ class OSSConnection(BaseConnection):
         self.region: str = setting.region
         self.bucket_name: str = setting.bucket
         self.endpoint: str = setting.endpoint
+        self._set_log_prefix(f"OSSConnection({self.name})")
 
     def _create_connection(self) -> oss2.Bucket:
         auth = oss2.Auth(
@@ -50,45 +49,39 @@ class OSSConnection(BaseConnection):
             connect_timeout=120,
         )
 
-    def ingest_to_duckdb(
-        self,
-        conn: duckdb.DuckDBPyConnection,
-    ) -> Tuple[str, duckdb.DuckDBPyConnection]:
-        secret_name = f"oss_secret_{self.name}"
-        script = f"""
-            CREATE OR REPLACE SECRET {secret_name} (
-                TYPE s3,
-                PROVIDER config,
-                KEY_ID '{self.setting.access_key_id}',
-                SECRET '{self.setting.access_key_secret}',
-                REGION '{self.setting.region}',
-                ENDPOINT '{self.setting.endpoint}',
-                URL_STYLE '{self.setting.url_style}',
-                USE_SSL true,
-                SCOPE 's3://{self.bucket_name}'
-            );
-        """
-        conn.execute(script)
-        return secret_name, conn
-
     def ping(self) -> bool:
         try:
             self.tick("ping")
+
             self.get_connection().get_bucket_info()
             self.info("ping: OK.")
+
             seconds = self.tock("ping")
             self.debug(f"ping: duration {seconds:.3f}s.")
             return True
         except Exception as e:
-            self.warning(f"ping: failed: {e}")
+            self.warning(f"ping: fail {e}")
             return False
+
+    def get_duckdb_secret(self) -> SecretDuckdb:
+        name = f"_oss_conn_secret_{self.name}"
+        secret = SecretDuckdb.from_params(
+            type="s3",
+            name=name,
+            params={
+                "KEY_ID": self.setting.access_key_id,
+                "SECRET": self.setting.access_key_secret,
+                "REGION": self.setting.region,
+                "ENDPOINT": self.setting.endpoint,
+                "URL_STYLE": self.setting.url_style,
+                "USE_SSL": str(self.setting.use_ssl).lower(),
+            },
+            scope=f"s3://{self.bucket_name}",
+        )
+        return secret
 
     def export(self) -> dict:
         result = super().export()
-        result.update(
-            {
-                "bucket": self.bucket_name,
-                "endpoint": self.endpoint,
-            }
-        )
+        result["bucket"] = self.bucket_name
+        result["endpoint"] = self.endpoint
         return result

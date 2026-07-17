@@ -8,12 +8,12 @@
 - TestBootstrap  bootstrap() 按 resources.connections.yml 批量创建所有实例
 """
 
-from typing import Any, Tuple
 
 import pytest
 
 from app.bridges.resources.connections.base.connection import BaseConnection
 from app.bridges.resources.connections.base.factory import ConnectionFactory
+from app.bridges.resources.secret.duckdb import SecretDuckdb
 from app.common.core.setting import GlobalSetting
 from app.common.setting.connections import OssConnectionSetting
 
@@ -39,8 +39,8 @@ class _AlphaConnection(BaseConnection):
     def ping(self) -> bool:
         return True
 
-    def ingest_to_duckdb(self, conn: Any) -> Tuple[str, Any]:
-        return "CREATE", conn
+    def get_duckdb_secret(self) -> SecretDuckdb | None:
+        return None
 
 
 # ──────────────────────────────────────────────────────────────────────────────

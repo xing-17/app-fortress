@@ -8,11 +8,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Tuple
+from typing import Any
 
 import pytest
 
 from app.bridges.resources.connections.base.connection import BaseConnection
+from app.bridges.resources.secret.duckdb import SecretDuckdb
 from app.common.setting.connections import OssConnectionSetting
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -44,8 +45,8 @@ class _CountingConnection(BaseConnection):
     def ping(self) -> bool:
         return True
 
-    def ingest_to_duckdb(self, conn: Any) -> Tuple[str, Any]:
-        return "secret_name", conn
+    def get_duckdb_secret(self) -> SecretDuckdb | None:
+        return None
 
 
 # ──────────────────────────────────────────────────────────────────────────────

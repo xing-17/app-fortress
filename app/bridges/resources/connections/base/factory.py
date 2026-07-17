@@ -44,18 +44,18 @@ class ConnectionFactory:
         cls,
         name: str,
     ) -> BaseConnection:
-        conns_setting: ConnectionsSetting = GlobalSetting.connections
-        conn_setting: BaseConnectionSetting = conns_setting.get(name)
-        conn_type = conn_setting.type
+        settings: ConnectionsSetting = GlobalSetting.connections
+        setting: BaseConnectionSetting = settings.get(name)
+        conn_type = setting.type
         klass = cls._registry.get(conn_type)
         if klass is None:
             raise KeyError(f"Unknown connection type '{conn_type}'.")
-        return klass(setting=conn_setting)
+        return klass(setting=setting)
 
     @classmethod
     def bootstrap(cls) -> dict[str, BaseConnection]:
         result: dict[str, BaseConnection] = {}
-        conns_setting: ConnectionsSetting = GlobalSetting.connections
-        for name in conns_setting.connections.keys():
+        settings: ConnectionsSetting = GlobalSetting.connections
+        for name in settings.connections.keys():
             result[name] = cls.create(name=name)
         return result
