@@ -50,6 +50,10 @@ class BaseBridgesState(TimePlugin):
         self.status = BaseBridgesStatus.CANCELED
         self.finished_at = self._get_current_datetime()
 
+    def fail(self) -> None:
+        self.status = BaseBridgesStatus.FAILED
+        self.finished_at = self._get_current_datetime()
+
     @property
     def duration_seconds(self) -> float | None:
         if self.started_at and self.finished_at:
