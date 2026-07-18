@@ -7,7 +7,6 @@ from typing import Any
 from app.bridges.resources.accessory.jitter import Jitter
 from app.bridges.resources.cache.cache import (
     BridgesCache,
-    ModuleBridgesCache,
 )
 from app.bridges.resources.providers.base.session import BaseSession
 from app.common.core.setting import GlobalSetting
@@ -70,17 +69,7 @@ class BaseProvider(
         self._set_log_prefix(f"Provider({self.name})")
 
     def _resolve_cache(self) -> BridgesCache:
-        if self.setting.cache is not None:
-            cache_setting = self.setting.cache
-            return BridgesCache(
-                name=cache_setting.name,
-                path=cache_setting.path,
-                ttl_hours=cache_setting.ttl_hours,
-                ttl_table=cache_setting.ttl_table,
-                hash_length=cache_setting.hash_length,
-            )
-        else:
-            return ModuleBridgesCache
+        return BridgesCache(setting=self.setting.cache)
 
     def _resolve_setting(
         self,

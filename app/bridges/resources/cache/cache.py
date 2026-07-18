@@ -48,11 +48,18 @@ class BridgesCache(
     """
 
     @classmethod
-    def load(cls) -> BridgesCache:
-        return cls()
+    def load(
+        cls,
+        setting: BridgesCacheSetting | None = None,
+    ) -> BridgesCache:
+        return cls(setting=setting)
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        setting: BridgesCacheSetting | None = None,
+    ) -> None:
         super().__init__()
+        self._setting = self._resolve_setting(setting)
         self._lock: threading.Lock = threading.Lock()
 
         # Basic attributes
@@ -73,7 +80,15 @@ class BridgesCache(
 
     @property
     def setting(self) -> BridgesCacheSetting:
-        return GlobalSetting.bridges.cache
+        return self._setting
+
+    def _resolve_setting(
+        self,
+        setting: BridgesCacheSetting | None = None,
+    ) -> BridgesCacheSetting:
+        if setting is None:
+            setting = GlobalSetting.bridges.cache
+        return setting
 
     def _resolve_path(self) -> Path:
         path = Path(self.setting.path).expanduser().resolve()
