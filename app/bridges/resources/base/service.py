@@ -30,6 +30,14 @@ class BaseBridgesService(
 
     提供异步队列式任务管理，支持任务提交、状态查询、取消等功能。
     工作线程需通过 start_worker() 显式启动，不在 __init__ 中自动启动。
+    
+    Worker Loop 行为:
+        每次从队列取出一个请求后：
+        1. 若请求已取消（CANCELED），清理 _live、持久化 CANCELED 状态后跳过。
+        2. 调用 run(request)；若成功，持久化最终状态到 registry。
+        3. 若 run() 抛出异常，将状态标记为 FAILED 后持久化，并调用 _on_run_error 钩子。
+        4. 无论成败，均调用 _after_run 钩子（error 参数反映是否有异常）。
+
 
     Attributes:
         setting (BridgesSetting): 全局 Bridges 配置。
@@ -64,13 +72,6 @@ class BaseBridgesService(
         shutdown() -> None: 阻塞直至队列全部处理完毕。
         export() -> dict[str, Any]: 导出服务当前状态为字典。
         describe() -> str: 返回服务当前状态的 JSON 字符串。
-
-    Worker Loop 行为:
-        每次从队列取出一个请求后：
-        1. 若请求已取消（CANCELED），清理 _live、持久化 CANCELED 状态后跳过。
-        2. 调用 run(request)；若成功，持久化最终状态到 registry。
-        3. 若 run() 抛出异常，将状态标记为 FAILED 后持久化，并调用 _on_run_error 钩子。
-        4. 无论成败，均调用 _after_run 钩子（error 参数反映是否有异常）。
 
     Example:
         >>> service = MyBridgesService()
