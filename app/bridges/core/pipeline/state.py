@@ -35,8 +35,8 @@ class PipelineState(BaseBridgesState):
         finish(source_nodes): 标记完成运行并更新状态统计
         duration_seconds: 计算运行时长（秒）
         succeeded: 判断是否成功完成
-        start_at_repr: 获取开始时间的 ISO 格式字符串
-        finish_at_repr: 获取结束时间的 ISO 格式字符串
+        started_at_repr: 获取开始时间的 ISO 格式字符串
+        finished_at_repr: 获取结束时间的 ISO 格式字符串
         export(): 导出状态为字典
         describe(): 导出状态为格式化 JSON 字符串
 
@@ -49,6 +49,7 @@ class PipelineState(BaseBridgesState):
 
     """
 
+    type: str = "core_pipeline"
     status: PipelineStatus = PipelineStatus.PENDING
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -63,15 +64,11 @@ class PipelineState(BaseBridgesState):
         self.status = PipelineStatus.RUNNING
         self.started_at = self._get_current_datetime()
 
-    def cancel(self) -> None:
-        self.status = PipelineStatus.CANCELED
-        self.finished_at = self._get_current_datetime()
-
     def update(
         self,
-        source_nodes: list[PipeNode],
+        pipe_nodes: list[PipeNode],
     ) -> None:
-        states = [n.state for n in source_nodes]
+        states = [n.state for n in pipe_nodes]
         self.total = len(states)
         self.pending = sum(1 for s in states if s.status == PipelineStatus.PENDING)
         self.done = sum(1 for s in states if s.status == PipelineStatus.DONE)
@@ -81,13 +78,13 @@ class PipelineState(BaseBridgesState):
 
     def finish(
         self,
-        source_nodes: list[PipeNode],
+        pipe_nodes: list[PipeNode],
     ) -> None:
-        self.update(source_nodes)
+        self.update(pipe_nodes)
         self.finished_at = self._get_current_datetime()
-        if self.done > 0 and self.failed == 0:
+        if self.done == self.total:
             self.status = PipelineStatus.DONE
-        elif self.done > 0 and self.failed > 0:
+        elif self.done > 0:
             self.status = PipelineStatus.PARTIAL
         elif self.failed > 0:
             self.status = PipelineStatus.FAILED
@@ -110,15 +107,13 @@ class PipelineState(BaseBridgesState):
         }
 
     def export(self) -> dict:
-        return {
-            "status": self.status.value,
-            "started_at": self.started_at_repr,
-            "finished_at": self.finished_at_repr,
-            "duration_seconds": self.duration_seconds,
+        result = super().export()
+        result["counts"] = {
             "total": self.total,
-            "pending": self.pending,
             "done": self.done,
             "failed": self.failed,
             "running": self.running,
+            "pending": self.pending,
             "canceled": self.canceled,
         }
+        return result

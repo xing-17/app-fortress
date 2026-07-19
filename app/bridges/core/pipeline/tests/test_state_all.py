@@ -358,12 +358,13 @@ class TestExport:
         ]
         state.finish(nodes)
         result = state.export()
-        assert "total" in result
-        assert "done" in result
-        assert "failed" in result
-        assert "running" in result
-        assert "pending" in result
-        assert "canceled" in result
+        count_ = result.get("counts", {})
+        assert "total" in count_
+        assert "done" in count_
+        assert "failed" in count_
+        assert "running" in count_
+        assert "pending" in count_
+        assert "canceled" in count_
 
     def test_describe_returns_json_string(self):
         """测试 describe() 返回 JSON 字符串。"""

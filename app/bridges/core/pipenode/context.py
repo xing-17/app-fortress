@@ -84,3 +84,14 @@ class PipeNodeContext(BaseContext):
         default_factory=dict,
         description="本次具体运行参数（由 Strategy 填充）",
     )
+
+    def export(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "request_id": self.request_id,
+            "pipeline_id": self.pipeline_id,
+            "provider": self.provider.export(),
+            "source": self.source.export(),
+            "destinations": [d.export() for d in self.destinations],
+            "params": self.params,
+        }

@@ -85,7 +85,7 @@ class PipeNode(
         ... )
         >>> node = PipeNode(context)
         >>> state = node.run()
-        >>> print(f"Status: {state.status}, Rows: {state.rows}")
+        >>> print(f"Status: {state.status}, Rows: {state.data_size_height}")
 
         >>> # 取消执行
         >>> node = PipeNode(context)
@@ -209,7 +209,7 @@ class PipeNode(
                 primary_keys=self.source.setting.primary_fields,
                 extra={
                     "status": self.state.status.value,
-                    "started_at": self.state.start_at_repr,
+                    "started_at": self.state.started_at_repr,
                     "reported_at": self._get_current_datetime().isoformat(),
                     "error": self.state.error,
                 },
@@ -222,7 +222,9 @@ class PipeNode(
             self.debug("_write_quality: OK.")
 
             duration = self.tock("_write_quality")
-            self.debug(f"_write_quality: {self.quality.rows} rows.")
+            _height = self.quality.data_size_height
+            _width = self.quality.data_size_width
+            self.debug(f"_write_quality: {_height} rows, {_width} columns.")
             self.debug(f"_write_quality: duration {duration:.2f}s.")
 
         else:

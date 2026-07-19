@@ -58,6 +58,7 @@ class PipeNodeState(BaseBridgesState):
 
     """
 
+    type: str = "core_pipenode"
     status: PipeNodeStatus = PipeNodeStatus.PENDING
     started_at: datetime | None = None
     finished_at: datetime | None = None

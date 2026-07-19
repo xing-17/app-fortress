@@ -45,11 +45,11 @@ class PipelineNode(
         - 未开始的节点会被标记为 CANCELED
 
     Attributes:
-        context (PipeContext): 上下文对象，包含所有配置信息
+        context (PipelineContext): 上下文对象，包含所有配置信息
         request_id (str): 请求 ID
         id (str): 节点 ID（来自 context.id）
-        state (PipeState): 节点状态和统计信息
-        source_nodes (list[PipeNode]): 派生的源节点列表
+        state (PipelineState): 节点状态和统计信息
+        pipenodes (list[PipeNode]): 派生的 PipeNode 列表
 
     Methods:
         derive() -> list[PipeNode]:
@@ -58,7 +58,7 @@ class PipelineNode(
         cancel() -> None:
             取消当前执行，传播取消信号到所有源节点。
 
-        run() -> PipeState:
+        run() -> PipelineState:
             执行完整的 Pipe 流程，返回执行状态。
 
         export() -> dict[str, Any]:
@@ -68,9 +68,9 @@ class PipelineNode(
             导出节点信息为格式化 JSON 字符串。
 
     Example:
-        >>> context = PipeContext(...)
-        >>> pipe_node = PipeNode(context)
-        >>> state = pipe_node.run()
+        >>> context = PipelineContext(...)
+        >>> pipeline_node = PipelineNode(context)
+        >>> state = pipeline_node.run()
         >>> print(state.export())
 
     """
@@ -114,8 +114,12 @@ class PipelineNode(
             source_node = PipeNode(context=source_context)
             result.append(source_node)
 
-        duration = self.tock("derive")
+        # Store the derived pipenodes in the instance variable
+        self.pipenodes = result
+        self.state.total = len(result)
 
+        # Log the derivation result
+        duration = self.tock("derive")
         self.info("derive: OK.")
         self.info(f"derive: {len(result)} pipenodes.")
         self.debug(f"derive: duration {duration:.3f}s")
@@ -132,14 +136,18 @@ class PipelineNode(
     def run(self) -> PipelineState:
         self.tick(f"run({self.id})")
         self.state.start()
-        self.pipenodes = self.derive()
+
+        # Derive source nodes if not already derived
+        if not self.pipenodes:
+            self.pipenodes = self.derive()
+
+        # In case derive failed
         if not self.pipenodes:
             self.warning("run: no pipenodes derived.")
             self.state.finish(self.pipenodes)
             return self.state
 
         # Update total count for progress tracking
-        self.state.total = len(self.pipenodes)
         max_threads: int = self.context.provider.setting.max_threads
 
         # Run source nodes
@@ -192,8 +200,9 @@ class PipelineNode(
 
                 # 尝试取消尚未开始执行的排队 future
                 if self._is_cancelled():
-                    for f in futures:
-                        f.cancel()
+                    for f, node in futures.items():
+                        if f.cancel():
+                            node.state.cancel()
                     break
 
     def export(self) -> dict[str, Any]:
