@@ -27,6 +27,7 @@ class OssConnectionSetting(BaseConnectionSetting):
         region:            OSS Region
         url_style:         URL 风格，vhost 或 path
         bucket:            目标 Bucket 名称
+        use_ssl:           是否使用 HTTPS 协议
 
     Examples:
         >>> conn = OssConnectionSetting(
@@ -50,6 +51,7 @@ class OssConnectionSetting(BaseConnectionSetting):
     region: str
     bucket: str
     url_style: str | None = "vhost"
+    use_ssl: bool | None = True
 
     def export(self) -> dict:
         result = super().export()

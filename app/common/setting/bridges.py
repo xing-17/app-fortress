@@ -107,6 +107,10 @@ class BaseProviderSetting(BaseSetting):
         description="Provider 内并发线程数(1=串行, N>1=并发执行 SourceContext)",
         ge=1,
     )
+    cache: BridgesCacheSetting | None = Field(
+        None,
+        description="缓存配置, 若未指定则使用全局 Bridges.cache 配置",
+    )
 
 
 class TushareProviderSetting(BaseProviderSetting):
@@ -180,6 +184,10 @@ class BridgesCoreSetting(BaseSetting):
     registry_path: str = Field(
         ".cache/bridges/registry.json",
         description="Registry 文件路径, 需在 Registry 连接中可写",
+    )
+    max_registry_items: int | None = Field(
+        None,
+        description="Registry 最大记录数, 超过则删除最旧记录",
     )
 
 
