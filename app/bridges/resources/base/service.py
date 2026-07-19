@@ -6,13 +6,13 @@ import threading
 from abc import ABC, abstractmethod
 from typing import Any, Generic, TypeVar
 
-from app.bridges.resources.base.registry import BaseRegistry
 from app.bridges.resources._warehouse.warehouse import BridgesWarehouse, ModuleBridgesWarehouse
+from app.bridges.resources.base.registry import BaseRegistry
+from app.bridges.resources.base.state import BaseBridgesState
+from app.common.context.base import BaseContext
 from app.common.core.setting import GlobalSetting
 from app.common.plugin import LogPlugin, StopwatchPlugin, TimePlugin
 from app.common.setting.bridges import BridgesSetting
-from app.bridges.resources.base.state import BaseBridgesState
-from app.common.context.base import BaseContext
 
 TRequest = TypeVar("TRequest", bound=BaseContext)
 TState = TypeVar("TState", bound=BaseBridgesState)
@@ -30,7 +30,7 @@ class BaseBridgesService(
 
     提供异步队列式任务管理，支持任务提交、状态查询、取消等功能。
     工作线程需通过 start_worker() 显式启动，不在 __init__ 中自动启动。
-    
+
     Worker Loop 行为:
         每次从队列取出一个请求后：
         1. 若请求已取消（CANCELED），清理 _live、持久化 CANCELED 状态后跳过。

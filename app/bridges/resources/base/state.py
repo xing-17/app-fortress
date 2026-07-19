@@ -42,6 +42,13 @@ class BaseBridgesState(TimePlugin):
     status: BaseBridgesStatus = BaseBridgesStatus.PENDING
     started_at: datetime | None = None
     finished_at: datetime | None = None
+    total: int = 0
+    pending: int = 0
+    running: int = 0
+    canceled: int = 0
+    done: int = 0
+    partial: int = 0
+    failed: int = 0
 
     def _is_cancelled(self) -> bool:
         return self.status == BaseBridgesStatus.CANCELED
@@ -75,6 +82,7 @@ class BaseBridgesState(TimePlugin):
             "started_at": self.started_at_repr,
             "finished_at": self.finished_at_repr,
             "duration_seconds": self.duration_seconds,
+            # 子类自己选择是否导出 total 等, 不做实现
         }
 
     def describe(self) -> str:

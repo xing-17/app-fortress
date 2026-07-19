@@ -29,7 +29,6 @@ from app.bridges.resources.base.service import BaseBridgesService
 from app.bridges.resources.base.state import BaseBridgesState, BaseBridgesStatus
 from app.common.context.base import BaseContext
 
-
 # ── 测试用具体类 ──────────────────────────────────────────────────────────────
 
 

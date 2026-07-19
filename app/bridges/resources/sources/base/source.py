@@ -135,7 +135,6 @@ class BaseSource(
             provider=provider,
             params=self.build_params(params),
         )
-        data = self.transform(data)
 
         # Write cache if enabled
         if use_cache and not data.is_empty():

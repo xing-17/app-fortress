@@ -98,8 +98,9 @@ class BaseRegistry(
 
     def _flush(self) -> None:
         # Ensure the max items limit
-        while len(self._items) > self._max_items:
-            self._items.popitem(last=False)
+        if self._max_items:
+            while len(self._items) > self._max_items:
+                self._items.popitem(last=False)
 
         # Ensure the parent directory exists
         self._path.parent.mkdir(
