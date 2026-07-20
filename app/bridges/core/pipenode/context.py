@@ -86,12 +86,16 @@ class PipeNodeContext(BaseContext):
     )
 
     def export(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "request_id": self.request_id,
-            "pipeline_id": self.pipeline_id,
-            "provider": self.provider.export(),
-            "source": self.source.export(),
-            "destinations": [d.export() for d in self.destinations],
-            "params": self.params,
-        }
+        result = super().export()
+        result.update(
+            {
+                "id": self.id,
+                "request_id": self.request_id,
+                "pipeline_id": self.pipeline_id,
+                "provider": self.provider.export(),
+                "source": self.source.export(),
+                "destinations": [d.export() for d in self.destinations],
+                "params": self.params,
+            }
+        )
+        return result

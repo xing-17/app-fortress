@@ -12,31 +12,31 @@ class MigrateRequest(BaseContext):
     数据迁移请求对象。
 
     Attributes:
-        source_name:        迁移任务逻辑名称，同时作为自动推导 target 路径的子目录名
+        source_name:        迁移任务逻辑名称，用于日志标识
         from_destination:   源 Destination 名称
-        from_prefix:        源文件的 OSS 路径前缀，支持 glob(如 **/*.parquet)
+        from_glob:          源文件的 OSS 路径 glob(如 s3://bucket/prefix/**/*.parquet)
         to_destination:     目标 Destination 名称
-        to_prefix:          目标路径前缀(可选)。为 None 时由 node 自动推导 {tgt_dest.base_prefix}/source/{source_name}
         transform_sql:      DuckDB SQL 变换语句，<source> 为占位符，默认 SELECT * FROM <source>
-        max_workers:        并发线程数(当前保留字段)，默认 8
-        overwrite:          目标文件已存在时是否覆盖，默认 True
+        options:            DuckDB COPY TO 选项列表(如 ['OVERWRITE_OR_IGNORE true'])
+        extensions:         DuckDB 扩展列表(如 ['httpfs'])
 
     Example:
-        >>> # target_prefix 为 None: 自动推导目标路径
+        >>> # 基本迁移示例
         >>> request = MigrateRequest(
         ...     source_name='tushare_stock_capflow',
         ...     from_destination='oss_finconnect',
-        ...     from_prefix='finconnect/landing/tushare_stock_capflow/**/*.parquet',
+        ...     from_glob='finconnect/landing/tushare_stock_capflow/**/*.parquet',
         ...     to_destination='oss_fortress',
         ...     transform_sql='SELECT * EXCLUDE(stock_code) FROM <source>',
         ... )
-        >>> # to_prefix 显式指定(自定义命名)
+        >>> # 带 DuckDB 选项的迁移
         >>> request = MigrateRequest(
         ...     source_name='tushare_stock_capflow',
         ...     from_destination='oss_prod',
-        ...     from_prefix='finconnect/landing/tushare_stock_capflow/**/*.parquet',
+        ...     from_glob='finconnect/landing/tushare_stock_capflow/**/*.parquet',
         ...     to_destination='oss_prod',
-        ...     to_prefix='fortress/bridges/source/tushare_stock_capflow_migrated',
+        ...     options=['FORMAT parquet', 'COMPRESSION snappy', 'OVERWRITE_OR_IGNORE true'],
+        ...     extensions=['httpfs'],
         ... )
         >>> service = MigrateService()
         >>> request_id = service.submit(request)
@@ -88,4 +88,6 @@ class MigrateRequest(BaseContext):
         result["from_glob"] = self.from_glob
         result["to_destination"] = self.to_destination
         result["transform_sql"] = self.transform_sql
+        result["options"] = self.options
+        result["extensions"] = self.extensions
         return result

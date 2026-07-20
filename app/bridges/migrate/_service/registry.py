@@ -45,5 +45,5 @@ class MigrateRegistry(BaseRegistry):
             path=path,
             max_items=max_items,
         )
-        self._set_log_prefix(f"MigrateRegistry({self.file_name})")
+        self._set_log_prefix(f"MigrateRegistry({self._file_name})")
         self.load()

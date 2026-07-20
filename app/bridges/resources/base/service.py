@@ -201,7 +201,7 @@ class BaseBridgesService(
                 with self._live_lock:
                     _state = self._live.get(request.id)
                 if _state is not None:
-                    _state.fail()
+                    _state.fail(str(e))
                     state = _state
 
             finally:

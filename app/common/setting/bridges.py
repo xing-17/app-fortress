@@ -224,6 +224,10 @@ class BridgesMigrateSetting(BaseSetting):
         2,
         description="DuckDB 最大并发线程数",
     )
+    options: list[str] = Field(
+        default_factory=list,
+        description="迁移选项",
+    )
     extensions: list[str] = Field(
         default_factory=list,
         description="DuckDB 扩展列表",
@@ -235,6 +239,10 @@ class BridgesMigrateSetting(BaseSetting):
     registry_path: str = Field(
         ".cache/bridges/registry/migrate.json",
         description="Registry 文件路径, 需在 Registry 连接中可写",
+    )
+    max_registry_items: int | None = Field(
+        None,
+        description="Registry 最大记录数, 超过则删除最旧记录",
     )
 
 

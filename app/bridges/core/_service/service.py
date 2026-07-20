@@ -170,6 +170,7 @@ class CoreService(
         with self._live_lock:
             req_state = self._live.get(request_id)
         if req_state is None:
+            self.warning(f"cancel: request '{request_id} not found.")
             return
         for pipeline_node in req_state.pipeline_nodes:
             pipeline_node.cancel()
