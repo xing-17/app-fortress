@@ -1,103 +1,86 @@
-# Bridges 概览
+# Bridges Core 概览
 
-## Bridges 是什么
+## 模块定位
 
-Bridges 是一个数据桥接框架，用于统一管理多源数据的获取、处理和输出。它通过标准化的接口连接不同的数据提供商（如 Tushare、Wind 等），将数据转换后输出到指定目标（数据库、文件、缓存等）。
+Core 是 Bridges 的调度执行层，负责请求的编排、任务派发和状态管理。通过三层架构实现数据抓取任务的并发执行和状态追踪。
 
-核心特性：
-- 多数据源统一管理
-- 异步并发执行
-- 自动重试和缓存
-- 请求队列和状态追踪
-- 灵活的标签筛选机制
+## 架构分层
 
-## 体系定位
+### 1. Service 层（_service/）
 
-Bridges 位于 app-fortress 的数据层核心，承担以下职责：
+核心调度服务，负责请求生命周期管理。
 
-- **资源管理层**：统一管理 Sources（数据源）、Providers（提供商）、Destinations（目标地）
-- **调度执行层**：通过 BridgesCoreCluster 调度请求，支持并发和队列化处理
-- **数据流转层**：从数据获取到输出的完整 Pipeline，包含数据转换、缓存、重试等机制
+- **CoreService**：主服务类，继承 BaseBridgesService，实现请求调度和执行
+- **CoreRequest**：请求对象，定义数据获取任务的输入参数
+- **CoreRequestState**：请求状态，追踪执行进度和结果
+- **CoreRegistry**：注册表，持久化请求历史和状态
 
-## 使用方式
+### 2. Pipeline 层（pipeline/）
 
-### 基本用法
+管道节点，负责单个数据源的完整处理流程。
+
+- **PipelineNode**：管道节点，从单个 Source 派生多个 PipeNode 并执行
+- **PipelineContext**：管道上下文，包含 Source、Provider、Destinations、Params
+- **PipelineState**：管道状态，收集统计信息（成功/失败/取消）
+
+### 3. PipeNode 层（pipenode/）
+
+子节点，负责单次数据获取和写出。
+
+- **PipeNode**：最小执行单元，执行 Source.run() → Destination.write()
+- **PipeNodeContext**：节点上下文，包含派生后的具体执行参数
+- **PipeNodeState**：节点状态，记录单次执行的结果
+
+## 执行流程
+
+```
+CoreService.submit(request)
+  ↓ derive sources/providers/destinations
+  ↓ create PipelineNodes
+  ↓ 
+CoreService.run(request)
+  ↓ 并发执行
+  ↓
+PipelineNode.run()
+  ↓ derive strategy (生成多个 PipeNodeContext)
+  ↓ 顺序或并发执行
+  ↓
+PipeNode.run()
+  ↓ source.run(provider, params)
+  ↓ destination.write(data)
+```
+
+## 使用示例
 
 ```python
-from app.bridges.core.cluster import BridgesCoreCluster
-from app.bridges.core.request import BridgesCoreRequest
+from app.bridges.core import CoreService, CoreRequest
 
-# 创建集群
-cluster = BridgesCoreCluster()
+# 创建服务
+service = CoreService()
 
 # 构建请求
-request = BridgesCoreRequest(
+request = CoreRequest(
     providers={"tushare": "tushare_prod"},
-    sources_by_tags={"region": "cn", "type": "stock"},
+    sources_by_tags={"region": "cn", "asset": "stock"},
     params={"trade_date": "20240101"},
-    destinations=["parquet", "duckdb"],
+    destinations=["oss_prod_tushare"],
 )
 
-# 提交请求（异步执行）
-request_id = cluster.submit(request)
+# 提交并执行
+request_id = service.submit(request)
+state = service.lookup(request_id)
 
-# 查询状态
-status = cluster.lookup(request_id)
-
-# 取消请求
-cluster.cancel(request_id)
+# 同步等待完成
+final_state = service.run(request)
 ```
 
-### 配置文件
+## 关键特性
 
-在 `setting.yaml` 中配置 providers 和 destinations：
-
-```yaml
-bridges:
-  providers:
-    tushare_prod:
-      type: tushare
-      token: ${TUSHARE_TOKEN}
-  
-  destinations:
-    parquet:
-      type: parquet
-      path: /data/output
-```
-
-## 开发新的 Bridge
-
-### 1. 开发新的 Source
-
-在 `app/bridges/resources/sources/items/` 创建配置文件：
-
-```yaml
-# items/my_provider/my_source.yaml
-name: my_source
-provider_type: my_provider
-method: get_data
-tags:
-  region: cn
-  type: stock
-cache:
-  enabled: true
-  ttl: 3600
-retry:
-  max_attempts: 3
-```
-
-创建 Source 类（如需自定义逻辑）：
-
-```python
-from app.bridges.resources.sources.base.source import BaseSource
-
-class MySource(BaseSource):
-    def build_params(self, params: dict) -> dict:
-        # 构建 API 参数
-        return {"date": params.get("trade_date")}
-    
-    def _fetch_all(self, provider, params):
-        # 调用 provider 获取数据
+- **三层架构**：Service → Pipeline → PipeNode，职责清晰
+- **并发控制**：支持 Pipeline 并发、PipeNode 顺序或并发
+- **状态管理**：请求级、管道级、节点级三级状态追踪
+- **取消机制**：支持请求取消，通过 threading.Event 传播
+- **注册表**：持久化请求历史，支持查询和回溯
         return provider.call(self.setting.method, **params)
 ```
 

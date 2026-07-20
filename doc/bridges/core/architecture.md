@@ -1,166 +1,313 @@
-# Bridges 架构设计
+# Bridges Core 架构设计
 
-## 一、总体架构层次
+## 一、三层架构
 
-Bridges 采用六层架构设计，从上到下依次为：
+Core 采用三层架构设计：
 
 ```
 ┌─────────────────────────────────────────────┐
-│          调度层 (Cluster Layer)              │  集群管理、队列调度、并发控制
-├─────────────────────────────────────────────┤
-│          请求层 (Request Layer)              │  请求封装、状态追踪
-├─────────────────────────────────────────────┤
-│          资源层 (Resource Layer)             │  资源管理、工厂模式、生命周期
-├─────────────────────────────────────────────┤
-│          Pipeline层 (Pipe Layer)             │  Pipeline 编排、策略派生
-├─────────────────────────────────────────────┤
-│          执行层 (Source Layer)               │  原子任务执行、数据质量检查
-├─────────────────────────────────────────────┤
-│          实现层 (Implementation Layer)       │  具体资源实现（Source/Provider/Destination）
+│      Service 层 (_service/)                  │
+│                                             │
+│  CoreService        - 核心调度服务          │
+│  CoreRequest        - 请求对象              │
+│  CoreRequestState   - 请求状态              │
+│  CoreRegistry       - 注册表管理            │
+└─────────────────────────────────────────────┘
+                       ↓
+┌─────────────────────────────────────────────┐
+│      Pipeline 层 (pipeline/)                 │
+│                                             │
+│  PipelineNode       - 管道节点              │
+│  PipelineContext    - 管道上下文            │
+│  PipelineState      - 管道状态              │
+└─────────────────────────────────────────────┘
+                       ↓
+┌─────────────────────────────────────────────┐
+│      PipeNode 层 (pipenode/)                 │
+│                                             │
+│  PipeNode           - 执行节点              │
+│  PipeNodeContext    - 节点上下文            │
+│  PipeNodeState      - 节点状态              │
 └─────────────────────────────────────────────┘
 ```
 
 ### 职责划分
 
-- **调度层**：负责请求队列管理、并发控制、任务分发
-- **请求层**：封装用户请求，追踪执行状态
-- **资源层**：统一管理所有资源（Sources、Providers、Destinations、Connections）
-- **Pipeline层**：将请求解析为多个 Pipeline 节点，通过策略派生细粒度任务
-- **执行层**：执行原子数据获取任务，包含数据转换和质量检查
-- **实现层**：各类资源的具体实现（如 TushareProvider、PostgresDestination 等）
+- **Service 层**：请求生命周期管理、资源解析、任务调度、状态追踪
+- **Pipeline 层**：单个数据源的完整处理流程、策略派生、并发控制
+- **PipeNode 层**：最小执行单元、数据获取和写出
 
 ---
 
-## 二、各层关键组件
+## 二、Service 层
 
-### 2.1 调度层 (Cluster Layer)
+### 2.1 CoreService
 
-| 组件 | 职责 |
-|------|------|
-| `BridgesCoreCluster` | 集群入口，管理请求生命周期 |
-| `BridgesCoreClusterRegistry` | 持久化请求执行历史（JSON 文件） |
-| `Queue[BridgesCoreRequest]` | 请求队列，支持最大容量限制 |
-| `Worker Thread` | 后台线程，串行消费队列 |
+核心调度服务，继承 `BaseBridgesService`。
+
+**核心属性**：
+- `_registry: CoreRegistry` - 请求历史注册表
+- `_warehouse: BridgesWarehouse` - 资源仓库
+- `_queue: Queue[CoreRequest]` - 请求队列
+- `_worker: Thread` - 后台工作线程
 
 **核心方法**：
-- `submit(request) -> request_id`：提交请求到队列，返回请求 ID
-- `run(request) -> state`：执行请求的完整流程
-- `lookup(request_id) -> dict`：查询请求状态
-- `cancel(request_id)`：取消请求执行
-- `derive(request) -> list[PipeNode]`：解析请求，派生 Pipeline 节点
-
-### 2.2 请求层 (Request Layer)
-
-| 组件 | 职责 |
-|------|------|
-| `BridgesCoreRequest` | 请求对象，包含 sources、providers、params、destinations |
-| `BridgesCoreRequestState` | 请求状态追踪，包含统计信息（成功/失败/部分成功） |
-| `BridgesCoreRequestStatus` | 状态枚举（PENDING/RUNNING/DONE/PARTIAL/FAILED/CANCELED） |
-
-**BridgesCoreRequest 结构**：
 ```python
-{
-    "id": "req_abc123",
-    "providers": {"tushare": "tushare_prod"},
-    "sources_by_tags": {"region": "cn", "type": "stock"},
-    "params": {"start_date": "2024-01-01"},
-    "destinations": ["parquet", "postgres"]
-}
+# 推导执行计划
+derive(request: CoreRequest) -> list[PipelineNode]
+
+# 生成初始状态
+plan(request: CoreRequest) -> CoreRequestState
+
+# 执行请求
+run(request: CoreRequest) -> CoreRequestState
+
+# 提交到队列（异步）
+submit(request: CoreRequest) -> str
+
+# 查询状态
+lookup(request_id: str) -> dict
+
+# 取消执行
+cancel(request_id: str) -> None
 ```
 
-### 2.3 资源层 (Resource Layer)
-
-| 组件 | 职责 |
-|------|------|
-| `BridgesWarehouse` | 资源容器，管理所有资源实例 |
-| `ProviderFactory` | Provider 工厂，支持类型注册和实例化 |
-| `SourceFactory` | Source 工厂，从 YAML 文件加载 |
-| `DestinationFactory` | Destination 工厂，支持类型注册和实例化 |
-| `ConnectionFactory` | Connection 工厂，管理数据库连接 |
-| `BridgesCache` | 全局缓存管理，支持多种缓存策略 |
-
-**资源访问方法**：
-- `get_provider(name) -> BaseProvider`
-- `get_source(name) -> BaseSource`
-- `get_destination(name) -> BaseDestination`
-- `get_sources_by_tags(tags) -> list[BaseSource]`
-- `load()` / `refresh()`：加载或刷新所有资源
-
-### 2.4 Pipeline层 (Pipe Layer)
-
-| 组件 | 职责 |
-|------|------|
-| `PipeNode` | Pipeline 节点，管理单个 Source-Provider-Destinations 组合 |
-| `PipeContext` | Pipeline 上下文，封装 Provider、Source、Destinations、Params |
-| `PipeState` | Pipeline 状态追踪（PENDING/RUNNING/DONE/PARTIAL/FAILED） |
-| `BaseStrategy` | 策略基类，将参数派生为多个子参数（如按日期分区） |
-| `StrategyFactory` | 策略工厂，按 (provider_type, strategy_name) 注册 |
-
 **执行流程**：
-1. `derive()` - 根据 Source 配置的 Strategy 派生多个 SourceNode
-2. `run()` - 并发或串行执行所有 SourceNode
-3. `finish()` - 收集统计信息，设置最终状态
+1. `_derive_sources()` - 根据 tags 筛选 Source
+2. `_derive_providers()` - 为每个 Source 匹配 Provider
+3. `_derive_destinations()` - 解析 Destination 列表
+4. `_derive_params()` - 构建参数字典
+5. 为每个 Source-Provider 组合创建 `PipelineNode`
+6. 并发执行所有 `PipelineNode`
 
-### 2.5 执行层 (Source Layer)
+### 2.2 CoreRequest
 
-| 组件 | 职责 |
-|------|------|
-| `SourceNode` | 最小执行单元，执行原子数据获取任务 |
-| `SourceContext` | 执行上下文，包含 request_id、pipeline_id、provider、source、destinations、params |
-| `SourceState` | 执行状态追踪（SUCCESS/FAILED/CANCELED） |
-| `SourceQuality` | 数据质量报告（行数、列数、空值率、重复率等） |
+请求对象，定义数据抓取任务的输入参数。
 
-**执行流程**：
-1. `invoke()` - 调用 `source.run(provider, params)` 获取数据
-2. `invoke()` - 调用 `source.transform(data)` 转换数据
-3. `_write_data()` - 写入所有 Destinations
-4. `_write_quality()` - 生成并写入质量报告（可选）
+```python
+class CoreRequest(BaseContext):
+    providers: dict[str, str]          # {"tushare": "tushare_prod"}
+    sources_by_tags: dict[str, str]    # {"region": "cn", "asset": "stock"}
+    params: dict[str, str]             # {"trade_date": "20240101"}
+    destinations: list[str]            # ["oss_prod_tushare"]
+```
 
-### 2.6 实现层 (Implementation Layer)
+### 2.3 CoreRequestState
 
-| 组件 | 职责 |
-|------|------|
-| `BaseSource` | 数据源基类，定义数据获取和转换逻辑 |
-| `BaseProvider` | 数据提供商基类，封装 API 调用和会话管理 |
-| `BaseDestination` | 目标存储基类，定义数据写入接口 |
-| `BaseConnection` | 连接基类，管理数据库连接池 |
-| `BaseSession` | 会话基类，管理 HTTP/API 会话 |
+请求状态，追踪执行进度和结果。
 
-**辅助组件**：
-- `Coolant`：请求速率限制（避免触发 API 限流）
-- `Paginate`：分页抓取管理
-- `Jitter`：随机延迟（避免请求过于规律）
-- `Retry`：重试机制（指数退避）
+```python
+class CoreRequestState(BaseRequestState):
+    request: CoreRequest
+    status: CoreRequestStatus          # PENDING/RUNNING/DONE/...
+    pipeline_states: list[PipelineState]
+    succeeded: int
+    failed: int
+    canceled: int
+```
+
+### 2.4 CoreRegistry
+
+注册表，持久化请求历史到本地文件。
+
+```python
+class CoreRegistry:
+    def put(request_id: str, state: dict) -> None
+    def get(request_id: str) -> dict | None
+    def list() -> list[dict]
+```
 
 ---
 
-##三、层与组件协作流程
+## 三、Pipeline 层
 
-### 3.1 完整执行流程
+### 3.1 PipelineNode
+
+管道节点，负责单个数据源的完整处理流程。
+
+**核心属性**：
+```python
+context: PipelineContext               # 包含 Source, Provider, Destinations, Params
+state: PipelineState                   # 状态追踪
+_cancel_event: threading.Event         # 取消信号
+```
+
+**核心方法**:
+```python
+start() -> None                        # 标记开始
+derive() -> list[PipeNodeContext]      # 策略派生
+run() -> PipelineState                 # 执行所有节点
+finish() -> None                       # 收集统计
+cancel() -> None                       # 取消执行
+```
+
+**执行流程**：
+1. `start()` - 设置状态为 RUNNING
+2. `derive()` - 通过 Strategy 派生多个 PipeNodeContext
+3. `run()` - 根据 Provider 的并发配置执行节点
+4. `finish()` - 统计成功/失败/取消数量，设置最终状态
+
+### 3.2 PipelineContext
+
+管道上下文，封装执行所需的所有资源和参数。
+
+```python
+class PipelineContext(BaseContext):
+    request_id: str                    # 请求 ID
+    source: BaseSource                 # 数据源
+    provider: BaseProvider             # 提供商
+    destinations: list[BaseDestination] # 目标列表
+    params: dict[str, Any]             # 参数字典
+```
+
+### 3.3 PipelineState
+
+管道状态，追踪单个 Pipeline 的执行结果。
+
+```python
+class PipelineState:
+    context: PipelineContext
+    status: PipelineStatus             # PENDING/RUNNING/DONE/...
+    pipenode_states: list[PipeNodeState]
+    succeeded: int
+    failed: int
+    canceled: int
+```
+
+---
+
+## 四、PipeNode 层
+
+### 4.1 PipeNode
+
+最小执行单元，负责单次数据获取和写出。
+
+**核心属性**：
+```python
+context: PipeNodeContext               # 节点上下文
+state: PipeNodeState                   # 节点状态
+_cancel_event: threading.Event         # 取消信号
+```
+
+**核心方法**：
+```python
+start() -> None                        # 标记开始
+run() -> PipeNodeState                 # 执行数据抓取和写出
+finish() -> None                       # 完成收尾
+cancel() -> None                       # 取消执行
+```
+
+**执行流程**：
+1. 调用 `source.run(provider, params)` 获取数据
+2. 遍历 destinations，调用 `destination.write_source(data, ...)`
+3. 生成数据质量报告，调用 `destination.write_source_quality(quality)`
+4. 更新状态为 DONE/FAILED
+
+### 4.2 PipeNodeContext
+
+节点上下文，包含派生后的具体执行参数。
+
+```python
+class PipeNodeContext(BaseContext):
+    pipeline_id: str                   # 所属 Pipeline ID
+    request_id: str                    # 所属 Request ID
+    source: BaseSource
+    provider: BaseProvider
+    destinations: list[BaseDestination]
+    params: dict[str, Any]             # 派生后的具体参数
+```
+
+### 4.3 PipeNodeState
+
+节点状态，记录单次执行的结果。
+
+```python
+class PipeNodeState:
+    context: PipeNodeContext
+    status: PipeNodeStatus             # PENDING/RUNNING/DONE/FAILED/CANCELED
+    error: Exception | None
+    data_quality: SourceDataQuality | None
+```
+
+---
+
+## 五、完整执行流程
 
 ```
 1. 用户提交请求
    ↓
-2. BridgesCoreCluster.submit(request)
-   - 创建 BridgesCoreRequestState
+CoreService.submit(request)
+   - 生成 request_id
    - 加入 Queue
-   - 返回 request_id
+   - 后台 Worker 消费
    ↓
-3. Worker Thread 消费队列
-   - 调用 BridgesCoreCluster.run(request)
+2. CoreService.run(request)
    ↓
-4. BridgesCoreCluster.derive(request)
-   - 解析 sources_by_tags → 筛选 Sources
-   - 解析 providers → 获取 Provider 实例
-   - 解析 destinations → 获取 Destination 实例
-   - 组装参数
-   - 创建 PipeContext 列表
-   - 创建 PipeNode 列表
+derive(request) → list[PipelineNode]
+   - _derive_sources(request) → 根据 tags 筛选 Sources
+   - _derive_providers(request, sources) → 匹配 Providers
+   - _derive_destinations(request) → 解析 Destinations
+   - _derive_params(request) → 构建参数
+   - 为每个 Source-Provider 创建 PipelineNode
    ↓
-5. BridgesCoreCluster.run() 并发执行 PipeNodes
-   - ThreadPoolExecutor 并发执行（可配置线程数）
-   - 每个 PipeNode.run()
+3. 并发执行 PipelineNodes (ThreadPoolExecutor)
    ↓
+PipelineNode.run()
+   - start() → 标记开始
+   - derive() → 策略派生 PipeNodeContexts
+   - 并发或顺序执行 PipeNodes
+   - finish() → 收集统计
+   ↓
+4. PipeNode.run()
+   - start() → 标记开始
+   - source.run(provider, params) → 获取数据
+   - destination.write_source(data) → 写出数据
+   - destination.write_source_quality(quality) → 写出质量
+   - finish() → 完成
+   ↓
+5. 返回 CoreRequestState
+   - 聚合所有 PipelineState
+   - 统计成功/失败/取消数量
+   - 更新注册表
+```
+
+---
+
+## 六、关键机制
+
+### 6.1 并发控制
+
+- **Service 层**：使用 ThreadPoolExecutor 并发执行多个 PipelineNode
+- **Pipeline 层**：根据 Provider 配置决定是否并发执行 PipeNode
+  - `provider.concurrent = true` → 并发执行
+  - `provider.concurrent = false` → 顺序执行
+
+### 6.2 取消机制
+
+- 使用 `threading.Event` 实现取消信号传播
+- 取消从 Service 层传播到 Pipeline 层，再到 PipeNode 层
+- 未开始的节点直接标记为 CANCELED
+
+### 6.3 状态管理
+
+三级状态追踪：
+1. **CoreRequestState** - 请求级状态，聚合所有 Pipeline
+2. **PipelineState** - 管道级状态，聚合所有 PipeNode
+3. **PipeNodeState** - 节点级状态，单次执行结果
+
+### 6.4 策略派生
+
+通过 Strategy 将单个 Pipeline 派生为多个 PipeNode：
+- **DateRangeStrategy**：按日期范围派生
+- **SymbolListStrategy**：按股票列表派生
+- **CustomStrategy**：自定义派生逻辑
+
+### 6.5 注册表持久化
+
+CoreRegistry 将请求状态持久化到本地 JSON 文件：
+- 支持断点恢复
+- 支持历史查询
+- 支持状态回溯
 6. PipeNode.derive()
    - 根据 Source 配置的 Strategy 派生多个 SourceNode
    - 例如：DateRangeStrategy 将 [2024-01-01, 2024-01-31] 拆分为 31 个日期
