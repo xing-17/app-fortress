@@ -255,7 +255,8 @@ class BaseBridgesService(
         return self._queue.qsize()
 
     def stop(self) -> None:
-        self._queue.join()
+        if self._worker.is_alive():
+            self._queue.join()
         self.info("stop: OK.")
 
     def health(self):
