@@ -3,6 +3,12 @@ from __future__ import annotations
 from app.common.setting.base import BaseSetting
 
 
+class ApiSetting(BaseSetting):
+    host: str = "0.0.0.0"
+    port: int = 8000
+    key: str = ""
+
+
 class SystemSetting(BaseSetting):
     """
     系统配置。
@@ -40,3 +46,5 @@ class SystemSetting(BaseSetting):
     log_path: str | None = "./logs"
     log_file_max_mb: int | None = 10
     log_group_max_len: int | None = 10000
+
+    api: ApiSetting | None = ApiSetting()

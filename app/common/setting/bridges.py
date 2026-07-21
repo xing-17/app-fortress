@@ -246,6 +246,33 @@ class BridgesMigrateSetting(BaseSetting):
     )
 
 
+class BridgesMachineSetting(BaseSetting):
+    """
+    Bridges Machine 执行配置(bridges.yml bridges.machine 节)。
+
+    Attributes:
+        interval_seconds: 采样间隔(秒), 默认 10
+        max_samples: 最大采样数, 默认 10000
+
+    Examples:
+        >>> machine_setting = BridgesMachineSetting(interval_seconds=5, max_samples=5000)
+        >>> print(machine_setting.interval_seconds)  # 5
+        >>> print(machine_setting.max_samples)       # 5000
+
+    """
+
+    interval_seconds: int = Field(
+        60,
+        description="采样间隔(秒)",
+        ge=5,
+    )
+    max_samples: int = Field(
+        10000,
+        description="最大采样数",
+        ge=1,
+    )
+
+
 class BridgesCacheSetting(BaseSetting):
     """
     缓存配置。
@@ -295,6 +322,10 @@ class BridgesSetting(BaseSetting):
         default_factory=BridgesMigrateSetting,
         description="Bridges Migrate 执行配置",
     )
+    machine: BridgesMachineSetting = Field(
+        default_factory=BridgesMachineSetting,
+        description="Bridges Machine 执行配置",
+    )
     providers: dict[str, ProviderSetting]
     destinations: list[BridgesDestinationSetting] = Field(
         default_factory=list,
@@ -341,6 +372,8 @@ class BridgesSetting(BaseSetting):
     def export(self) -> dict:
         result = {}
         result["bridges"] = self.bridges.export()
+        result["migrate"] = self.migrate.export()
+        result["machine"] = self.machine.export()
         result["providers"] = {}
         for name, provider in self.providers.items():
             result["providers"][name] = provider.export()
