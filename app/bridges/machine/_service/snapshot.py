@@ -120,7 +120,7 @@ class MachineSnapshot(BaseContext):
         None,
         description="网络接收流量(MB)",
     )
-    
+
     @property
     def timestamp(self) -> float | None:
         if self.created_at:

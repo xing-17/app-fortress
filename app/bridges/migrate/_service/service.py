@@ -214,6 +214,9 @@ class MigrateService(
         with self._live_lock:
             return request_id in self._live
 
+    def history(self) -> list[dict[str, Any]]:
+        return self._registry.all()
+
     def reset(self):
         self.resources.refresh()
         self._registry.reset()

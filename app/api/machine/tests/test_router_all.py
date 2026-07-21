@@ -7,7 +7,6 @@
 - TestCurrentEndpoint        GET /api/v2/machine/current
 - TestHistoryEndpoint        GET /api/v2/machine/history
 - TestServiceHealthEndpoint  GET /api/v2/machine/servicehealth
-- TestExportEndpoint         GET /api/v2/machine/export
 - TestAuthentication         API Key 认证
 - TestResponseModels         Pydantic 响应模型验证
 """
@@ -81,19 +80,6 @@ def mock_machine_service():
         worker_count=3,
         last_active_time=1000.0,
     )
-
-    # export() 返回
-    service.export.return_value = {
-        "setting": {
-            "interval_seconds": 60,
-            "max_samples": 100,
-        },
-        "module": "machine",
-        "extra": {
-            "last_active_time": 1000.0,
-            "current_buffer_size": 50,
-        },
-    }
 
     return service
 
@@ -329,33 +315,6 @@ class TestServiceHealthEndpoint:
             assert "name" in service
             assert "health" in service
             assert isinstance(service["health"], dict)
-
-
-# ── TestExportEndpoint ────────────────────────────────────────────────────────
-
-
-class TestExportEndpoint:
-    """测试 GET /api/v2/machine/export 端点。"""
-
-    def test_returns_200(self, client, auth_headers):
-        """验证端点返回 200 状态码。"""
-        response = client.get("/api/v2/machine/export", headers=auth_headers)
-        assert response.status_code == 200
-
-    def test_response_structure(self, client, auth_headers):
-        """验证响应包含必需字段。"""
-        response = client.get("/api/v2/machine/export", headers=auth_headers)
-        data = response.json()
-        assert "setting" in data
-        assert "module" in data
-        assert "extra" in data
-
-    def test_extra_has_runtime_info(self, client, auth_headers):
-        """验证 extra 包含运行时信息。"""
-        response = client.get("/api/v2/machine/export", headers=auth_headers)
-        data = response.json()
-        assert "last_active_time" in data["extra"]
-        assert "current_buffer_size" in data["extra"]
 
 
 # ── TestResponseModels ────────────────────────────────────────────────────────

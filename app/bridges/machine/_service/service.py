@@ -253,7 +253,7 @@ class MachineService(
             with self._lock:
                 samples = list(self._buffer)
             samples = samples[-n:]
-        
+
         samples.sort(key=lambda x: x["timestamp"], reverse=False)
         return samples
 

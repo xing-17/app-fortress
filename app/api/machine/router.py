@@ -184,29 +184,3 @@ def servicehealth(request: Request) -> MachineServiceHealthResponseModel:
         return model
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-class MachineExportResponseModel(BaseModel):
-    setting: dict
-    module: str
-    extra: dict
-
-
-@MachineRouter.get(
-    "/export",
-    response_model=MachineExportResponseModel,
-    summary="Export the configuration",
-)
-def export(request: Request) -> MachineExportResponseModel:
-    """
-    URL: GET /api/v2/machine/export
-
-    导出系统指标采集器的配置和运行时状态。
-
-    """
-    machine_service: MachineService = get_machine_service(request)
-    try:
-        export: dict = machine_service.export()
-        return MachineExportResponseModel.model_validate(export)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

@@ -132,6 +132,7 @@ class BaseBridgesState(TimePlugin):
             "started_at": self.started_at_repr,
             "finished_at": self.finished_at_repr,
             "duration_seconds": self.duration_seconds,
+            "error": self.error,
             # 子类自己选择是否导出 total 等, 不做实现
         }
 
