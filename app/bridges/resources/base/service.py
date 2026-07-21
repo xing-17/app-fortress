@@ -4,10 +4,12 @@ import json
 import queue
 import threading
 from abc import ABC, abstractmethod
+from time import monotonic
 from typing import Any, Generic, TypeVar
 
 from app.bridges.resources._warehouse.warehouse import BridgesWarehouse, ModuleBridgesWarehouse
 from app.bridges.resources.base.registry import BaseRegistry
+from app.bridges.resources.base.servicehealth import ServiceHealth
 from app.bridges.resources.base.state import BaseBridgesState
 from app.common.context.base import BaseContext
 from app.common.core.setting import GlobalSetting
@@ -29,7 +31,7 @@ class BaseBridgesService(
     Bridges服务基类。
 
     提供异步队列式任务管理，支持任务提交、状态查询、取消等功能。
-    工作线程需通过 start_worker() 显式启动，不在 __init__ 中自动启动。
+    工作线程需通过 start() 显式启动，不在 __init__ 中自动启动。
 
     Worker Loop 行为:
         每次从队列取出一个请求后：
@@ -64,18 +66,18 @@ class BaseBridgesService(
         _after_run(request, state, error): 任务执行后（无论成败）调用，error 为 None 表示成功。
 
     Methods:
-        start_worker() -> None: 启动后台工作线程（幂等，重复调用安全）。
+        start() -> None: 启动后台工作线程（幂等，重复调用安全）。
         submit(request: TRequest) -> str: 异步提交任务请求，返回 request_id。
         lookup(request_id: str) -> dict[str, Any]: 查询任务状态，
             先查 _live（运行中），再查 _registry（历史），均无则抛出 ValueError。
         get_queue_size() -> int: 返回当前队列中等待的任务数。
-        shutdown() -> None: 阻塞直至队列全部处理完毕。
+        stop() -> None: 阻塞直至队列全部处理完毕。
         export() -> dict[str, Any]: 导出服务当前状态为字典。
         describe() -> str: 返回服务当前状态的 JSON 字符串。
 
     Example:
         >>> service = MyBridgesService()
-        >>> service.start_worker()
+        >>> service.start()
         >>> request = MyBridgesRequest(...)
         >>> request_id = service.submit(request)  # 异步提交
         >>> state = service.lookup(request_id)     # 查询状态
@@ -87,6 +89,7 @@ class BaseBridgesService(
         super().__init__()
         self.setting: BridgesSetting = GlobalSetting.bridges
         self.resources: BridgesWarehouse = self._load_resources()
+        self._last_active_time: float | None = None
         self._live: dict[str, TState] = {}
         self._live_lock = threading.Lock()
         self._registry: BaseRegistry = self._load_registry()
@@ -100,7 +103,7 @@ class BaseBridgesService(
             name=self._get_worker_name(),
         )
 
-    def start_worker(self) -> None:
+    def start(self) -> None:
         if not self._worker.is_alive():
             self._worker.start()
 
@@ -165,10 +168,14 @@ class BaseBridgesService(
         if not error:
             self.info(f"_worker_loop: request '{request.id}' OK.")
 
+    def _update_last_active_time(self) -> None:
+        self._last_active_time: float = monotonic()
+
     # ── 共享实现 ──────────────────────────────────
 
     def _worker_loop(self) -> None:
         while True:
+            self._update_last_active_time()
             request = self._queue.get()
             self._before_run(request=request)  # 可选择实现
             with self._live_lock:
@@ -247,9 +254,28 @@ class BaseBridgesService(
     def get_queue_size(self) -> int:
         return self._queue.qsize()
 
-    def shutdown(self) -> None:
+    def stop(self) -> None:
         self._queue.join()
-        self.info("shutdown: OK.")
+        self.info("stop: OK.")
+
+    def health(self):
+        is_alive: bool = self._worker.is_alive()
+        queue_size: int = self.get_queue_size()
+        queue_limit: int = self._queue_size_limit
+        queue_full: bool = queue_size >= queue_limit
+        last_active_time: float | None = self._last_active_time
+        return ServiceHealth(
+            service=self.module_name,
+            worker_name=self._worker.name,
+            worker_alive=is_alive,
+            worker_daemon=self._worker.daemon,
+            worker_ident=self._worker.ident,
+            worker_count=threading.active_count(),
+            queue_size=queue_size,
+            queue_limit=queue_limit,
+            queue_full=queue_full,
+            last_active_time=last_active_time,
+        )
 
     def export(self) -> dict[str, Any]:
         with self._live_lock:
@@ -265,6 +291,9 @@ class BaseBridgesService(
             },
             "live": _live_export,
             "registry": self._registry.export(),
+            "extra": {
+                "last_active_time": self._last_active_time,
+            },
         }
 
     def describe(self) -> str:

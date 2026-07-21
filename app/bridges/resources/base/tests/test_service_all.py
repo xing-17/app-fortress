@@ -4,13 +4,13 @@
 覆盖范围
 --------
 - TestInstantiation    基本实例化和属性验证
-- TestStartWorker      start_worker() 启动工作线程
+- TestStartWorker      start() 启动工作线程
 - TestSubmit           submit() 异步提交任务
 - TestLookup           lookup() 查询任务状态
 - TestCancel           cancel() 取消排队中的请求
 - TestWorkerLoop       worker loop 成功/失败/取消路径
 - TestGetQueueSize     get_queue_size() 队列大小
-- TestShutdown         shutdown() 等待队列排空
+- TestShutdown         stop() 等待队列排空
 - TestExport           export() / describe()
 """
 
@@ -143,7 +143,7 @@ class TestInstantiation:
         assert isinstance(service._worker, threading.Thread)
 
     def test_worker_not_alive_before_start(self, service):
-        """worker 在 start_worker() 调用前不应处于运行状态。"""
+        """worker 在 start() 调用前不应处于运行状态。"""
         assert not service._worker.is_alive()
 
     def test_has_queue_size_limit(self, service):
@@ -157,20 +157,20 @@ class TestInstantiation:
 
 
 class TestStartWorker:
-    """测试 start_worker() 启动工作线程。"""
+    """测试 start() 启动工作线程。"""
 
     def test_start_worker_makes_thread_alive(self, service):
-        service.start_worker()
+        service.start()
         assert service._worker.is_alive()
 
     def test_worker_is_daemon(self, service):
-        service.start_worker()
+        service.start()
         assert service._worker.daemon is True
 
     def test_start_worker_idempotent(self, service):
-        """多次调用 start_worker() 不应抛出异常，线程仍存活。"""
-        service.start_worker()
-        service.start_worker()
+        """多次调用 start() 不应抛出异常，线程仍存活。"""
+        service.start()
+        service.start()
         assert service._worker.is_alive()
 
 
@@ -232,8 +232,8 @@ class TestLookup:
         """任务完成后，lookup() 应从 registry 返回 DONE 状态。"""
         req = DummyRequest()
         rid = service.submit(req)
-        service.start_worker()
-        service.shutdown()
+        service.start()
+        service.stop()
         result = service.lookup(rid)
         assert isinstance(result, dict)
         assert result["status"] == "DONE"
@@ -273,8 +273,8 @@ class TestWorkerLoop:
         """run() 成功时，状态应以 DONE 持久化到 registry。"""
         req = DummyRequest()
         rid = service.submit(req)
-        service.start_worker()
-        service.shutdown()
+        service.start()
+        service.stop()
         result = service.lookup(rid)
         assert result["status"] == "DONE"
 
@@ -282,8 +282,8 @@ class TestWorkerLoop:
         """run() 完成后，_live 中的条目应被清除。"""
         req = DummyRequest()
         rid = service.submit(req)
-        service.start_worker()
-        service.shutdown()
+        service.start()
+        service.stop()
         with service._live_lock:
             assert rid not in service._live
 
@@ -291,8 +291,8 @@ class TestWorkerLoop:
         """run() 抛出异常时，状态应以 FAILED 持久化到 registry。"""
         req = DummyRequest()
         rid = failing_service.submit(req)
-        failing_service.start_worker()
-        failing_service.shutdown()
+        failing_service.start()
+        failing_service.stop()
         result = failing_service.lookup(rid)
         assert result["status"] == "FAILED"
 
@@ -300,8 +300,8 @@ class TestWorkerLoop:
         """run() 抛出异常后，_live 中的条目应被清除。"""
         req = DummyRequest()
         rid = failing_service.submit(req)
-        failing_service.start_worker()
-        failing_service.shutdown()
+        failing_service.start()
+        failing_service.stop()
         with failing_service._live_lock:
             assert rid not in failing_service._live
 
@@ -310,8 +310,8 @@ class TestWorkerLoop:
         req = DummyRequest()
         rid = service.submit(req)
         service.cancel(rid)
-        service.start_worker()
-        service.shutdown()
+        service.start()
+        service.stop()
         result = service.lookup(rid)
         assert result["status"] == "CANCELED"
 
@@ -320,8 +320,8 @@ class TestWorkerLoop:
         req = DummyRequest()
         rid = service.submit(req)
         service.cancel(rid)
-        service.start_worker()
-        service.shutdown()
+        service.start()
+        service.stop()
         with service._live_lock:
             assert rid not in service._live
 
@@ -329,8 +329,8 @@ class TestWorkerLoop:
         """多个请求均应被正确处理并持久化到 registry。"""
         requests = [DummyRequest() for _ in range(5)]
         rids = [service.submit(req) for req in requests]
-        service.start_worker()
-        service.shutdown()
+        service.start()
+        service.stop()
         for rid in rids:
             result = service.lookup(rid)
             assert result["status"] == "DONE"
@@ -352,11 +352,11 @@ class TestGetQueueSize:
         assert service.get_queue_size() == 3
 
     def test_queue_size_after_shutdown(self, service):
-        """shutdown 后队列大小应为 0。"""
+        """stop 后队列大小应为 0。"""
         for _ in range(3):
             service.submit(DummyRequest())
-        service.start_worker()
-        service.shutdown()
+        service.start()
+        service.stop()
         assert service.get_queue_size() == 0
 
 
@@ -364,20 +364,20 @@ class TestGetQueueSize:
 
 
 class TestShutdown:
-    """测试 shutdown() 等待队列排空。"""
+    """测试 stop() 等待队列排空。"""
 
     def test_shutdown_drains_queue(self, service):
-        """shutdown() 阻塞直至队列清空，所有请求处理完毕。"""
+        """stop() 阻塞直至队列清空，所有请求处理完毕。"""
         for _ in range(5):
             service.submit(DummyRequest())
-        service.start_worker()
-        service.shutdown()
+        service.start()
+        service.stop()
         assert service.get_queue_size() == 0
 
     def test_shutdown_on_empty_queue_returns_immediately(self, service):
-        """空队列调用 shutdown() 应立即返回。"""
-        service.start_worker()
-        service.shutdown()  # should not block
+        """空队列调用 stop() 应立即返回。"""
+        service.start()
+        service.stop()  # should not block
 
 
 # ── TestExport ────────────────────────────────────────────────────────────────
