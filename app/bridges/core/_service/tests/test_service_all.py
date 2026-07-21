@@ -476,7 +476,7 @@ class TestSubmit:
 
     def test_submit_with_worker_processes_request(self, service):
         """测试 submit() 配合 worker 处理请求。"""
-        service.start_worker()
+        service.start()
 
         request = CoreRequest(sources_by_tags={"type": "stock"})
         _ = service.submit(request)
@@ -698,17 +698,17 @@ class TestQueueAndWorker:
 
     def test_worker_starts_successfully(self, service):
         """测试 worker 启动成功。"""
-        service.start_worker()
+        service.start()
         assert service._worker.is_alive()
 
     def test_worker_can_be_started_multiple_times(self, service):
         """测试 worker 可以多次启动（幂等）。"""
-        service.start_worker()
-        service.start_worker()  # should not raise
+        service.start()
+        service.start()  # should not raise
         assert service._worker.is_alive()
 
     def test_shutdown_waits_for_queue(self, service):
-        """测试 shutdown() 等待队列完成。"""
+        """测试 stop() 等待队列完成。"""
         # Note: This test may timeout if worker is not started
-        # We just verify shutdown can be called
-        service.shutdown()  # should not raise
+        # We just verify stop can be called
+        service.stop()  # should not raise
