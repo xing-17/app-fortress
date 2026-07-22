@@ -73,27 +73,22 @@ def mock_migrate_service():
 
 
 @pytest.fixture
-def app_setting():
-    """创建测试用的 SystemSetting。"""
-    from app.common.setting.system import ApiSetting, SystemSetting
+def api_setting():
+    """创建测试用的 ApiSetting。"""
+    from app.common.setting.api import ApiSetting
 
-    return SystemSetting(
-        name="test-fortress",
+    return ApiSetting(
         version="1.0.0",
-        env="test",
-        timezone="UTC",
-        api=ApiSetting(
-            key="test-api-key",
-            host="127.0.0.1",
-            port=8000,
-        ),
+        key="test-api-key",
+        host="127.0.0.1",
+        port=8000,
     )
 
 
 @pytest.fixture
-def client(app_setting, mock_migrate_service):
+def client(api_setting, mock_migrate_service):
     """创建 FastAPI TestClient，使用真实的 FortressApi 但 mock 服务。"""
-    from app.interface.api import FortressApi
+    from app.interface.fortress import FortressApi
 
     # Mock 服务的启动
     with (
@@ -104,8 +99,8 @@ def client(app_setting, mock_migrate_service):
         # 配置 mock 实例
         MockMigrate.return_value = mock_migrate_service
 
-        # 创建 FortressApi 实例
-        fortress_api = FortressApi(setting=app_setting)
+        # 创建 FortressApi 实例（传递 ApiSetting）
+        fortress_api = FortressApi(setting=api_setting)
 
         # 替换服务实例为我们的 mock
         fortress_api.migrate_service = mock_migrate_service

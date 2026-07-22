@@ -9,22 +9,16 @@ from app.api.migrate.router import MigrateRouter
 from app.bridges.core._service.service import CoreService
 from app.bridges.machine._service.service import MachineService
 from app.bridges.migrate._service.service import MigrateService
-from app.common.setting.system import SystemSetting
+from app.common.setting.api import ApiSetting
 
 
 class FortressApi:
     def __init__(
         self,
-        setting: SystemSetting,
+        setting: ApiSetting,
     ) -> None:
         self.setting = setting
 
-        # Machine Service
-        # -- Getting system metrics (CPU, memory, disk, network)
-        # -- wires:
-        # ---- check() -> dict
-        # ---- current() -> dict
-        # ---- history(minutes: int = None) -> list[dict]
         self.machine_service = MachineService()
         self.machine_service.start()
 
@@ -37,6 +31,7 @@ class FortressApi:
         # FastAPI
         self.app = FastAPI(
             title="Fortress",
+            description="Fortress API",
             version=setting.version,
             lifespan=self._lifespan,
         )
@@ -47,7 +42,7 @@ class FortressApi:
         self,
         x_api_key: str = Header(..., alias="X-API-Key"),
     ) -> None:
-        if x_api_key != self.setting.api.key:
+        if x_api_key != self.setting.key:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Unauthorized",
@@ -73,6 +68,6 @@ class FortressApi:
     def run(self) -> None:
         uvicorn.run(
             self.app,
-            host=self.setting.api.host,
-            port=self.setting.api.port,
+            host=self.setting.host,
+            port=self.setting.port,
         )
