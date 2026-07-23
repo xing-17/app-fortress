@@ -16,9 +16,6 @@ from app.common.plugin import (
     LogPlugin,
     TimePlugin,
 )
-from app.portal.instance.base.base import (
-    BaseInstanceState,
-)
 
 
 class _EcsClient(
@@ -83,43 +80,6 @@ class _EcsClient(
     def get_instance_state(self) -> str | None:
         return self._resolve_instance_state()
 
-    def start_instance(
-        self,
-        wait: bool = False,
-    ) -> dict:
-        try:
-            self._client.start_instance_with_options(
-                request=EcsModels.StartInstanceRequest(instance_id=self.get_instance_id()),
-                runtime=UtilModels.RuntimeOptions(autoretry=True),
-            )
-            self.debug("start_instance: started OK.")
-        except Exception as e:
-            raise RuntimeError(f"Fail to start instance '{self.instance_name}': {e}")
-
-        if wait:
-            self.wait_instance(BaseInstanceState.RUNNING)
-        return self.get_instance()
-
-    def stop_instance(
-        self,
-        wait: bool = False,
-    ) -> dict:
-        try:
-            self._client.stop_instance_with_options(
-                request=EcsModels.StopInstanceRequest(
-                    instance_id=self.get_instance_id(),
-                    stopped_mode="StopCharging",
-                ),
-                runtime=UtilModels.RuntimeOptions(autoretry=True),
-            )
-            self.debug("stop_instance: stopped OK.")
-        except Exception as e:
-            raise RuntimeError(f"Fail to stop instance '{self.instance_name}': {e}")
-
-        if wait:
-            self.wait_instance(BaseInstanceState.STOPPED)
-        return self.get_instance()
-
     def wait_instance(
         self,
         state: str,
@@ -145,30 +105,6 @@ class _EcsClient(
 
             self.debug(f"wait_instance: '{_name}' waiting [{_curindex}] ({_curstate} / {_state}).")
             time.sleep(interval)
-
-    def run_command(
-        self,
-        command: str,
-        timeout: int = 300,
-        wait: bool = True,
-    ) -> dict:
-        result = self._start_command(
-            command=command,
-            timeout=timeout,
-        )
-        command_id = result.get("CommandId")
-        invoke_id = result.get("InvokeId")
-        if wait:
-            self._wait_command(
-                command_id=command_id,
-                invoke_id=invoke_id,
-                timeout=timeout,
-            )
-            result = self._get_command_result(
-                command_id=command_id,
-                invoke_id=invoke_id,
-            )
-        return result
 
     def _start_command(
         self,
