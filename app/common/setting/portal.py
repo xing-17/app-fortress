@@ -82,6 +82,7 @@ class PortalSetting(BaseSetting):
     host: str = "0.0.0.0"
     port: int = 7964
     version: str = "1.0.0"
+    key: str = ""
     instances: dict[str, InstanceSetting] = {}
 
     def get_instance(
