@@ -34,6 +34,8 @@ def _create_minimal_setting(**kwargs):
     """创建最小化的有效 TushareSourceSetting"""
     defaults = {
         "name": "test_source",
+        "domain": "stock",
+        "region": "cn",
         "provider_type": "tushare",
         "method": "daily",
         "strategy": "by_date",
@@ -98,6 +100,8 @@ class TestPaginate:
         """验证可以通过字典配置 paginate"""
         s = TushareSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -138,6 +142,8 @@ class TestCoolant:
         """验证可以通过字典配置 coolant"""
         s = TushareSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -225,6 +231,8 @@ class TestExport:
         """验证完整配置的导出"""
         s = TushareSourceSetting(
             name="stock_daily",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -236,6 +244,8 @@ class TestExport:
         )
         result = s.export()
         assert result["name"] == "stock_daily"
+        assert result["domain"] == "stock"
+        assert result["region"] == "cn"
         assert result["paginate"]["page_size"] == 2000
         assert result["coolant"]["interval"] == 1.0
         assert result["params"] == ["date"]
@@ -251,6 +261,8 @@ class TestFromYaml:
         """验证 from_yaml 正确加载有效文件"""
         yaml_content = {
             "name": "stock_daily",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "tushare",
             "method": "daily",
             "strategy": "by_date",
@@ -262,6 +274,8 @@ class TestFromYaml:
         p.write_text(yaml.dump(yaml_content), encoding="utf-8")
         s = TushareSourceSetting.from_yaml(p)
         assert s.name == "stock_daily"
+        assert s.domain == "stock"
+        assert s.region == "cn"
         assert s.paginate.page_size == 1000
         assert s.coolant.interval == 1.0
 
@@ -274,6 +288,8 @@ class TestFromYaml:
         """验证 from_yaml 正确填充所有字段"""
         yaml_content = {
             "name": "stock_daily",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "tushare",
             "method": "daily",
             "strategy": "by_date",
@@ -287,6 +303,8 @@ class TestFromYaml:
         p.write_text(yaml.dump(yaml_content), encoding="utf-8")
         s = TushareSourceSetting.from_yaml(p)
         assert s.name == "stock_daily"
+        assert s.domain == "stock"
+        assert s.region == "cn"
         assert s.provider_type == "tushare"
         assert s.method == "daily"
         assert s.strategy == "by_date"
@@ -302,6 +320,8 @@ class TestFromYaml:
         """验证省略可选字段时使用默认值"""
         yaml_content = {
             "name": "stock_daily",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "tushare",
             "method": "daily",
             "strategy": "by_date",

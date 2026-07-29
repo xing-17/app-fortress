@@ -43,6 +43,8 @@ def _create_minimal_setting(**kwargs):
     """创建最小化的有效 TushareSourceSetting"""
     defaults = {
         "name": "test_source",
+        "domain": "stock",
+        "region": "cn",
         "provider_type": "tushare",
         "method": "daily",
         "strategy": "by_date",
@@ -458,6 +460,8 @@ class TestFromYaml:
         """验证从 YAML 加载配置并创建实例"""
         content = {
             "name": "test_tushare_source",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "tushare",
             "method": "daily",
             "strategy": "by_date",
@@ -476,6 +480,8 @@ class TestFromYaml:
         """验证使用 TushareSourceSetting"""
         content = {
             "name": "test_source",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "tushare",
             "method": "daily",
             "strategy": "by_date",
@@ -571,6 +577,8 @@ class TestRegistration:
         """验证工厂可以创建 TushareSource"""
         content = {
             "name": "test_source",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "tushare",
             "method": "daily",
             "strategy": "by_date",
@@ -646,6 +654,8 @@ class TestIntegration:
         """验证完整工作流程"""
         setting = TushareSourceSetting(
             name="stock_daily",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",

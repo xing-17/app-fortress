@@ -57,6 +57,8 @@ def _create_minimal_setting(**kwargs):
     """创建最小化的有效 BaseSourceSetting"""
     defaults = {
         "name": "test_source",
+        "domain": "stock",
+        "region": "cn",
         "provider_type": "test",
         "method": "test_method",
         "strategy": "by_date",
@@ -76,6 +78,8 @@ class TestFromYaml:
         """验证 from_yaml 加载配置并创建实例"""
         content = {
             "name": "test_source",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "test",
             "method": "test_method",
             "strategy": "by_date",
@@ -92,6 +96,8 @@ class TestFromYaml:
         """验证使用 _setting_class 加载配置"""
         content = {
             "name": "test_source",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "test",
             "method": "test_method",
             "strategy": "by_date",
@@ -107,6 +113,8 @@ class TestFromYaml:
         """验证接受字符串路径"""
         content = {
             "name": "test_source",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "test",
             "method": "test_method",
             "strategy": "by_date",

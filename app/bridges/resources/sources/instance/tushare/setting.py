@@ -18,6 +18,8 @@ class TushareSourceSetting(BaseSourceSetting):
 
     继承的所有字段：
         name (str): 数据源唯一标识
+        domain(str): 数据源所属域名（如 "stock"）
+        region (str): 数据源所属地区（如 "cn"）
         provider_type (str): Provider 类型（固定为 "tushare"）
         method (str): Tushare API 方法名（如 "daily", "moneyflow"）
         strategy (str): 数据流策略（如 "by_date", "by_tradedate"）

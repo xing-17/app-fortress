@@ -1,4 +1,6 @@
 name: tushare_stock_capflow
+domain: stock
+region: cn
 provider_type: tushare
 method: moneyflow
 strategy: by_tradedate

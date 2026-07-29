@@ -180,6 +180,30 @@ class TestBaseSourceSetting:
     def test_name_is_required(self):
         with pytest.raises(Exception):  # ValidationError
             BaseSourceSetting(
+                domain="stock",
+                region="cn",
+                provider_type="tushare",
+                method="daily",
+                strategy="by_date",
+                partition=PartitionSetting(prefix="date", column="trade_date"),
+            )
+
+    def test_domain_is_required(self):
+        with pytest.raises(Exception):  # ValidationError
+            BaseSourceSetting(
+                name="test",
+                region="cn",
+                provider_type="tushare",
+                method="daily",
+                strategy="by_date",
+                partition=PartitionSetting(prefix="date", column="trade_date"),
+            )
+
+    def test_region_is_required(self):
+        with pytest.raises(Exception):  # ValidationError
+            BaseSourceSetting(
+                name="test",
+                domain="stock",
                 provider_type="tushare",
                 method="daily",
                 strategy="by_date",
@@ -190,6 +214,8 @@ class TestBaseSourceSetting:
         with pytest.raises(Exception):  # ValidationError
             BaseSourceSetting(
                 name="test",
+                domain="stock",
+                region="cn",
                 method="daily",
                 strategy="by_date",
                 partition=PartitionSetting(prefix="date", column="trade_date"),
@@ -199,6 +225,8 @@ class TestBaseSourceSetting:
         with pytest.raises(Exception):  # ValidationError
             BaseSourceSetting(
                 name="test",
+                domain="stock",
+                region="cn",
                 provider_type="tushare",
                 strategy="by_date",
                 partition=PartitionSetting(prefix="date", column="trade_date"),
@@ -208,6 +236,8 @@ class TestBaseSourceSetting:
         with pytest.raises(Exception):  # ValidationError
             BaseSourceSetting(
                 name="test",
+                domain="stock",
+                region="cn",
                 provider_type="tushare",
                 method="daily",
                 partition=PartitionSetting(prefix="date", column="trade_date"),
@@ -217,6 +247,8 @@ class TestBaseSourceSetting:
         with pytest.raises(Exception):  # ValidationError
             BaseSourceSetting(
                 name="test",
+                domain="stock",
+                region="cn",
                 provider_type="tushare",
                 method="daily",
                 strategy="by_date",
@@ -225,6 +257,8 @@ class TestBaseSourceSetting:
     def test_retry_defaults_to_empty_retrysetting(self):
         s = BaseSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -236,6 +270,8 @@ class TestBaseSourceSetting:
     def test_params_defaults_to_empty_list(self):
         s = BaseSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -246,6 +282,8 @@ class TestBaseSourceSetting:
     def test_fields_defaults_to_empty_list(self):
         s = BaseSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -256,12 +294,16 @@ class TestBaseSourceSetting:
     def test_all_required_fields_are_stored(self):
         s = BaseSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
             partition=PartitionSetting(prefix="date", column="trade_date"),
         )
         assert s.name == "test"
+        assert s.domain == "stock"
+        assert s.region == "cn"
         assert s.provider_type == "tushare"
         assert s.method == "daily"
         assert s.strategy == "by_date"
@@ -269,6 +311,8 @@ class TestBaseSourceSetting:
     def test_params_accepts_list_of_strings(self):
         s = BaseSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -280,6 +324,8 @@ class TestBaseSourceSetting:
     def test_fields_accepts_list_of_strings(self):
         s = BaseSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -291,6 +337,8 @@ class TestBaseSourceSetting:
     def test_export_includes_all_fields(self):
         s = BaseSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -300,6 +348,8 @@ class TestBaseSourceSetting:
         )
         exported = s.export()
         assert exported["name"] == "test"
+        assert exported["domain"] == "stock"
+        assert exported["region"] == "cn"
         assert exported["provider_type"] == "tushare"
         assert exported["method"] == "daily"
         assert exported["strategy"] == "by_date"
@@ -311,6 +361,8 @@ class TestBaseSourceSetting:
     def test_export_partition_is_dict(self):
         s = BaseSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -323,6 +375,8 @@ class TestBaseSourceSetting:
     def test_export_retry_is_dict(self):
         s = BaseSourceSetting(
             name="test",
+            domain="stock",
+            region="cn",
             provider_type="tushare",
             method="daily",
             strategy="by_date",
@@ -336,6 +390,8 @@ class TestBaseSourceSetting:
     def test_from_yaml_loads_valid_file(self, tmp_path: Path):
         yaml_content = {
             "name": "stock_daily",
+            "domain": "stock",
+            "region": "cn",
             "provider_type": "tushare",
             "method": "daily",
             "strategy": "by_date",
@@ -350,6 +406,8 @@ class TestBaseSourceSetting:
         p.write_text(yaml.dump(yaml_content), encoding="utf-8")
         s = BaseSourceSetting.from_yaml(p)
         assert s.name == "stock_daily"
+        assert s.domain == "stock"
+        assert s.region == "cn"
         assert s.provider_type == "tushare"
         assert s.params == ["date"]
 

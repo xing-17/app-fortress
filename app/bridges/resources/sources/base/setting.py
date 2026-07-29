@@ -117,6 +117,8 @@ class BaseSourceSetting(BaseSetting):
 
     Attributes:
         name:          数据流唯一标识
+        domain:        数据流所属域名, 如 stock, fund, index 等
+        region:        数据流所属地区, 如 cn, us, hk 等
         provider_type: provider 类型, 如 tushare
         method:        provider API 方法名
         strategy:      数据流策略, 如 by_date
@@ -139,6 +141,14 @@ class BaseSourceSetting(BaseSetting):
     name: str = Field(
         ...,
         description="数据流唯一标识",
+    )
+    domain: str = Field(
+        ...,
+        description="数据流所属域名, 如 stock",
+    )
+    region: str = Field(
+        ...,
+        description="数据流所属地区, 如 cn",
     )
     setting_type: str = "base"
     provider_type: str = Field(
@@ -191,6 +201,22 @@ class BaseSourceSetting(BaseSetting):
     )
 
     @property
+    def centre_model(self) -> str:
+        return f"bridge_{self.region}_{self.domain}_{self.name}"
+
+    @property
+    def centre_folder(self) -> str:
+        return f"bridge_{self.region}_{self.domain}"
+
+    @property
+    def centre_source_group(self) -> str:
+        return f"fortress_{self.region}_{self.domain}"
+
+    @property
+    def centre_source_path(self) -> str:
+        return f"source/{self.name}/{self.partition.prefix}=*/*.parquet"
+
+    @property
     def field_schemas(self) -> list[FieldSchema]:
         result = []
         for f in self.fields:
@@ -230,6 +256,11 @@ class BaseSourceSetting(BaseSetting):
 
         return {
             "name": self.name,
+            "centre_model": self.centre_model,
+            "centre_folder": self.centre_folder,
+            "centre_source_group": self.centre_source_group,
+            "domain": self.domain,
+            "region": self.region,
             "setting_type": self.setting_type,
             "provider_type": self.provider_type,
             "method": self.method,

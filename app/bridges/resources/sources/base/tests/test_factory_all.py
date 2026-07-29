@@ -37,6 +37,8 @@ class _MockSource(BaseSource):
 
 _VALID_YAML_CONTENT = {
     "name": "test_source",
+    "domain": "stock",
+    "region": "cn",
     "provider_type": "mock",
     "method": "daily",
     "strategy": "by_date",
@@ -152,6 +154,8 @@ class TestBootstrap:
     def _write_yaml(self, directory: Path, name: str, provider_type: str = "mock") -> Path:
         content = {
             "name": name,
+            "domain": "stock",
+            "region": "cn",
             "provider_type": provider_type,
             "method": "daily",
             "strategy": "by_date",
