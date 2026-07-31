@@ -23,9 +23,10 @@ from pydantic import ValidationError
 from app.common.setting.centre import CentreSetting
 
 _VALID_DATA = {
-    "target": "prod",
+    "connection": "prod",
     "path": ".cache/centre/centre.duckdb",
-    "threads": 1,
+    "max_threads": 1,
+    "max_queue_size": 100,
     "extensions": ["httpfs"],
     "settings": {
         "memory_limit": "12GB",
@@ -37,9 +38,9 @@ _VALID_DATA = {
 
 _ALL_KEYS = [
     "category",
-    "target",
+    "connection",
     "path",
-    "threads",
+    "max_threads",
     "extensions",
     "settings",
 ]
@@ -52,16 +53,16 @@ _ALL_KEYS = [
 
 class TestDefaults:
     def test_path_default(self):
-        assert CentreSetting(target="dev").path == "./cache/centre/centre.duckdb"
+        assert CentreSetting(connection="dev").path == ".cache/centre/centre.duckdb"
 
     def test_threads_default(self):
-        assert CentreSetting(target="dev").threads == 1
+        assert CentreSetting(connection="dev").max_threads == 1
 
     def test_extensions_default(self):
-        assert CentreSetting(target="dev").extensions == ["httpfs"]
+        assert CentreSetting(connection="dev").extensions == ["httpfs", "s3"]
 
     def test_settings_default_is_empty_dict(self):
-        assert CentreSetting(target="dev").settings == {}
+        assert CentreSetting(connection="dev").settings == {}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -75,21 +76,21 @@ class TestValidation:
             CentreSetting()
 
     def test_custom_target_stored(self):
-        assert CentreSetting(target="staging").target == "staging"
+        assert CentreSetting(connection="staging").connection == "staging"
 
     def test_custom_path_stored(self):
-        obj = CentreSetting(target="dev", path="/data/my.duckdb")
+        obj = CentreSetting(connection="dev", path="/data/my.duckdb")
         assert obj.path == "/data/my.duckdb"
 
     def test_custom_threads_stored(self):
-        assert CentreSetting(target="dev", threads=4).threads == 4
+        assert CentreSetting(connection="dev", max_threads=4).max_threads == 4
 
     def test_custom_extensions_stored(self):
-        obj = CentreSetting(target="dev", extensions=["httpfs", "parquet"])
+        obj = CentreSetting(connection="dev", extensions=["httpfs", "parquet"])
         assert obj.extensions == ["httpfs", "parquet"]
 
     def test_custom_settings_stored(self):
-        obj = CentreSetting(target="dev", settings={"memory_limit": "8GB"})
+        obj = CentreSetting(connection="dev", settings={"memory_limit": "8GB"})
         assert obj.settings["memory_limit"] == "8GB"
 
 
@@ -100,10 +101,10 @@ class TestValidation:
 
 class TestCategory:
     def test_category_equals_classname(self):
-        assert CentreSetting(target="dev").category == "CentreSetting"
+        assert CentreSetting(connection="dev").category == "CentreSetting"
 
     def test_category_in_export(self):
-        assert CentreSetting(target="dev").export()["category"] == "CentreSetting"
+        assert CentreSetting(connection="dev").export()["category"] == "CentreSetting"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -125,7 +126,7 @@ class TestFromYaml:
     def test_valid_yaml_populates_target(self, tmp_path: Path):
         p = tmp_path / "centre.yml"
         p.write_text(yaml.dump(_VALID_DATA), encoding="utf-8")
-        assert CentreSetting.from_yaml(p).target == "prod"
+        assert CentreSetting.from_yaml(p).connection == "prod"
 
     def test_valid_yaml_populates_settings(self, tmp_path: Path):
         p = tmp_path / "centre.yml"
@@ -139,7 +140,7 @@ class TestFromYaml:
             pytest.skip("setting/centre.yml not present")
         obj = CentreSetting.from_yaml(real_path)
         assert isinstance(obj, CentreSetting)
-        assert obj.target
+        assert obj.connection
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -149,18 +150,18 @@ class TestFromYaml:
 
 class TestExport:
     def test_export_returns_dict(self):
-        assert isinstance(CentreSetting(target="dev").export(), dict)
+        assert isinstance(CentreSetting(connection="dev").export(), dict)
 
     def test_export_contains_all_keys(self):
-        data = CentreSetting(target="dev").export()
+        data = CentreSetting(connection="dev").export()
         for key in _ALL_KEYS:
             assert key in data, f"missing key: {key}"
 
     def test_export_values_match_fields(self):
-        obj = CentreSetting(target="prod", threads=4)
+        obj = CentreSetting(connection="prod", max_threads=4)
         data = obj.export()
-        assert data["target"] == "prod"
-        assert data["threads"] == 4
+        assert data["connection"] == "prod"
+        assert data["max_threads"] == 4
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -170,9 +171,9 @@ class TestExport:
 
 class TestDescribe:
     def test_describe_returns_valid_json(self):
-        raw = CentreSetting(target="dev").describe()
+        raw = CentreSetting(connection="dev").describe()
         assert isinstance(json.loads(raw), dict)
 
     def test_describe_matches_export(self):
-        obj = CentreSetting(target="prod", threads=2)
+        obj = CentreSetting(connection="prod", max_threads=2)
         assert json.loads(obj.describe()) == obj.export()

@@ -11,6 +11,30 @@ from app.common.setting.base import BaseSetting
 # ---------------------------------------------------------------
 
 
+# ---------- Service Configuration ----------
+class ServiceSetting(BaseSetting):
+    """
+    Fortress 服务配置。
+
+    定义远程主机上服务的部署路径和 Makefile 控制命令。
+    可在 portal.yml 的 instances.<name>.service 段中覆盖默认值。
+
+    Attributes:
+        path: 远程部署目录
+        start_cmd: 启动命令（make start → docker/build + docker/start）
+        stop_cmd: 停止命令（make end → docker/end）
+        restart_cmd: 重启命令（make restart → docker/end + docker/start）
+        timeout: 远程命令超时秒数
+
+    """
+
+    path: str = "/root/workspace/app-fortress"
+    start_cmd: str = "make start"
+    stop_cmd: str = "make end"
+    restart_cmd: str = "make restart"
+    timeout: int = 300
+
+
 # ---------- Instance Configuration ----------
 class BaseInstanceSetting(BaseSetting):
     """
@@ -38,6 +62,7 @@ class BaseInstanceSetting(BaseSetting):
     host: str
     port: int
     timeout: int = 6
+    service: ServiceSetting = Field(default_factory=ServiceSetting)
 
     def export(self) -> dict:
         result = super().export()
@@ -71,8 +96,28 @@ class EcsInstanceSetting(BaseInstanceSetting):
         return result
 
 
+class LocalInstanceSetting(BaseInstanceSetting):
+    """
+    本地实例配置。
+
+    代表运行 app-fortress 的本机，无需云凭证。
+
+    Attributes:
+        type: str 实例类型标识，固定为 "local"
+        host: str 本机地址，默认为 "localhost"
+        port: int 用于 ping 检测的本地端口，默认为 22
+        key: str 本地实例无需密钥，默认为空字符串
+
+    """
+
+    type: Literal["local"] = "local"
+    host: str = "localhost"
+    port: int = 22
+    key: str = ""
+
+
 InstanceSetting = Annotated[
-    Union[EcsInstanceSetting,],
+    Union[EcsInstanceSetting, LocalInstanceSetting],
     Field(discriminator="type"),
 ]
 
