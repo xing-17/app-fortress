@@ -307,7 +307,7 @@ class TestHealth:
     def test_health_returns_service_health(self, mock_settings):
         """验证 health() 返回 ServiceHealth 对象。"""
         service = MachineService()
-        from app.bridges.resources.base.servicehealth import ServiceHealth
+        from app.bridges.base.servicehealth import ServiceHealth
 
         health = service.health()
         assert isinstance(health, ServiceHealth)

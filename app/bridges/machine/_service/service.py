@@ -7,9 +7,9 @@ from time import monotonic
 
 import psutil
 
+from app.bridges.base.servicehealth import ServiceHealth
+from app.bridges.base.servicelike import ServiceLike
 from app.bridges.machine._service.snapshot import MachineSnapshot
-from app.bridges.resources.base.servicehealth import ServiceHealth
-from app.bridges.resources.base.servicelike import ServiceLike
 from app.common.core.setting import GlobalSetting
 from app.common.plugin import (
     LogPlugin,
