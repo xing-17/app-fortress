@@ -56,7 +56,7 @@ VALID_CONNECTIONS_YAML = {
 }
 
 VALID_CENTRE_YAML = {
-    "target": "test",
+    "connection": "test",
 }
 
 VALID_PROVIDERS_YAML = {
@@ -182,7 +182,7 @@ class TestLoad:
         s = CoreSetting.load(**all_custom_paths)
         assert isinstance(s, CoreSetting)
         assert s.system.name == "test-fortress"
-        assert s.centre.target == "test"
+        assert s.centre.connection == "test"
 
     def test_load_stores_system_path(self, valid_yaml_path):
         CoreSetting.load(system_path=valid_yaml_path)
