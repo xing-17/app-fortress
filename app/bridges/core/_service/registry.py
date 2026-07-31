@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.bridges.resources.base.registry import BaseRegistry
+from app.bridges.base.registry import BaseRegistry
 
 
 class CoreRegistry(BaseRegistry):

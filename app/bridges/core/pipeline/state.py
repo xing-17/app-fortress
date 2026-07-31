@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from app.bridges.resources.base.state import BaseBridgesState, BaseBridgesStatus
+from app.bridges.base.state import BaseBridgesState, BaseBridgesStatus
 
 if TYPE_CHECKING:
     from app.bridges.core.pipenode.node import PipeNode as PipeNode

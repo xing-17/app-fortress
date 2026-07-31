@@ -3,12 +3,12 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
+from app.bridges.base.service import BaseBridgesService
 from app.bridges.core._service.registry import CoreRegistry
 from app.bridges.core._service.request import CoreRequest
 from app.bridges.core._service.state import CoreRequestState
 from app.bridges.core.pipeline.context import PipelineContext
 from app.bridges.core.pipeline.node import PipelineNode
-from app.bridges.resources.base.service import BaseBridgesService
 from app.bridges.resources.destinations.base.destination import BaseDestination
 from app.bridges.resources.providers.base.provider import BaseProvider
 from app.bridges.resources.sources.base.source import BaseSource

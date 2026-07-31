@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
+from app.bridges.base.state import BaseBridgesState, BaseBridgesStatus
 from app.bridges.core._service.request import CoreRequest
 from app.bridges.core.pipeline.state import PipelineStatus
 from app.bridges.core.pipenode.state import PipeNodeStatus
-from app.bridges.resources.base.state import BaseBridgesState, BaseBridgesStatus
 
 if TYPE_CHECKING:
     from app.bridges.core.pipeline.node import PipelineNode

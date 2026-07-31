@@ -116,8 +116,8 @@ def service():
     """创建带 mock 的 CoreService 实例"""
     # Patch at the correct import locations
     with (
-        patch("app.bridges.resources.base.service.GlobalSetting") as mock_global_setting,
-        patch("app.bridges.resources.base.service.ModuleBridgesWarehouse") as mock_warehouse,
+        patch("app.bridges.base.service.GlobalSetting") as mock_global_setting,
+        patch("app.bridges.base.service.ModuleBridgesWarehouse") as mock_warehouse,
     ):
         # Setup mock setting
         tmp_dir = tempfile.mkdtemp()
