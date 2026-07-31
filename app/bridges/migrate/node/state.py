@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from app.bridges.resources.base.state import BaseBridgesState, BaseBridgesStatus
+from app.bridges.base.state import BaseBridgesState, BaseBridgesStatus
 
 # Alias for semantic clarity
 MigrateNodeStatus = BaseBridgesStatus

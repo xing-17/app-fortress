@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.bridges.base.service import BaseBridgesService
 from app.bridges.migrate._service.registry import MigrateRegistry
 from app.bridges.migrate._service.request import MigrateRequest
 from app.bridges.migrate._service.state import MigrateRequestState
 from app.bridges.migrate.node.context import MigrateNodeContext
 from app.bridges.migrate.node.node import MigrateNode
-from app.bridges.resources.base.service import BaseBridgesService
 from app.bridges.resources.destinations.base.destination import BaseDestination
 from app.bridges.resources.sources.base import BaseSource
 

@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.bridges.base.state import BaseBridgesState, BaseBridgesStatus
 from app.bridges.migrate._service.request import MigrateRequest
 from app.bridges.migrate.node.node import MigrateNode
-from app.bridges.resources.base.state import BaseBridgesState, BaseBridgesStatus
 
 MigrateRequestStatus = BaseBridgesStatus
 
