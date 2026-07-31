@@ -88,7 +88,7 @@ def api_setting():
 @pytest.fixture
 def client(api_setting, mock_migrate_service):
     """创建 FastAPI TestClient，使用真实的 FortressApi 但 mock 服务。"""
-    from app.interface.fortress import FortressApi
+    from app.api.app import FortressApi
 
     # Mock 服务的启动
     with (

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from app.bridges.core._service.service import CoreService
 from app.bridges.machine._service.service import MachineService
 from app.bridges.migrate._service.service import MigrateService
-from app.bridges.resources.base.servicehealth import ServiceHealth
+from app.bridges.base.servicehealth import ServiceHealth
 
 MachineRouter = APIRouter(
     prefix="/machine",

@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.bridges.resources.base.servicehealth import ServiceHealth
+from app.bridges.base.servicehealth import ServiceHealth
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -132,7 +132,7 @@ def api_setting():
 @pytest.fixture
 def client(api_setting, mock_machine_service, mock_core_service, mock_migrate_service):
     """创建 FastAPI TestClient，使用真实的 FortressApi 但 mock 服务。"""
-    from app.interface.fortress import FortressApi
+    from app.api.app import FortressApi
 
     # Mock 服务的启动
     with (
