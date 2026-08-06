@@ -173,6 +173,7 @@ class MachineService(
                 proc_mem_percent = round(proc.memory_percent(), 2)
                 proc_cpu_percent = round(proc.cpu_percent(interval=None), 2)
                 proc_workers = proc.num_threads()
+
         except Exception as e:
             self.warning(f"_sample: process fail {e}")
             proc_mem_mb = None
@@ -190,6 +191,7 @@ class MachineService(
             net_sent_mb = None
             net_recv_mb = None
 
+        # 构建 MachineSnapshot 对象
         snapshot = MachineSnapshot(
             cpu_percent=cpu_percent,
             mem_percent=mem_percent,
@@ -227,10 +229,9 @@ class MachineService(
             "timezone": sys_setting.timezone,
         }
 
-    def health(self):
+    def health(self) -> ServiceHealth:
         is_alive: bool = self._worker.is_alive()
         last_active_time: float | None = self._last_active_time
-
         return ServiceHealth(
             service=self.module_name,
             worker_name=self._worker.name,
