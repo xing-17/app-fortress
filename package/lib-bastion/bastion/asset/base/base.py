@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar, Protocol, runtime_checkable
 
 from pydantic import Field
 
 from bastion._internal.model import IBastionModel
 
 
+@runtime_checkable
 class AssetLike(Protocol):
     """
     Structural protocol
