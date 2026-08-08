@@ -1,0 +1,11 @@
+"""Logging bootstrap for the bastion package.
+
+Attaches a NullHandler to the root ``bastion`` logger so the library stays
+silent by default.  Callers configure handlers in their own application code.
+"""
+
+from __future__ import annotations
+
+import logging
+
+logging.getLogger("bastion").addHandler(logging.NullHandler())
