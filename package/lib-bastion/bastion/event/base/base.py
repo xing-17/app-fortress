@@ -12,6 +12,7 @@ from bastion._internal.model import IBastionModel
 @runtime_checkable
 class EventLike(Protocol):
     id: str
+    run_id: str
     kind: str
     message: str
     created_at: datetime
@@ -23,6 +24,7 @@ class BaseEvent(IBastionModel):
 
     _id_prefix: ClassVar[str] = "event"
     _id_length: ClassVar[int] = 16
+    run_id: str
     kind: str
     message: str
     created_at: datetime = Field(default_factory=IBastionClock.current)

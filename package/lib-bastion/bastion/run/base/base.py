@@ -43,6 +43,8 @@ class RunLike(Protocol):
 class BaseRun(IBastionModel):
     _id_prefix: ClassVar[str] = "run"
     _id_length: ClassVar[int] = 16
+    pipeline_id: str
+    asset_id: str
     status: RunStatus = Field(default=RunStatus.PENDING)
     created_at: datetime = Field(default_factory=IBastionClock.current)
     started_at: datetime | None = Field(default=None)

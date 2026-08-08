@@ -1,0 +1,52 @@
+[project]
+name = "lib-bastion"
+version = "0.0.1"
+description = "Lightweight pylib for managing data pipeline ecosystems."
+readme = "README.md"
+authors = [
+    { name = "Xing Xing", email = "x.xing.work@gmail.com" }
+]
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.13",
+  "setuptools",
+  "wheel",
+  "twine",
+  "build"
+]
+
+[build-system]
+requires = [
+  "setuptools",
+  "wheel",
+  "twine",
+  "build"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["bastion*"]
+exclude = ["tests*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+fix = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+force-single-line = false
