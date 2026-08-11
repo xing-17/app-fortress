@@ -1,32 +1,26 @@
 from __future__ import annotations
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from datetime import UTC, datetime
 
 
 class IBastionClock:
-    """UTC clock utility for Bastion internals.
+    """
+    UTC clock utility.
 
-    All timestamps produced by this class are timezone-aware UTC.  Consumers
-    are responsible for any local-timezone conversion at the presentation layer.
-
-    Example::
-
-        now: datetime = IBastionClock.current()
-        ts: float     = IBastionClock.current_timestamp()
+    All timestamps are timezone-aware UTC.
     """
 
-    @classmethod
-    def current(cls) -> datetime:
+    @staticmethod
+    def current() -> datetime:
         """Return the current UTC datetime (timezone-aware)."""
-        return datetime.now(ZoneInfo("UTC"))
+        return datetime.now(UTC)
 
-    @classmethod
-    def current_iso(cls) -> str:
+    @staticmethod
+    def current_iso() -> str:
         """Return the current UTC time as an ISO 8601 string."""
-        return cls.current().isoformat()
+        return IBastionClock.current().isoformat()
 
-    @classmethod
-    def current_timestamp(cls) -> float:
+    @staticmethod
+    def current_timestamp() -> float:
         """Return the current UTC time as a POSIX timestamp."""
-        return cls.current().timestamp()
+        return IBastionClock.current().timestamp()
