@@ -36,6 +36,16 @@ class IBastionModel(BaseModel):
         extra="ignore",
         validate_assignment=True,
     )
+    
+    @classmethod
+    def from_json(
+        cls,
+        data: dict,
+    ) -> IBastionModel:
+        """
+        Create a model instance from a JSON dictionary.
+        """
+        return cls.model_validate(data)
 
     @classmethod
     def _generate_id(cls) -> str:
