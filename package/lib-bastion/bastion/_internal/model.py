@@ -14,13 +14,7 @@ from bastion._internal.clock import IBastionClock
 
 
 class IBastionModel(BaseModel):
-    """
-    Base model for all Bastion domain objects.
-
-    Provides auto-generated IDs (``{_id_prefix}-{hex}``), UTC timestamps,
-    and serialization helpers. Override ``_id_prefix`` / ``_id_length`` in subclasses.
-    """
-
+    _id_enabled: ClassVar[bool] = True
     _id_prefix: ClassVar[str] = ""
     _id_length: ClassVar[int] = 12
     id: str = Field(
@@ -66,19 +60,13 @@ class IBastionModel(BaseModel):
         return f"{_cls_name}({_id})"
 
     def model_post_init(self, __context, /) -> None:
-        if not self.id:
-            self.id = self._generate_id()
+        if not self.id and self._id_enabled:
+            self.id = self._generate_id() 
 
     def export(self) -> dict:
-        """
-        Return the model as a plain dictionary suitable for storage.
-        """
         return self.model_dump()
 
     def describe(self) -> str:
-        """
-        Return a pretty-printed JSON representation of the model.
-        """
         return self.model_dump_json(
             indent=4,
             ensure_ascii=False,
