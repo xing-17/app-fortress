@@ -1,35 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar, Protocol, runtime_checkable
-
+from typing import Any, ClassVar
 from pydantic import Field
 
 from bastion._internal.model import IBastionModel
 
 
-@runtime_checkable
-class AssetLike(Protocol):
-    """
-    Structural protocol
-
-    Core attributes:
-        id: Unique identifier for the asset
-        name: Human-readable name for the asset
-        description: Optional description of the asset
-        metadata: Arbitrary key-value metadata associated with the asset
-        tags: List of tags associated with the asset
-
-    """
-
-    id: str
-    name: str
-    description: str | None
-    owner: str | None
-    metadata: dict[str, Any]
-    tags: dict[str, str]
-
-
-class BaseAsset(IBastionModel):
+class BaseAssetModel(IBastionModel):
     """
     Base Asset model.
 

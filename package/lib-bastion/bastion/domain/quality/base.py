@@ -9,5 +9,4 @@ from bastion._internal.model import IBastionModel
 class BaseQualityModel(IBastionModel):
     _id_prefix: ClassVar[str] = "qual"
     _id_length: ClassVar[int] = 20
-    run_id: str
     metrics: dict[str, Any] = Field(default_factory=dict)
