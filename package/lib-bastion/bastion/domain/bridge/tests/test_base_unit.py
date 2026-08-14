@@ -92,3 +92,49 @@ class TestBaseBridgeModel:
 
         assert exported["compute_name"] is None
         assert exported["description"] is None
+
+    def test_from_any_with_dict(self):
+        """Test from_any creates model from dictionary."""
+        data = {
+            "name": "test-bridge",
+            "compute_name": "compute-01",
+            "asset_names": ["asset-01", "asset-02"],
+            "description": "Test bridge",
+            "metadata": {"key": "value"},
+            "tags": {"env": "test"},
+        }
+        bridge = BaseBridgeModel.from_any(data)
+        assert bridge.name == "test-bridge"
+        assert bridge.compute_name == "compute-01"
+        assert bridge.asset_names == ["asset-01", "asset-02"]
+        assert bridge.description == "Test bridge"
+        assert bridge.metadata == {"key": "value"}
+        assert bridge.tags == {"env": "test"}
+
+    def test_from_any_with_model_instance(self):
+        """Test from_any returns same instance when given model."""
+        original = BaseBridgeModel(name="test-bridge")
+        result = BaseBridgeModel.from_any(original)
+        assert result is original
+
+    def test_roundtrip_export_from_any(self):
+        """Test export and from_any roundtrip conversion."""
+        original = BaseBridgeModel(
+            name="roundtrip-bridge",
+            compute_name="compute-02",
+            asset_names=["asset-03", "asset-04"],
+            description="Roundtrip test",
+            metadata={"priority": "high", "count": 42},
+            tags={"env": "prod", "team": "data"},
+        )
+        # Export to dict
+        exported = original.export()
+        # Recreate from dict
+        restored = BaseBridgeModel.from_any(exported)
+        # Verify all fields match
+        assert restored.name == original.name
+        assert restored.compute_name == original.compute_name
+        assert restored.asset_names == original.asset_names
+        assert restored.description == original.description
+        assert restored.metadata == original.metadata
+        assert restored.tags == original.tags

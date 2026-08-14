@@ -76,3 +76,40 @@ class TestBaseComputeModel:
         assert exported["name"] == "simple_compute"
         assert exported["kind"] == "local_py_fn"
         assert exported["tags"] == {}
+
+    def test_from_any_with_dict(self):
+        """Test from_any creates model from dictionary."""
+        data = {
+            "name": "test_compute",
+            "kind": "local_py_fn",
+            "tags": {"env": "test", "version": "2.0"},
+        }
+        compute = BaseComputeModel.from_any(data)
+        assert compute.name == "test_compute"
+        assert compute.kind == ComputeKind.LOCAL_PY_FN
+        assert compute.tags == {"env": "test", "version": "2.0"}
+
+    def test_from_any_with_model_instance(self):
+        """Test from_any returns same instance when given model."""
+        original = BaseComputeModel(
+            name="test_compute",
+            kind=ComputeKind.LOCAL_PY_FN,
+        )
+        result = BaseComputeModel.from_any(original)
+        assert result is original
+
+    def test_roundtrip_export_from_any(self):
+        """Test export and from_any roundtrip conversion."""
+        original = BaseComputeModel(
+            name="roundtrip_compute",
+            kind=ComputeKind.LOCAL_PY_FN,
+            tags={"env": "staging", "owner": "team-a", "version": "3.1"},
+        )
+        # Export to dict
+        exported = original.export()
+        # Recreate from dict
+        restored = BaseComputeModel.from_any(exported)
+        # Verify all fields match
+        assert restored.name == original.name
+        assert restored.kind == original.kind
+        assert restored.tags == original.tags

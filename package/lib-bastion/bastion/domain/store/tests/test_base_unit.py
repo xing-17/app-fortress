@@ -108,3 +108,37 @@ class TestBaseStoreModel:
             kind=StoreKind.MEMORY,
         )
         assert store.identifier.endswith(":test_store")
+
+    def test_from_any_with_dict(self):
+        """Test from_any creates model from dictionary."""
+        data = {
+            "name": "test_store",
+            "kind": "memory",
+        }
+        store = BaseStoreModel.from_any(data)
+        assert store.name == "test_store"
+        assert store.kind == StoreKind.MEMORY
+
+    def test_from_any_with_model_instance(self):
+        """Test from_any returns same instance when given model."""
+        original = BaseStoreModel(
+            name="test_store",
+            kind=StoreKind.MEMORY,
+        )
+        result = BaseStoreModel.from_any(original)
+        assert result is original
+
+    def test_roundtrip_export_from_any(self):
+        """Test export and from_any roundtrip conversion."""
+        original = BaseStoreModel(
+            name="roundtrip_store",
+            kind=StoreKind.MEMORY,
+        )
+        # Export to dict
+        exported = original.export()
+        # Recreate from dict
+        restored = BaseStoreModel.from_any(exported)
+        # Verify all fields match
+        assert restored.name == original.name
+        assert restored.kind == original.kind
+        assert restored.identifier == original.identifier

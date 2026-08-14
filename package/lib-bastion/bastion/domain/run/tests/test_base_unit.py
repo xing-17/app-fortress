@@ -168,3 +168,48 @@ class TestBaseRunModel:
 
         assert exported["status"] == "running"
         assert isinstance(exported["status"], str)
+
+    def test_from_any_with_dict(self):
+        """Test from_any creates model from dictionary."""
+        data = {
+            "id": "run-abc123def456",
+            "bridge_name": "test_bridge",
+            "status": "running",
+            "created_at": "2026-08-14T10:00:00",
+            "started_at": "2026-08-14T10:00:01",
+            "finished_at": None,
+        }
+        run = BaseRunModel.from_any(data)
+        assert run.id == "run-abc123def456"
+        assert run.bridge_name == "test_bridge"
+        assert run.status == RunStatus.RUNNING
+        assert run.created_at.year == 2026
+        assert run.created_at.month == 8
+        assert run.created_at.day == 14
+        assert run.started_at is not None
+        assert run.finished_at is None
+
+    def test_from_any_with_model_instance(self):
+        """Test from_any returns same instance when given model."""
+        original = BaseRunModel(bridge_name="test_bridge")
+        result = BaseRunModel.from_any(original)
+        assert result is original
+
+    def test_roundtrip_export_from_any(self):
+        """Test export and from_any roundtrip conversion."""
+        original = BaseRunModel(bridge_name="roundtrip_bridge")
+        original.start()
+        original.succeed()
+
+        # Export to dict
+        exported = original.export()
+        # Recreate from dict
+        restored = BaseRunModel.from_any(exported)
+
+        # Verify all fields match
+        assert restored.id == original.id
+        assert restored.bridge_name == original.bridge_name
+        assert restored.status == original.status
+        assert restored.created_at == original.created_at
+        assert restored.started_at == original.started_at
+        assert restored.finished_at == original.finished_at

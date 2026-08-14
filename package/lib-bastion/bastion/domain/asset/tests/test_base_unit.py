@@ -184,6 +184,55 @@ class TestBaseAssetModel:
         # ID 不应该自动生成
         assert sample_asset.id == ""
 
+    def test_from_any_with_dict(self):
+        """测试 from_any() 接受字典。"""
+        data = {
+            "name": "test",
+            "kind": "parquet",
+            "platform": "s3",
+            "description": "Test asset",
+            "owner": "test_owner",
+            "metadata": {"key": "value"},
+            "tags": {"env": "test"},
+        }
+        asset = DummyAsset.from_any(data)
+        assert asset.name == "test"
+        assert asset.kind == AssetKind.PARQUET
+        assert asset.platform == AssetPlatform.S3
+        assert asset.description == "Test asset"
+        assert asset.owner == "test_owner"
+        assert asset.metadata == {"key": "value"}
+        assert asset.tags == {"env": "test"}
+
+    def test_from_any_with_model_instance(self, sample_asset):
+        """测试 from_any() 接受模型实例。"""
+        result = DummyAsset.from_any(sample_asset)
+        assert result is sample_asset
+
+    def test_roundtrip_export_from_any(self):
+        """测试 export() 和 from_any() 的往返转换。"""
+        original = DummyAsset(
+            name="roundtrip_test",
+            kind=AssetKind.CSV,
+            platform=AssetPlatform.OSS,
+            description="Roundtrip test",
+            owner="test_owner",
+            metadata={"key1": "value1", "key2": 123},
+            tags={"env": "dev", "version": "1.0"},
+        )
+        # Export to dict
+        exported = original.export()
+        # Recreate from dict
+        restored = DummyAsset.from_any(exported)
+        # Verify all fields match
+        assert restored.name == original.name
+        assert restored.kind == original.kind
+        assert restored.platform == original.platform
+        assert restored.description == original.description
+        assert restored.owner == original.owner
+        assert restored.metadata == original.metadata
+        assert restored.tags == original.tags
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TestExport

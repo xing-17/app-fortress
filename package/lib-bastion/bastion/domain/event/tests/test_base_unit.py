@@ -1,0 +1,125 @@
+"""
+Unit tests for bastion.domain.event.base module.
+"""
+
+from datetime import datetime
+
+import pytest
+from pydantic import ValidationError
+
+from bastion.domain.event.base import BaseEventModel
+
+
+class TestBaseEventModel:
+    """Test BaseEventModel class."""
+
+    def test_create_base_event_model(self):
+        """Test creating a basic event model."""
+        event = BaseEventModel(
+            run_id="run-123",
+            message="Test event",
+        )
+        assert event.run_id == "run-123"
+        assert event.message == "Test event"
+        assert isinstance(event.created_at, datetime)
+        assert event.metadata == {}
+        assert event.id != ""
+        assert event.id.startswith("event-")
+
+    def test_id_generation(self):
+        """Test that events have unique IDs with correct prefix."""
+        event1 = BaseEventModel(run_id="run-123")
+        event2 = BaseEventModel(run_id="run-123")
+
+        assert event1.id != event2.id
+        assert event1.id.startswith("event-")
+        assert event2.id.startswith("event-")
+        assert len(event1.id.split("-")[1]) == 16
+
+    def test_missing_run_id_raises(self):
+        """Test creating event without run_id raises error."""
+        with pytest.raises(ValidationError):
+            BaseEventModel()
+
+    def test_create_with_metadata(self):
+        """Test creating event with metadata."""
+        event = BaseEventModel(
+            run_id="run-123",
+            message="Event with metadata",
+            metadata={"key": "value", "count": 42},
+        )
+        assert event.metadata == {"key": "value", "count": 42}
+
+    def test_created_at_auto_generated(self):
+        """Test created_at is automatically set."""
+        event = BaseEventModel(run_id="run-123")
+        assert event.created_at is not None
+        assert isinstance(event.created_at, datetime)
+
+    def test_export(self):
+        """Test export method returns correct dictionary."""
+        event = BaseEventModel(
+            run_id="run-456",
+            message="Export test",
+            metadata={"type": "info"},
+        )
+        exported = event.export()
+
+        assert exported["id"] == event.id
+        assert exported["run_id"] == "run-456"
+        assert exported["message"] == "Export test"
+        assert isinstance(exported["created_at"], str)
+        assert exported["metadata"] == {"type": "info"}
+
+        # Verify ISO format
+        datetime.fromisoformat(exported["created_at"])
+
+    def test_export_with_none_message(self):
+        """Test export with None message."""
+        event = BaseEventModel(run_id="run-789")
+        exported = event.export()
+
+        assert exported["message"] is None
+
+    def test_from_any_with_dict(self):
+        """Test from_any creates model from dictionary."""
+        data = {
+            "id": "event-abc123def456789",
+            "run_id": "run-123",
+            "message": "Test event",
+            "created_at": "2026-08-14T10:00:00",
+            "metadata": {"key": "value"},
+        }
+        event = BaseEventModel.from_any(data)
+        assert event.id == "event-abc123def456789"
+        assert event.run_id == "run-123"
+        assert event.message == "Test event"
+        assert event.created_at.year == 2026
+        assert event.created_at.month == 8
+        assert event.created_at.day == 14
+        assert event.metadata == {"key": "value"}
+
+    def test_from_any_with_model_instance(self):
+        """Test from_any returns same instance when given model."""
+        original = BaseEventModel(run_id="run-123")
+        result = BaseEventModel.from_any(original)
+        assert result is original
+
+    def test_roundtrip_export_from_any(self):
+        """Test export and from_any roundtrip conversion."""
+        original = BaseEventModel(
+            run_id="run-roundtrip",
+            message="Roundtrip test event",
+            metadata={"priority": "high", "count": 99},
+        )
+        # Export to dict
+        exported = original.export()
+        # Recreate from dict
+        restored = BaseEventModel.from_any(exported)
+
+        # Verify all fields match
+        assert restored.id == original.id
+        assert restored.run_id == original.run_id
+        assert restored.message == original.message
+        assert restored.created_at == original.created_at
+        assert restored.metadata == original.metadata
