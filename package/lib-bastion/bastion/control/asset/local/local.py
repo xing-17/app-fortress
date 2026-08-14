@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import Field
 
 from bastion._internal.object import IBastionObject
+from bastion.control.asset.base.base import IAssetLike
 from bastion.domain.asset.base import AssetKind, AssetPlatform, BaseAssetModel
 
 
@@ -22,7 +23,10 @@ class LocalAssetModel(BaseAssetModel):
         }
 
 
-class LocalAsset(IBastionObject):
+class LocalAsset(
+    IBastionObject,
+    IAssetLike,
+):
     def __init__(
         self,
         name: str,
@@ -46,11 +50,12 @@ class LocalAsset(IBastionObject):
         )
 
     def _resolve_path(self) -> Path:
+        """Resolve the asset's path to an absolute path."""
         return Path(self.domain.path).expanduser().resolve()
 
     def get_location_uri(self) -> str:
-        _resolved_path = self._resolve_path()
-        return str(_resolved_path)
+        """Return the resolved absolute path as URI."""
+        return str(self._resolve_path())
 
     def export(self) -> dict[str, Any]:
         return {

@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import Field
 
 from bastion._internal.object import IBastionObject
+from bastion.control.asset.base.base import IAssetLike
 from bastion.domain.asset.base import AssetKind, AssetPlatform, BaseAssetModel
 
 
@@ -31,7 +32,10 @@ class OSSAssetModel(BaseAssetModel):
         }
 
 
-class OSSAsset(IBastionObject):
+class OSSAsset(
+    IBastionObject,
+    IAssetLike,
+):
     def __init__(
         self,
         name: str,
@@ -59,7 +63,10 @@ class OSSAsset(IBastionObject):
         )
 
     def get_location_uri(self) -> str:
-        return f"oss://{self.domain.bucket}/{self.domain.prefix}"
+        """Return the URI of the OSS asset."""
+        _bucket = self.domain.bucket
+        _prefix = self.domain.prefix.lstrip("/")
+        return f"oss://{_bucket}/{_prefix}"
 
     def export(self) -> dict[str, Any]:
         return {
