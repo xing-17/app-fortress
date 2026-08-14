@@ -16,7 +16,6 @@ from bastion.domain.compute import (
 )
 from bastion.domain.event import (
     BaseEventModel,
-    EventKind,
 )
 from bastion.domain.quality import BaseQualityModel
 from bastion.domain.run import (
@@ -40,7 +39,6 @@ __all__ = [
     "ComputeKind",
     # Event
     "BaseEventModel",
-    "EventKind",
     # Quality
     "BaseQualityModel",
     # Run

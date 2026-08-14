@@ -106,6 +106,26 @@ class BaseRunModel(IBastionModel):
         description="Datetime when the run finished.",
     )
 
+    @classmethod
+    def from_any(
+        cls,
+        value: dict | BaseRunModel,
+    ) -> BaseRunModel:
+        if isinstance(value, BaseRunModel):
+            return value
+        try:
+            _attrs = {
+                "id": value.get("id"),
+                "bridge_name": value.get("bridge_name"),
+                "status": RunStatus.from_any(value.get("status", RunStatus.PENDING)),
+                "created_at": IBastionClock.from_iso(value.get("created_at")),
+                "started_at": IBastionClock.from_iso(value.get("started_at")),
+                "finished_at": IBastionClock.from_iso(value.get("finished_at")),
+            }
+            return cls(**_attrs)
+        except Exception as e:
+            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
+
     def start(self) -> None:
         """
         Mark the run as started and set started_at timestamp.

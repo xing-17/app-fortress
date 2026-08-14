@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from enum import StrEnum
 from typing import Any, ClassVar
 
@@ -178,7 +178,7 @@ class BaseAssetModel(IBastionModel, ABC):
         default_factory=dict,
         description="Tags associated with the asset",
     )
-    
+
     @classmethod
     def from_any(
         cls,

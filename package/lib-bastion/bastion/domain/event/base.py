@@ -1,48 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import StrEnum
 from typing import Any, ClassVar
 
 from pydantic import Field
 
 from bastion._internal.clock import IBastionClock
 from bastion._internal.model import IBastionModel
-
-
-class EventKind(StrEnum):
-    """
-    Event kind enumeration for categorizing different types of events.
-
-    Attributes:
-        BASE (str): Base event kind.
-
-    Methods:
-        from_any(value): Convert string or EventKind to EventKind instance.
-
-    Example:
-        ```python
-        kind = EventKind.BASE
-        kind_from_str = EventKind.from_any("base")
-        ```
-    """
-
-    BASE = "base"
-
-    @classmethod
-    def from_any(
-        cls,
-        value: str | EventKind,
-    ) -> EventKind:
-        """
-        Convert string or EventKind instance to EventKind.
-        """
-        if isinstance(value, cls):
-            return value
-        try:
-            return cls(value)
-        except ValueError:
-            raise ValueError(f"Invalid EventKind value: {value}")
 
 
 class BaseEventModel(IBastionModel):
@@ -71,13 +35,12 @@ class BaseEventModel(IBastionModel):
     _id_enabled: ClassVar[bool] = True
     _id_prefix: ClassVar[str] = "event"
     _id_length: ClassVar[int] = 16
-
     run_id: str = Field(
         ...,
         description="ID of the run associated with the event.",
     )
-    message: str = Field(
-        ...,
+    message: str | None = Field(
+        default=None,
         description="Message content of the event.",
     )
     created_at: datetime = Field(
@@ -89,10 +52,26 @@ class BaseEventModel(IBastionModel):
         description="Additional metadata related to the event.",
     )
 
+    @classmethod
+    def from_any(
+        cls,
+        value: dict | BaseEventModel,
+    ) -> BaseEventModel:
+        if isinstance(value, BaseEventModel):
+            return value
+        try:
+            _attrs = {
+                "id": value.get("id"),
+                "run_id": value.get("run_id"),
+                "message": value.get("message"),
+                "created_at": IBastionClock.from_iso(value.get("created_at")),
+                "metadata": value.get("metadata", {}),
+            }
+            return cls(**_attrs)
+        except Exception as e:
+            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
+
     def export(self) -> dict[str, Any]:
-        """
-        Export the event as a dictionary with serialized fields.
-        """
         return {
             "id": self.id,
             "run_id": self.run_id,

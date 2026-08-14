@@ -82,10 +82,24 @@ class BaseComputeModel(IBastionModel):
         description="Tags associated with the compute resource",
     )
 
+    @classmethod
+    def from_any(
+        cls,
+        value: dict | BaseComputeModel,
+    ) -> BaseComputeModel:
+        if isinstance(value, BaseComputeModel):
+            return value
+        try:
+            _attrs = {
+                "name": value.get("name"),
+                "kind": ComputeKind.from_any(value.get("kind")),
+                "tags": value.get("tags", {}),
+            }
+            return cls(**_attrs)
+        except Exception as e:
+            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
+
     def export(self) -> dict[str, Any]:
-        """
-        Export the compute model as a dictionary with serializable values.
-        """
         return {
             "name": self.name,
             "kind": self.kind.value,

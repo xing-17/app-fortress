@@ -18,6 +18,14 @@ class BaseQualityModel(IBastionModel):
         ...,
         description="ID of the run associated with the quality metrics.",
     )
+    kind: str = Field(
+        default="base",
+        description="Kind of the model, fixed to 'quality'.",
+    )
+    passed: bool = Field(
+        default=True,
+        description="Indicates whether the quality check passed.",
+    )
     created_at: datetime = Field(
         default_factory=IBastionClock.current,
         description="Datetime when the quality metrics were created.",
@@ -27,10 +35,32 @@ class BaseQualityModel(IBastionModel):
         description="Dictionary of quality metrics.",
     )
 
+    @classmethod
+    def from_any(
+        cls,
+        value: dict | BaseQualityModel,
+    ) -> BaseQualityModel:
+        if isinstance(value, BaseQualityModel):
+            return value
+        try:
+            _attrs = {
+                "id": value.get("id"),
+                "run_id": value.get("run_id"),
+                "kind": value.get("kind", "base"),
+                "passed": value.get("passed", True),
+                "created_at": IBastionClock.from_iso(value.get("created_at")),
+                "metrics": value.get("metrics", {}),
+            }
+            return cls(**_attrs)
+        except Exception as e:
+            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
+
     def export(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "run_id": self.run_id,
+            "kind": self.kind,
+            "passed": self.passed,
             "created_at": self.created_at.isoformat(),
             "metrics": self.metrics,
         }
