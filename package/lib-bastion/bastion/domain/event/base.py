@@ -11,6 +11,22 @@ from bastion._internal.model import IBastionModel
 
 
 class EventKind(StrEnum):
+    """
+    Event kind enumeration for categorizing different types of events.
+
+    Attributes:
+        BASE (str): Base event kind.
+
+    Methods:
+        from_any(value): Convert string or EventKind to EventKind instance.
+
+    Example:
+        ```python
+        kind = EventKind.BASE
+        kind_from_str = EventKind.from_any("base")
+        ```
+    """
+
     BASE = "base"
 
     @classmethod
@@ -18,6 +34,9 @@ class EventKind(StrEnum):
         cls,
         value: str | EventKind,
     ) -> EventKind:
+        """
+        Convert string or EventKind instance to EventKind.
+        """
         if isinstance(value, cls):
             return value
         try:
@@ -27,6 +46,29 @@ class EventKind(StrEnum):
 
 
 class BaseEventModel(IBastionModel):
+    """
+    Base event model for recording events that occurred during a run.
+
+    Attributes:
+        run_id (str): ID of the run associated with the event.
+        kind (EventKind): Kind of the event, e.g., 'base', 'error', etc.
+        message (str): Message content of the event.
+        created_at (datetime): Datetime when the event was created.
+        metadata (dict[str, Any]): Additional metadata related to the event.
+
+    Methods:
+        export(): Export the event as a dictionary with serialized fields.
+
+    Example:
+        ```python
+        event = BaseEventModel(
+            run_id="run-123",
+            message="Task completed successfully"
+        )
+        exported = event.export()
+        ```
+    """
+
     _id_enabled: ClassVar[bool] = True
     _id_prefix: ClassVar[str] = "event"
     _id_length: ClassVar[int] = 16
@@ -53,6 +95,9 @@ class BaseEventModel(IBastionModel):
     )
 
     def export(self) -> dict[str, Any]:
+        """
+        Export the event as a dictionary with serialized fields.
+        """
         return {
             "id": self.id,
             "run_id": self.run_id,

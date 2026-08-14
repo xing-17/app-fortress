@@ -9,6 +9,22 @@ from bastion._internal.model import IBastionModel
 
 
 class StoreKind(StrEnum):
+    """
+    Store kind enumeration for different storage types.
+
+    Attributes:
+        MEMORY (str): In-memory storage.
+
+    Methods:
+        from_any(value): Convert string or StoreKind to StoreKind instance.
+
+    Example:
+        ```python
+        kind = StoreKind.MEMORY
+        kind_from_str = StoreKind.from_any("memory")
+        ```
+    """
+
     MEMORY = "memory"
 
     @classmethod
@@ -16,6 +32,9 @@ class StoreKind(StrEnum):
         cls,
         value: str | StoreKind,
     ) -> StoreKind:
+        """
+        Convert string or StoreKind instance to StoreKind.
+        """
         if isinstance(value, cls):
             return value
         try:
@@ -25,6 +44,23 @@ class StoreKind(StrEnum):
 
 
 class BaseStoreModel(IBastionModel):
+    """
+    Base store model for persistence interface.
+
+    Attributes:
+        name (str): Name of the store.
+        kind (StoreKind): Kind of the store (e.g., memory, S3, Redshift).
+
+    Methods:
+        identifier: Get the unique identifier combining kind and name.
+
+    Example:
+        ```python
+        store = BaseStoreModel(name="my_store", kind=StoreKind.MEMORY)
+        print(store.identifier)  # "memory:my_store"
+        ```
+    """
+
     _id_enabled: ClassVar[bool] = False
     name: str = Field(
         ...,
@@ -37,4 +73,7 @@ class BaseStoreModel(IBastionModel):
 
     @property
     def identifier(self) -> str:
+        """
+        Get the unique identifier combining kind and name.
+        """
         return f"{self.kind}:{self.name}"
