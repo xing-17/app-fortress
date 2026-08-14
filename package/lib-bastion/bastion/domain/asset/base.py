@@ -179,16 +179,6 @@ class BaseAssetModel(IBastionModel, ABC):
         description="Tags associated with the asset",
     )
 
-    @abstractmethod
-    def get_location_uri(self) -> str:
-        """
-        Get the full URI location of the asset.
-
-        Subclasses must implement this method to return the complete URI
-        that specifies where the asset can be accessed on its platform.
-        """
-        ...
-
     def export(self) -> dict[str, Any]:
         """
         Export asset information to a dictionary.

@@ -28,8 +28,8 @@ class DummyAsset(BaseAssetModel):
     """测试用具体 Asset 实现。"""
 
     def get_location_uri(self) -> str:
+        """返回一个虚拟的 URI，用于测试。"""
         return f"dummy://{self.name}"
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -177,16 +177,6 @@ class TestBaseAssetModel:
         assert asset.owner == "test_owner"
         assert asset.metadata == {"key": "value"}
         assert asset.tags == {"env": "dev"}
-
-    def test_get_location_uri_is_abstract(self):
-        """测试 get_location_uri() 是抽象方法。"""
-        # 具体子类必须实现
-        asset = DummyAsset(
-            name="test",
-            kind=AssetKind.PARQUET,
-            platform=AssetPlatform.LOCAL,
-        )
-        assert asset.get_location_uri() == "dummy://test"
 
     def test_id_enabled_is_false(self, sample_asset):
         """测试 _id_enabled 为 False（Asset 使用 name 作为主键）。"""
