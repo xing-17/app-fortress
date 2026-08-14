@@ -14,8 +14,8 @@ logging.getLogger("bastion").addHandler(logging.NullHandler())
 
 class IBastionLog:
     """
-    Logger accessor. 
-    
+    Logger accessor.
+
     Returns a child of the root ``bastion`` logger.
     """
 

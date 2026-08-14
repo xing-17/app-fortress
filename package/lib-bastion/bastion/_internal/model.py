@@ -30,7 +30,7 @@ class IBastionModel(BaseModel):
         extra="ignore",
         validate_assignment=True,
     )
-    
+
     @classmethod
     def from_json(
         cls,
@@ -61,7 +61,7 @@ class IBastionModel(BaseModel):
 
     def model_post_init(self, __context, /) -> None:
         if not self.id and self._id_enabled:
-            self.id = self._generate_id() 
+            self.id = self._generate_id()
 
     def export(self) -> dict:
         return self.model_dump()
