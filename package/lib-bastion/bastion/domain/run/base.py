@@ -17,6 +17,18 @@ class RunStatus(StrEnum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+    @classmethod
+    def from_any(
+        cls,
+        value: str | RunStatus,
+    ) -> RunStatus:
+        if isinstance(value, cls):
+            return value
+        try:
+            return cls(value)
+        except ValueError:
+            raise ValueError(f"Invalid RunStatus value: {value}")
+
 
 class BaseRunModel(IBastionModel):
     _id_enabled: ClassVar[bool] = True
@@ -66,6 +78,7 @@ class BaseRunModel(IBastionModel):
         _finished_at = self.finished_at.isoformat() if self.finished_at else None
         return {
             "id": self.id,
+            "bridge_name": self.bridge_name,
             "status": self.status.value,
             "created_at": _created_at,
             "started_at": _started_at,

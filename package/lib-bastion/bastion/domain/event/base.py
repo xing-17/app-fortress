@@ -30,3 +30,12 @@ class BaseEventModel(IBastionModel):
         default_factory=dict,
         description="Additional metadata related to the event.",
     )
+
+    def export(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "run_id": self.run_id,
+            "message": self.message,
+            "created_at": self.created_at.isoformat(),
+            "metadata": self.metadata,
+        }

@@ -20,7 +20,10 @@ from bastion.domain.run import (
     BaseRunModel,
     RunStatus,
 )
-from bastion.domain.store import BaseStoreModel
+from bastion.domain.store import (
+    BaseStoreModel,
+    StoreKind,
+)
 
 __all__ = [
     # Asset
@@ -41,4 +44,5 @@ __all__ = [
     "RunStatus",
     # Store
     "BaseStoreModel",
+    "StoreKind",
 ]

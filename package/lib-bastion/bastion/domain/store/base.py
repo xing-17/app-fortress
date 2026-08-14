@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import ClassVar
 
 from pydantic import Field
 
 from bastion._internal.model import IBastionModel
+
+
+class StoreKind(StrEnum):
+    MEMORY = "memory"
 
 
 class BaseStoreModel(IBastionModel):
@@ -13,7 +18,7 @@ class BaseStoreModel(IBastionModel):
         ...,
         description="Name of the store",
     )
-    kind: str = Field(
+    kind: StoreKind = Field(
         ...,
         description="Kind of the store (e.g., S3, Redshift, local)",
     )

@@ -26,3 +26,11 @@ class BaseQualityModel(IBastionModel):
         default_factory=dict,
         description="Dictionary of quality metrics.",
     )
+
+    def export(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "run_id": self.run_id,
+            "created_at": self.created_at.isoformat(),
+            "metrics": self.metrics,
+        }

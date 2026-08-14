@@ -25,9 +25,6 @@ class AssetKind(StrEnum):
         except ValueError:
             raise ValueError(f"Invalid AssetKind value: {value}")
 
-    def __str__(self) -> str:
-        return self.value
-
 
 class AssetPlatform(StrEnum):
     S3 = "s3"
@@ -45,9 +42,6 @@ class AssetPlatform(StrEnum):
             return cls(value)
         except ValueError:
             raise ValueError(f"Invalid AssetPlatform value: {value}")
-
-    def __str__(self) -> str:
-        return self.value
 
 
 class BaseAssetModel(IBastionModel, ABC):
