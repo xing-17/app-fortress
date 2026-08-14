@@ -11,6 +11,18 @@ from bastion._internal.model import IBastionModel
 class StoreKind(StrEnum):
     MEMORY = "memory"
 
+    @classmethod
+    def from_any(
+        cls,
+        value: str | StoreKind,
+    ) -> StoreKind:
+        if isinstance(value, cls):
+            return value
+        try:
+            return cls(value)
+        except ValueError:
+            raise ValueError(f"Invalid StoreKind value: {value}")
+
 
 class BaseStoreModel(IBastionModel):
     _id_enabled: ClassVar[bool] = False

@@ -1,12 +1,29 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Any, ClassVar
 
 from pydantic import Field
 
 from bastion._internal.clock import IBastionClock
 from bastion._internal.model import IBastionModel
+
+
+class EventKind(StrEnum):
+    BASE = "base"
+
+    @classmethod
+    def from_any(
+        cls,
+        value: str | EventKind,
+    ) -> EventKind:
+        if isinstance(value, cls):
+            return value
+        try:
+            return cls(value)
+        except ValueError:
+            raise ValueError(f"Invalid EventKind value: {value}")
 
 
 class BaseEventModel(IBastionModel):
@@ -17,6 +34,10 @@ class BaseEventModel(IBastionModel):
     run_id: str = Field(
         ...,
         description="ID of the run associated with the event.",
+    )
+    kind: EventKind = Field(
+        default=EventKind.BASE,
+        description="Kind of the event, e.g., 'base', 'error', etc.",
     )
     message: str = Field(
         ...,
@@ -35,6 +56,7 @@ class BaseEventModel(IBastionModel):
         return {
             "id": self.id,
             "run_id": self.run_id,
+            "kind": self.kind.value,
             "message": self.message,
             "created_at": self.created_at.isoformat(),
             "metadata": self.metadata,

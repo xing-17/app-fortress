@@ -9,7 +9,19 @@ from bastion._internal.model import IBastionModel
 
 
 class ComputeKind(StrEnum):
-    LOCAL_PYTHON = "local_python"
+    LOCAL_PY_FN = "local_py_fn"
+
+    @classmethod
+    def from_any(
+        cls,
+        value: str | ComputeKind,
+    ) -> ComputeKind:
+        if isinstance(value, cls):
+            return value
+        try:
+            return cls(value)
+        except ValueError:
+            raise ValueError(f"Invalid ComputeKind value: {value}")
 
 
 class BaseComputeModel(IBastionModel):
@@ -19,8 +31,8 @@ class BaseComputeModel(IBastionModel):
         description="Name of the compute resource",
     )
     kind: ComputeKind = Field(
-        ComputeKind.LOCAL_PYTHON,
-        description="Kind of the compute resource, e.g., 'docker', 'local_python', etc.",
+        ...,
+        description="Kind of the compute resource, e.g., 'docker', 'local_py_fn', etc.",
     )
     tags: dict[str, str] = Field(
         default_factory=dict,
