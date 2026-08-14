@@ -51,7 +51,6 @@ class BaseEventModel(IBastionModel):
 
     Attributes:
         run_id (str): ID of the run associated with the event.
-        kind (EventKind): Kind of the event, e.g., 'base', 'error', etc.
         message (str): Message content of the event.
         created_at (datetime): Datetime when the event was created.
         metadata (dict[str, Any]): Additional metadata related to the event.
@@ -77,10 +76,6 @@ class BaseEventModel(IBastionModel):
         ...,
         description="ID of the run associated with the event.",
     )
-    kind: EventKind = Field(
-        default=EventKind.BASE,
-        description="Kind of the event, e.g., 'base', 'error', etc.",
-    )
     message: str = Field(
         ...,
         description="Message content of the event.",
@@ -101,7 +96,6 @@ class BaseEventModel(IBastionModel):
         return {
             "id": self.id,
             "run_id": self.run_id,
-            "kind": self.kind.value,
             "message": self.message,
             "created_at": self.created_at.isoformat(),
             "metadata": self.metadata,
