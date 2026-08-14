@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, Self
 
 from pydantic import (
     BaseModel,
@@ -21,10 +21,6 @@ class IBastionModel(BaseModel):
         default="",
         description="Unique identifier for the model instance",
     )
-    created_at: datetime = Field(
-        default_factory=IBastionClock.current,
-        description="Datetime when the model instance was created",
-    )
     model_config = ConfigDict(
         frozen=False,
         extra="ignore",
@@ -35,7 +31,7 @@ class IBastionModel(BaseModel):
     def from_json(
         cls,
         data: dict,
-    ) -> IBastionModel:
+    ) -> Self:
         """
         Create a model instance from a JSON dictionary.
         """
