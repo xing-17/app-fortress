@@ -95,6 +95,7 @@ class BaseComputeModel(IBastionModel):
                 "kind": ComputeKind.from_any(value.get("kind")),
                 "tags": value.get("tags", {}),
             }
+            _attrs = {k: v for k, v in _attrs.items() if v is not None}
             return cls(**_attrs)
         except Exception as e:
             raise ValueError(f"Cannot create {cls.__name__}: {e}") from e

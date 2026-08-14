@@ -67,6 +67,7 @@ class BaseEventModel(IBastionModel):
                 "created_at": IBastionClock.from_iso(value.get("created_at")),
                 "metadata": value.get("metadata", {}),
             }
+            _attrs = {k: v for k, v in _attrs.items() if v is not None}
             return cls(**_attrs)
         except Exception as e:
             raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
