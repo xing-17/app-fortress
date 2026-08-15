@@ -1,39 +1,44 @@
 from __future__ import annotations
 
 import json
+from typing import Any, ClassVar
+
+from bastion._internal.model import IBastionModel
 
 
 class IBastionObject:
-    """
-    Base class providing serialization utilities for objects.
+    _domain_class: ClassVar[type[IBastionModel] | None] = None
 
-    Methods:
-        export(): Exports the object metadata to a dictionary.
-        describe(): Returns a JSON string representation of the object.
+    @classmethod
+    def _load_domain(
+        self,
+        value: dict[str, Any],
+    ) -> IBastionModel | None:
+        if self._domain_class is None:
+            return None
+        return self._domain_class.from_any(value)
 
-    Example:
-        ```python
-        from bastion._internal.object import IBastionObject
-
-        class MyObject(IBastionObject):
-            def __init__(self, name):
-                self.name = name
-
-        obj = MyObject("example")
-        print(obj.describe())
-        # Output: {"__class__": "MyObject", "__module__": "__main__"}
-        ```
-    """
+    def __getattr__(
+        self,
+        name: str,
+    ) -> Any:
+        domain = self.__dict__.get("domain")
+        if domain is not None:
+            return getattr(domain, name)
+        _cls_name = self.__class__.__name__
+        raise AttributeError(f"'{_cls_name}' object has no attribute '{name}'")
 
     def export(self) -> dict:
-        """Export the object metadata to a dictionary."""
-        return {
+        _basic = {
             "__class__": self.__class__.__name__,
             "__module__": self.__class__.__module__,
         }
+        _domain = getattr(self, "domain", None)
+        if _domain is not None:
+            _basic = {**_basic, **_domain.export()}
+        return _basic
 
     def describe(self) -> str:
-        """Return a JSON string representation of the object."""
         return json.dumps(
             self.export(),
             indent=4,

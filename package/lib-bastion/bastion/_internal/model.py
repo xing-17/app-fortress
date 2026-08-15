@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import uuid
 from typing import ClassVar, Self
 
@@ -9,6 +8,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    model_validator,
 )
 
 
@@ -55,51 +55,60 @@ class IBastionModel(BaseModel):
     )
 
     @classmethod
-    def from_json(
+    def from_any(
         cls,
-        data: dict,
+        value: dict | Self,
     ) -> Self:
-        """Create a model instance from a JSON dictionary."""
-        return cls.model_validate(data)
+        if isinstance(value, cls):
+            return value
+        return cls.model_validate(value)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _prepare(cls, data):
+        if isinstance(data, dict):
+            # Create a copy to avoid mutating the original dictionary
+            data = dict(data)
+
+            # Generate an ID if it's enabled and not provided
+            if cls._id_enabled and not data.get("id"):
+                data["id"] = cls._generate_id()
+
+        return data
 
     @classmethod
     def _generate_id(cls) -> str:
-        """Return a new unique ID, optionally prefixed."""
         prefix = cls._id_prefix
         value = uuid.uuid4().hex[: cls._id_length]
         return f"{prefix}-{value}" if prefix else value
 
     @property
-    def _logic_name(self) -> str:
-        """Return a human-readable label used for logging and debugging."""
+    def logic_name(self) -> str:
         _cls_name = self.__class__.__name__
         _id = self.id if self.id is not None else ""
         return f"{_cls_name}({_id})"
 
     @property
-    def _sha256_key(self) -> str:
-        return self.get_sha256_hash()
+    def sha256(self) -> str:
+        _string = self.model_dump_json(
+            indent=4,
+            ensure_ascii=False,
+        )
+        return hashlib.sha256(_string.encode("utf-8")).hexdigest()
 
-    def model_post_init(self, __context, /) -> None:
-        """Auto-generate ID after model initialization if enabled."""
-        if not self.id and self._id_enabled:
-            self.id = self._generate_id()
-
-    def get_sha256_hash(
+    def clone(
         self,
-        length: int = 24,
-    ) -> str:
-        _exported = self.export()
-        _string = json.dumps(_exported, sort_keys=True)
-        _hash = hashlib.sha256(_string.encode("utf-8")).hexdigest()
-        return _hash[:length]
+        **updates,
+    ) -> Self:
+        return self.model_copy(
+            update=updates,
+            deep=True,
+        )
 
     def export(self) -> dict:
-        """Export the model instance to a dictionary."""
-        return self.model_dump()
+        return self.model_dump(mode="json")
 
     def describe(self) -> str:
-        """Return a JSON string representation of the model."""
         return self.model_dump_json(
             indent=4,
             ensure_ascii=False,

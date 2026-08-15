@@ -44,12 +44,12 @@ def test_custom_id():
     assert model.id == custom_id
 
 
-def test_from_json():
+def test_from_any():
     """Test creating model from JSON dictionary."""
-    data = {"id": "test-abc123", "name": "from_json"}
-    model = TestModel.from_json(data)
+    data = {"id": "test-abc123", "name": "from_any"}
+    model = TestModel.from_any(data)
     assert model.id == "test-abc123"
-    assert model.name == "from_json"
+    assert model.name == "from_any"
 
 
 def test_export():
@@ -74,14 +74,14 @@ def test_describe():
 def test_logic_name():
     """Test logic name property."""
     model = TestModel(id="test-123", name="logic")
-    logic_name = model._logic_name
+    logic_name = model.logic_name
     assert logic_name == "TestModel(test-123)"
 
 
 def test_extra_fields_ignored():
     """Test that extra fields are ignored."""
     data = {"name": "test", "extra_field": "ignored"}
-    model = TestModel.from_json(data)
+    model = TestModel.from_any(data)
     assert model.name == "test"
     assert not hasattr(model, "extra_field")
 
