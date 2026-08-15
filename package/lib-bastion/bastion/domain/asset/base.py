@@ -4,9 +4,10 @@ from abc import ABC
 from enum import StrEnum
 from typing import Any, ClassVar
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from bastion._internal.model import IBastionModel
+from bastion._internal.clock import IBastionClock
 
 
 class AssetKind(StrEnum):
@@ -178,28 +179,6 @@ class BaseAssetModel(IBastionModel, ABC):
         default_factory=dict,
         description="Tags associated with the asset",
     )
-
-    @classmethod
-    def from_any(
-        cls,
-        value: dict | BaseAssetModel,
-    ) -> BaseAssetModel:
-        if isinstance(value, BaseAssetModel):
-            return value
-        try:
-            _attrs = {
-                "name": value.get("name"),
-                "kind": AssetKind.from_any(value.get("kind")),
-                "platform": AssetPlatform.from_any(value.get("platform")),
-                "description": value.get("description"),
-                "owner": value.get("owner"),
-                "metadata": value.get("metadata", {}),
-                "tags": value.get("tags", {}),
-            }
-            _attrs = {k: v for k, v in _attrs.items() if v is not None}
-            return cls(**_attrs)
-        except Exception as e:
-            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
 
     def export(self) -> dict[str, Any]:
         return {
