@@ -14,7 +14,7 @@ class StoreKind(StrEnum):
 
     Attributes:
         MEMORY (str): In-memory storage.
-        DUCKDB (str): Local DuckDB file storage.
+        LOCAL (str): Local DuckDB file storage.
 
     Methods:
         from_any(value): Convert string or StoreKind to StoreKind instance.
