@@ -62,31 +62,7 @@ class BaseBridgeModel(IBastionModel):
         description="Tags associated with the bridge",
     )
 
-    @classmethod
-    def from_any(
-        cls,
-        value: dict | BaseBridgeModel,
-    ) -> BaseBridgeModel:
-        if isinstance(value, BaseBridgeModel):
-            return value
-        try:
-            _attrs = {
-                "name": value.get("name"),
-                "compute_name": value.get("compute_name"),
-                "asset_names": value.get("asset_names", []),
-                "description": value.get("description"),
-                "metadata": value.get("metadata", {}),
-                "tags": value.get("tags", {}),
-            }
-            _attrs = {k: v for k, v in _attrs.items() if v is not None}
-            return cls(**_attrs)
-        except Exception as e:
-            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
-
     def export(self) -> dict[str, Any]:
-        """
-        Exports the bridge model data as a dictionary.
-        """
         return {
             "name": self.name,
             "compute_name": self.compute_name,
