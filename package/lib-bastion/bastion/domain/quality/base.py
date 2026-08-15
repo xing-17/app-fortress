@@ -26,6 +26,10 @@ class BaseQualityModel(IBastionModel):
         default=True,
         description="Indicates whether the quality check passed.",
     )
+    description: str | None = Field(
+        default=None,
+        description="Optional description of the quality metrics.",
+    )
     created_at: datetime = Field(
         default_factory=IBastionClock.current,
         description="Datetime when the quality metrics were created.",
@@ -48,6 +52,7 @@ class BaseQualityModel(IBastionModel):
                 "run_id": value.get("run_id"),
                 "kind": value.get("kind", "base"),
                 "passed": value.get("passed", True),
+                "description": value.get("description", None),
                 "created_at": IBastionClock.from_iso(value.get("created_at")),
                 "metrics": value.get("metrics", {}),
             }
@@ -62,6 +67,7 @@ class BaseQualityModel(IBastionModel):
             "run_id": self.run_id,
             "kind": self.kind,
             "passed": self.passed,
+            "description": self.description,
             "created_at": self.created_at.isoformat(),
             "metrics": self.metrics,
         }
