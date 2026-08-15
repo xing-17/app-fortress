@@ -15,9 +15,27 @@ RunModel = BaseRunModel
 
 class IRunLike(Protocol):
     domain: RunModel
+    id: str
+    status: RunStatus
+    bridge_name: str
+    name: str
+    created_at: str | None
+    started_at: str | None
+    finished_at: str | None
 
     @classmethod
     def from_any(cls, data: dict[str, str | dict]) -> IRunLike: ...
+
+    def event(
+        self,
+        message: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None: ...
+
+    def add_event(
+        self,
+        event: Event,
+    ) -> None: ...
 
     def start(self) -> None: ...
 
@@ -76,6 +94,7 @@ class Run(
             return cls(
                 bridge_name=data["bridge_name"],
                 id=data.get("id"),
+                name=data.get("name"),
                 status=data.get("status"),
                 created_at=data.get("created_at"),
                 started_at=data.get("started_at"),
@@ -89,6 +108,7 @@ class Run(
     def __init__(
         self,
         bridge_name: str,
+        name: str | None = None,
         id: str | None = None,
         status: str | RunStatus | None = None,
         created_at: str | None = None,
@@ -101,6 +121,7 @@ class Run(
         self.domain = RunModel.from_any(
             {
                 "id": id,
+                "name": name,
                 "bridge_name": bridge_name,
                 "status": status or RunStatus.PENDING,
                 "created_at": created_at,
@@ -116,12 +137,46 @@ class Run(
         return self.domain.id
 
     @property
+    def bridge_name(self) -> str:
+        return self.domain.bridge_name
+
+    @property
     def status(self) -> RunStatus:
         return self.domain.status
 
     @property
     def _sha256_key(self) -> str:
         return self.domain._sha256_key
+
+    @property
+    def name(self) -> str:
+        if not self.domain.name:
+            return f"{self.id}"
+        return self.domain.name
+
+    @property
+    def created_at(self) -> str:
+        return self.domain.created_at
+
+    @property
+    def started_at(self) -> str | None:
+        return self.domain.started_at
+
+    @property
+    def finished_at(self) -> str | None:
+        return self.domain.finished_at
+
+    def event(
+        self,
+        message: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        event = Event(
+            run_id=self.id,
+            message=message,
+            metadata=metadata or {},
+        )
+        self.add_event(event)
 
     def add_event(
         self,
@@ -133,6 +188,22 @@ class Run(
         else:
             self.events.append(event)
             logger.debug(f"Added event '{event.id}' to run '{self.id}'.")
+
+    def quality(
+        self,
+        kind: str | None = None,
+        passed: bool | None = None,
+        description: str | None = None,
+        metrics: dict[str, Any] | None = None,
+    ) -> None:
+        quality = Quality(
+            run_id=self.id,
+            kind=kind,
+            passed=passed,
+            description=description,
+            metrics=metrics,
+        )
+        self.add_quality(quality)
 
     def add_quality(
         self,
