@@ -14,6 +14,7 @@ class StoreKind(StrEnum):
 
     Attributes:
         MEMORY (str): In-memory storage.
+        DUCKDB (str): Local DuckDB file storage.
 
     Methods:
         from_any(value): Convert string or StoreKind to StoreKind instance.
@@ -26,6 +27,7 @@ class StoreKind(StrEnum):
     """
 
     MEMORY = "memory"
+    LOCAL = "local"
 
     @classmethod
     def from_any(
@@ -98,5 +100,6 @@ class BaseStoreModel(IBastionModel):
     def export(self) -> dict[str, str]:
         return {
             "name": self.name,
+            "identifier": self.identifier,
             "kind": self.kind.value,
         }

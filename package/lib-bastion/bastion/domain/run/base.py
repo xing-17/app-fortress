@@ -88,6 +88,10 @@ class BaseRunModel(IBastionModel):
         ...,
         description="Name of the bridge associated with the run.",
     )
+    name: str = Field(
+        default=None,
+        description="Optional name for the run.",
+    )
     status: RunStatus = Field(
         RunStatus.PENDING,
         description="Current status of the run.",
@@ -116,6 +120,7 @@ class BaseRunModel(IBastionModel):
         try:
             _attrs = {
                 "id": value.get("id"),
+                "name": value.get("name"),
                 "bridge_name": value.get("bridge_name"),
                 "status": RunStatus.from_any(value.get("status", RunStatus.PENDING)),
                 "created_at": IBastionClock.from_iso(value.get("created_at")),
@@ -164,6 +169,7 @@ class BaseRunModel(IBastionModel):
         _finished_at = self.finished_at.isoformat() if self.finished_at else None
         return {
             "id": self.id,
+            "name": self.name,
             "bridge_name": self.bridge_name,
             "status": self.status.value,
             "created_at": _created_at,
