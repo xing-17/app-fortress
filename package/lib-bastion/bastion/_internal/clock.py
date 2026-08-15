@@ -34,7 +34,8 @@ class IBastionClock:
         """Convert an ISO 8601 string to a timezone-aware UTC datetime."""
         if not value:
             return None
-        return datetime.fromisoformat(value).astimezone(UTC)
+        _dt = datetime.fromisoformat(value)
+        return _dt if _dt.tzinfo else _dt.replace(tzinfo=UTC)
 
     @staticmethod
     def from_timestamp(value: float) -> datetime:

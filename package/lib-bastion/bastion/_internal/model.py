@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
 from typing import ClassVar, Self
 
@@ -74,10 +76,23 @@ class IBastionModel(BaseModel):
         _id = self.id if self.id is not None else ""
         return f"{_cls_name}({_id})"
 
+    @property
+    def _sha256_key(self) -> str:
+        return self.get_sha256_hash()
+
     def model_post_init(self, __context, /) -> None:
         """Auto-generate ID after model initialization if enabled."""
         if not self.id and self._id_enabled:
             self.id = self._generate_id()
+
+    def get_sha256_hash(
+        self,
+        length: int = 24,
+    ) -> str:
+        _exported = self.export()
+        _string = json.dumps(_exported, sort_keys=True)
+        _hash = hashlib.sha256(_string.encode("utf-8")).hexdigest()
+        return _hash[:length]
 
     def export(self) -> dict:
         """Export the model instance to a dictionary."""
