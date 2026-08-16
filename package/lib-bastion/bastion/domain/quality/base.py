@@ -10,6 +10,39 @@ from bastion._internal.model import IBastionModel
 
 
 class BaseQualityModel(IBastionModel):
+    """
+    Base quality model for recording quality metrics and validation results from run executions.
+
+    Attributes:
+        id (str): Unique identifier with 'qual' prefix (inherited from IBastionModel).
+        run_id (str): ID of the run associated with the quality metrics.
+        kind (str): Kind of the model, defaults to 'base'.
+        passed (bool): Indicates whether the quality check passed.
+        description (str | None): Optional description of the quality metrics.
+        created_at (datetime): Datetime when the quality metrics were created.
+        metrics (dict[str, Any]): Dictionary of quality metrics.
+
+    Methods:
+        from_any(value): Convert dict or instance to quality model (inherited).
+        export(): Export the quality model as a dictionary with serialized fields.
+        describe(): Export quality as JSON string (inherited).
+        clone(**updates): Create a deep copy with updates (inherited).
+        logic_name: Get logical name of the quality (inherited property).
+        sha256: Get SHA256 hash of the quality (inherited property).
+
+    Example:
+        ```python
+        quality = BaseQualityModel(
+            run_id="run-123abc",
+            passed=True,
+            description="Data validation checks",
+            metrics={"row_count": 1000, "null_rate": 0.02}
+        )
+        exported = quality.export()
+        print(quality.id)  # qual-a1b2c3d4e5f6g7h8i9j0
+        ```
+    """
+
     _id_enabled: ClassVar[bool] = True
     _id_prefix: ClassVar[str] = "qual"
     _id_length: ClassVar[int] = 20

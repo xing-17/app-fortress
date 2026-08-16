@@ -32,27 +32,33 @@ class RunStatus(StrEnum):
 
 class BaseRunModel(IBastionModel):
     """
-    Base run model for tracking bridge execution lifecycle.
+    Base run model for tracking bridge execution lifecycle and managing run state transitions.
 
     Attributes:
-        id (str): Unique identifier for the run, auto-generated if not provided.
+        id (str): Unique identifier with 'run' prefix (inherited from IBastionModel).
         bridge_name (str): Name of the bridge associated with the run.
         name (str | None): Optional name for the run.
-        status (RunStatus): Current status of the run.
+        status (RunStatus): Current status of the run (pending, running, succeeded, failed, cancelled).
         created_at (datetime): Datetime when the run was created.
         started_at (datetime | None): Datetime when the run started.
         finished_at (datetime | None): Datetime when the run finished.
 
     Methods:
+        from_any(value): Convert dict or instance to run model (inherited).
         start(): Mark the run as started and set started_at timestamp.
         succeed(): Mark the run as succeeded and set finished_at timestamp.
         fail(): Mark the run as failed and set finished_at timestamp.
         cancel(): Mark the run as cancelled and set finished_at timestamp.
         export(): Export the run as a dictionary with serialized fields.
+        describe(): Export run as JSON string (inherited).
+        clone(**updates): Create a deep copy with updates (inherited).
+        logic_name: Get logical name of the run (inherited property).
+        sha256: Get SHA256 hash of the run (inherited property).
 
     Example:
         ```python
         run = BaseRunModel(bridge_name="my_bridge")
+        print(run.id)  # run-a1b2c3d4e5f6
         run.start()
         # ... execute bridge logic ...
         run.succeed()

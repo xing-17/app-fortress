@@ -31,15 +31,21 @@ class ComputeKind(StrEnum):
 
 class BaseComputeModel(IBastionModel):
     """
-    Base model for compute resources that defines common properties.
+    Base model for compute resources defining execution environments and their properties.
 
     Attributes:
+        id (str): Unique identifier (inherited from IBastionModel, disabled for compute).
         name (str): Name of the compute resource.
-        kind (ComputeKind): Kind of the compute resource (e.g., 'local_py_fn').
+        kind (ComputeKind): Kind of the compute resource (e.g., local_py_fn).
         tags (dict[str, str]): Tags associated with the compute resource.
 
     Methods:
+        from_any(value): Convert dict or instance to compute model (inherited).
         export(): Export the compute model as a dictionary.
+        describe(): Export compute as JSON string (inherited).
+        clone(**updates): Create a deep copy with updates (inherited).
+        logic_name: Get logical name of the compute (inherited property).
+        sha256: Get SHA256 hash of the compute (inherited property).
 
     Example:
         ```python
@@ -49,6 +55,7 @@ class BaseComputeModel(IBastionModel):
             tags={"env": "dev"}
         )
         data = compute.export()
+        print(compute.logic_name)  # BaseComputeModel()
         ```
 
     """

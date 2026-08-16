@@ -32,19 +32,27 @@ class StoreKind(StrEnum):
 
 class BaseStoreModel(IBastionModel):
     """
-    Base store model for persistence interface.
+    Base store model for persistence interface defining storage backend configuration.
 
     Attributes:
+        id (str): Unique identifier (inherited from IBastionModel, disabled for stores).
         name (str): Name of the store.
-        kind (StoreKind): Kind of the store (e.g., memory, S3, Redshift).
+        kind (StoreKind): Kind of the store (memory, local).
 
     Methods:
-        identifier: Get the unique identifier combining kind and name.
+        from_any(value): Convert dict or instance to store model (inherited).
+        identifier: Get the unique identifier combining kind and name (property).
+        export(): Export the store as a dictionary.
+        describe(): Export store as JSON string (inherited).
+        clone(**updates): Create a deep copy with updates (inherited).
+        logic_name: Get logical name of the store (inherited property).
+        sha256: Get SHA256 hash of the store (inherited property).
 
     Example:
         ```python
         store = BaseStoreModel(name="my_store", kind=StoreKind.MEMORY)
-        print(store.identifier)  # "memory:my_store"
+        print(store.identifier)  # memory:my_store
+        data = store.export()
         ```
     """
 

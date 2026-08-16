@@ -105,47 +105,49 @@ class AssetPlatform(StrEnum):
 
 class BaseAssetModel(IBastionModel, ABC):
     """
-    Abstract base class for all data asset models.
-
-    Provides common fields and behavior for representing logical data assets
-    across different platforms and formats. Subclasses must implement the
-    get_location_uri method to specify how to locate the asset.
+    Abstract base class for all data asset models representing logical data assets across platforms.
 
     Attributes:
-        _id_enabled (ClassVar[bool]): Disabled ID auto-generation (uses name as key).
+        id (str): Unique identifier (inherited from IBastionModel, disabled for assets).
         name (str): Name of the asset.
         kind (AssetKind): Kind of the asset (e.g., parquet, csv).
-        platform (AssetPlatform): Platform where the asset is stored.
+        platform (AssetPlatform): Platform where the asset is stored (s3, local, oss).
         description (str | None): Optional description of the asset.
         owner (str | None): Owner of the asset.
         metadata (dict[str, Any]): Additional metadata associated with the asset.
         tags (dict[str, str]): Tags associated with the asset.
 
     Methods:
-        get_location_uri(): Get the full URI location of the asset.
+        from_any(value): Convert dict or instance to asset model (inherited).
+        get_location_uri(): Get the full URI location of the asset (abstract, must implement).
         export(): Export asset information to a dictionary.
+        describe(): Export asset as JSON string (inherited).
+        clone(**updates): Create a deep copy with updates (inherited).
+        logic_name: Get logical name of the asset (inherited property).
+        sha256: Get SHA256 hash of the asset (inherited property).
 
     Example:
         ```python
-            from bastion.domain.asset import BaseAssetModel, AssetKind, AssetPlatform
+        from bastion.domain.asset import BaseAssetModel, AssetKind, AssetPlatform
 
-            class S3Asset(BaseAssetModel):
-                bucket: str
-                key: str
+        class S3Asset(BaseAssetModel):
+            bucket: str
+            key: str
 
-                def get_location_uri(self) -> str:
-                    return f"s3://{self.bucket}/{self.key}"
+            def get_location_uri(self) -> str:
+                return f"s3://{self.bucket}/{self.key}"
 
-            asset = S3Asset(
-                name="sales_data",
-                kind=AssetKind.PARQUET,
-                platform=AssetPlatform.S3,
-                bucket="my-bucket",
-                key="data/sales.parquet",
-                description="Monthly sales data",
-                owner="data-team",
-                tags={"env": "prod"}
-            )
+        asset = S3Asset(
+            name="sales_data",
+            kind=AssetKind.PARQUET,
+            platform=AssetPlatform.S3,
+            bucket="my-bucket",
+            key="data/sales.parquet",
+            description="Monthly sales data",
+            owner="data-team",
+            tags={"env": "prod"}
+        )
+        print(asset.get_location_uri())  # s3://my-bucket/data/sales.parquet
         ```
     """
 

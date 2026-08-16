@@ -2,7 +2,6 @@
 Unit tests for bastion.domain.store.base module.
 """
 
-
 from bastion.domain.store.base import BaseStoreModel, StoreKind
 
 

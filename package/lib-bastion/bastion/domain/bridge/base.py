@@ -9,9 +9,10 @@ from bastion._internal.model import IBastionModel
 
 class BaseBridgeModel(IBastionModel):
     """
-    Represents the bridge relationship between compute resources and assets.
+    Represents the bridge relationship connecting compute resources to data assets.
 
     Attributes:
+        id (str): Unique identifier (inherited from IBastionModel, disabled for bridges).
         name (str): Name of the bridge.
         compute_name (str | None): Compute name associated with the bridge.
         asset_names (list[str]): List of asset names associated with the bridge.
@@ -20,7 +21,12 @@ class BaseBridgeModel(IBastionModel):
         tags (dict[str, str]): Tags associated with the bridge.
 
     Methods:
-        export() -> dict[str, Any]: Exports the bridge data as a dictionary.
+        from_any(value): Convert dict or instance to bridge model (inherited).
+        export(): Export the bridge data as a dictionary.
+        describe(): Export bridge as JSON string (inherited).
+        clone(**updates): Create a deep copy with updates (inherited).
+        logic_name: Get logical name of the bridge (inherited property).
+        sha256: Get SHA256 hash of the bridge (inherited property).
 
     Example:
         ```python
