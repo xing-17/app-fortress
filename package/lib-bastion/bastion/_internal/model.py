@@ -69,6 +69,7 @@ class IBastionModel(BaseModel):
         if isinstance(data, dict):
             # Create a copy to avoid mutating the original dictionary
             data = dict(data)
+            # data = {k: v for k, v in data.items() if v is not None}
 
             # Generate an ID if it's enabled and not provided
             if cls._id_enabled and not data.get("id"):
