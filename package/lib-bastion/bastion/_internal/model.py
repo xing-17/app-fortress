@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from typing import ClassVar, Self
+from typing import ClassVar, Self, get_args
 
 from pydantic import (
     BaseModel,
@@ -18,11 +18,17 @@ class IBastionModel(BaseModel):
 
     Attributes:
         id (str): Unique identifier for the model instance, auto-generated if not provided.
+        _id_enabled (ClassVar[bool]): Whether to enable auto-generated IDs.
+        _id_prefix (ClassVar[str]): Prefix for auto-generated IDs.
+        _id_length (ClassVar[int]): Length of the generated UUID portion.
 
     Methods:
-        from_json(dict data): Creates a model instance from a JSON dictionary.
-        export(): Exports the model instance to a dictionary.
-        describe(): Returns a JSON string representation of the model.
+        from_any(dict | Self value): Create instance from dict or existing instance.
+        clone(**updates): Create a deep copy with optional field updates.
+        export(): Export the model instance to a JSON-serializable dictionary.
+        describe(): Return a JSON string representation of the model.
+        logic_name: Property returning a formatted name with class and ID.
+        sha256: Property returning SHA-256 hash of the model's JSON representation.
 
     Example:
         ```python
@@ -36,8 +42,15 @@ class IBastionModel(BaseModel):
         obj = MyModel(name="example")
         print(obj.id)  # e.g., "my-a1b2c3d4e5f6"
 
-        # Create from JSON
-        obj2 = MyModel.from_json({"name": "test", "id": "my-123456"})
+        # Create from dict
+        obj2 = MyModel.from_any({"name": "test", "id": "my-123456"})
+
+        # Clone with updates
+        obj3 = obj.clone(name="updated")
+
+        # Export and describe
+        data = obj.export()
+        json_str = obj.describe()
         ```
     """
 
@@ -69,7 +82,13 @@ class IBastionModel(BaseModel):
         if isinstance(data, dict):
             # Create a copy to avoid mutating the original dictionary
             data = dict(data)
-            # data = {k: v for k, v in data.items() if v is not None}
+
+            # None on a non-optional field
+            # ! → treat as absent so factory activates
+            for name, field_info in cls.model_fields.items():
+                if name in data and data[name] is None:
+                    if type(None) not in get_args(field_info.annotation):
+                        del data[name]
 
             # Generate an ID if it's enabled and not provided
             if cls._id_enabled and not data.get("id"):
@@ -107,7 +126,9 @@ class IBastionModel(BaseModel):
         )
 
     def export(self) -> dict:
-        return self.model_dump(mode="json")
+        return self.model_dump(
+            mode="json",
+        )
 
     def describe(self) -> str:
         return self.model_dump_json(

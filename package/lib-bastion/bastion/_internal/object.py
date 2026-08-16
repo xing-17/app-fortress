@@ -7,6 +7,45 @@ from bastion._internal.model import IBastionModel
 
 
 class IBastionObject:
+    """
+    Base wrapper class for domain models with attribute delegation.
+
+    Attributes:
+        _domain_class (ClassVar[type[IBastionModel] | None]): The domain model class to wrap.
+        domain (IBastionModel): The underlying domain model instance.
+
+    Methods:
+        from_dict(dict data): Create instance from dictionary data.
+        from_domain(IBastionModel domain): Create instance from domain model.
+        export(): Export the underlying domain model to a dictionary.
+        describe(): Return a JSON string representation of the domain model.
+
+    Example:
+        ```python
+        from bastion._internal.object import IBastionObject
+        from bastion._internal.model import IBastionModel
+
+        class MyDomain(IBastionModel):
+            name: str
+            value: int
+
+        class MyObject(IBastionObject):
+            _domain_class = MyDomain
+
+        # Create from dict
+        obj = MyObject.from_dict({"name": "test", "value": 42})
+        print(obj.name)  # Accesses obj.domain.name via __getattr__
+
+        # Create from domain
+        domain = MyDomain(name="example", value=100)
+        obj2 = MyObject.from_domain(domain)
+
+        # Export and describe
+        data = obj.export()
+        json_str = obj.describe()
+        ```
+    """
+
     _domain_class: ClassVar[type[IBastionModel] | None] = None
 
     @classmethod
@@ -50,7 +89,7 @@ class IBastionObject:
         raise AttributeError(f"'{_cls_name}' object has no attribute '{name}'")
 
     def export(self) -> dict:
-        return self.domain.model_dump(mode="json") 
+        return self.domain.model_dump(mode="json")
 
     def describe(self) -> str:
         return json.dumps(

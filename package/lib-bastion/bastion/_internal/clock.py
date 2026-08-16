@@ -8,11 +8,11 @@ class IBastionClock:
     Provides UTC clock utilities for timezone-aware datetime operations.
 
     Methods:
-        from_iso(str value): Converts an ISO 8601 string to a timezone-aware UTC datetime.
-        from_timestamp(float value): Converts a POSIX timestamp to a timezone-aware UTC datetime.
-        current(): Returns the current UTC datetime (timezone-aware).
-        current_iso(): Returns the current UTC time as an ISO 8601 string.
-        current_timestamp(): Returns the current UTC time as a POSIX timestamp.
+        from_iso(str value): Convert an ISO 8601 string to a timezone-aware UTC datetime.
+        from_timestamp(float value): Convert a POSIX timestamp to a timezone-aware UTC datetime.
+        current(): Return the current UTC datetime (timezone-aware).
+        current_iso(): Return the current UTC time as an ISO 8601 string.
+        current_timestamp(): Return the current UTC time as a POSIX timestamp.
 
     Example:
         ```python
@@ -26,6 +26,9 @@ class IBastionClock:
 
         # Get timestamp
         timestamp = IBastionClock.current_timestamp()
+
+        # Convert timestamp to datetime
+        dt_from_ts = IBastionClock.from_timestamp(1723639800.0)
         ```
     """
 

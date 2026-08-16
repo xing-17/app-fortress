@@ -17,7 +17,7 @@ class IBastionLog:
     Provides logger accessor for the bastion package.
 
     Methods:
-        get_logger(str name): Returns a child logger of the root bastion logger.
+        get_logger(str name): Return a child logger of the root bastion logger.
 
     Example:
         ```python
@@ -29,6 +29,10 @@ class IBastionLog:
         # Get named logger
         module_logger = IBastionLog.get_logger("module_name")
         module_logger.info("Log message")
+
+        # Use in different modules
+        api_logger = IBastionLog.get_logger("api")
+        db_logger = IBastionLog.get_logger("database")
         ```
     """
 
