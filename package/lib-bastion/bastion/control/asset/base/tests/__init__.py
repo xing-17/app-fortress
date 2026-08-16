@@ -1,3 +1,1 @@
-"""
-Tests for bastion.control.asset.base module.
-"""
+"""Tests for base asset module."""

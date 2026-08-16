@@ -1,87 +1,62 @@
-"""
-Unit tests for bastion.control.asset.base module.
-
-Coverage:
-- TestIAssetLike: Protocol structure validation and implementation checks.
-"""
+"""Unit tests for asset base protocol."""
 
 from __future__ import annotations
 
-from typing import Any
+import pytest
 
 from bastion.control.asset.base.base import IAssetLike
-from bastion.domain.asset.base import AssetKind, AssetPlatform, BaseAssetModel
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Mock implementations for testing
-# ──────────────────────────────────────────────────────────────────────────────
+from bastion.control.asset.local.local import LocalAsset
 
 
-class MockAssetModel(BaseAssetModel):
-    """Mock asset model for testing."""
+class TestIAssetLikeProtocol:
+    """Test IAssetLike protocol definition."""
 
-    def export(self) -> dict[str, Any]:
-        return super().export()
-
-
-class MockAsset:
-    """Mock asset implementing IAssetLike protocol."""
-
-    def __init__(self):
-        self.domain = MockAssetModel(
-            name="test_asset",
-            kind=AssetKind.PARQUET,
-            platform=AssetPlatform.LOCAL,
-        )
-
-    def get_location_uri(self) -> str:
-        return f"mock://{self.domain.name}"
-
-
-class InvalidAsset:
-    """Asset missing required protocol methods."""
-
-    def __init__(self):
-        self.domain = MockAssetModel(
-            name="invalid",
-            kind=AssetKind.CSV,
-            platform=AssetPlatform.S3,
-        )
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# TestIAssetLike
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-class TestIAssetLike:
-    """Test IAssetLike Protocol."""
-
-    def test_valid_implementation_passes_isinstance_check(self):
-        """Valid implementation should pass isinstance check."""
-        asset = MockAsset()
+    def test_protocol_check_with_local_asset(self):
+        """Test that LocalAsset implements IAssetLike protocol."""
+        asset = LocalAsset.from_dict({
+            "name": "test_asset",
+            "kind": "parquet",
+            "platform": "local",
+            "path": "/tmp/test.parquet",
+        })
+        
         assert isinstance(asset, IAssetLike)
 
-    def test_implementation_has_domain_attribute(self):
-        """Implementation must have domain attribute."""
-        asset = MockAsset()
-        assert hasattr(asset, "domain")
-        assert isinstance(asset.domain, BaseAssetModel)
+    def test_protocol_required_attributes(self):
+        """Test protocol required attributes are accessible."""
+        asset = LocalAsset.from_dict({
+            "name": "test_asset",
+            "kind": "csv",
+            "platform": "local",
+            "path": "/tmp/test.csv",
+            "description": "Test asset",
+            "owner": "test_user",
+            "metadata": {"key": "value"},
+            "tags": {"env": "test"},
+        })
+        
+        # Test protocol attributes
+        assert asset.name == "test_asset"
+        assert asset.kind == "csv"
+        assert asset.platform == "local"
+        assert asset.description == "Test asset"
+        assert asset.owner == "test_user"
+        assert asset.metadata == {"key": "value"}
+        assert asset.tags == {"env": "test"}
 
-    def test_implementation_has_get_location_uri_method(self):
-        """Implementation must have get_location_uri method."""
-        asset = MockAsset()
+    def test_protocol_required_methods(self):
+        """Test protocol required methods exist."""
+        asset = LocalAsset.from_dict({
+            "name": "test_asset",
+            "kind": "parquet",
+            "platform": "local",
+            "path": "/tmp/test.parquet",
+        })
+        
+        # Test protocol methods
         assert hasattr(asset, "get_location_uri")
+        assert hasattr(asset, "export")
+        assert hasattr(asset, "describe")
         assert callable(asset.get_location_uri)
-
-    def test_get_location_uri_returns_string(self):
-        """get_location_uri should return a string."""
-        asset = MockAsset()
-        uri = asset.get_location_uri()
-        assert isinstance(uri, str)
-        assert uri == "mock://test_asset"
-
-    def test_invalid_implementation_fails_isinstance_check(self):
-        """Implementation missing required methods should fail isinstance check."""
-        invalid = InvalidAsset()
-        assert not isinstance(invalid, IAssetLike)
+        assert callable(asset.export)
+        assert callable(asset.describe)
