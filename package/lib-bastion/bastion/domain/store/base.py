@@ -29,21 +29,6 @@ class StoreKind(StrEnum):
     MEMORY = "memory"
     LOCAL = "local"
 
-    @classmethod
-    def from_any(
-        cls,
-        value: str | StoreKind,
-    ) -> StoreKind:
-        """
-        Convert string or StoreKind instance to StoreKind.
-        """
-        if isinstance(value, cls):
-            return value
-        try:
-            return cls(value)
-        except ValueError:
-            raise ValueError(f"Invalid StoreKind value: {value}")
-
 
 class BaseStoreModel(IBastionModel):
     """
@@ -73,28 +58,8 @@ class BaseStoreModel(IBastionModel):
         description="Kind of the store (e.g., S3, Redshift, local)",
     )
 
-    @classmethod
-    def from_any(
-        cls,
-        value: dict | BaseStoreModel,
-    ) -> BaseStoreModel:
-        if isinstance(value, BaseStoreModel):
-            return value
-        try:
-            _attrs = {
-                "name": value.get("name"),
-                "kind": StoreKind.from_any(value.get("kind")),
-            }
-            _attrs = {k: v for k, v in _attrs.items() if v is not None}
-            return cls(**_attrs)
-        except Exception as e:
-            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
-
     @property
     def identifier(self) -> str:
-        """
-        Get the unique identifier combining kind and name.
-        """
         return f"{self.kind}:{self.name}"
 
     def export(self) -> dict[str, str]:

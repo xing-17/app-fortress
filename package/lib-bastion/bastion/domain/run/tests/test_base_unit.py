@@ -21,23 +21,13 @@ class TestRunStatus:
         assert RunStatus.FAILED == "failed"
         assert RunStatus.CANCELLED == "cancelled"
 
-    def test_from_any_with_run_status(self):
-        """Test from_any returns same RunStatus instance."""
-        status = RunStatus.RUNNING
-        result = RunStatus.from_any(status)
-        assert result == status
-        assert result is status
-
-    def test_from_any_with_valid_string(self):
-        """Test from_any converts valid string to RunStatus."""
-        result = RunStatus.from_any("pending")
-        assert result == RunStatus.PENDING
-        assert isinstance(result, RunStatus)
-
-    def test_from_any_with_invalid_string(self):
-        """Test from_any raises ValueError for invalid string."""
-        with pytest.raises(ValueError, match="Invalid RunStatus value: invalid"):
-            RunStatus.from_any("invalid")
+    def test_from_any_with_string(self):
+        """Test from_any converts string to RunStatus."""
+        assert RunStatus("pending") == RunStatus.PENDING
+        assert RunStatus("running") == RunStatus.RUNNING
+        assert RunStatus("succeeded") == RunStatus.SUCCEEDED
+        assert RunStatus("failed") == RunStatus.FAILED
+        assert RunStatus("cancelled") == RunStatus.CANCELLED
 
 
 class TestBaseRunModel:
@@ -188,12 +178,6 @@ class TestBaseRunModel:
         assert run.created_at.day == 14
         assert run.started_at is not None
         assert run.finished_at is None
-
-    def test_from_any_with_model_instance(self):
-        """Test from_any returns same instance when given model."""
-        original = BaseRunModel(bridge_name="test_bridge")
-        result = BaseRunModel.from_any(original)
-        assert result is original
 
     def test_roundtrip_export_from_any(self):
         """Test export and from_any roundtrip conversion."""

@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, ClassVar
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from bastion._internal.clock import IBastionClock
 from bastion._internal.model import IBastionModel
@@ -21,14 +21,6 @@ class RunStatus(StrEnum):
         FAILED (str): Run failed with an error.
         CANCELLED (str): Run was cancelled.
 
-    Methods:
-        from_any(value): Convert string or RunStatus to RunStatus instance.
-
-    Example:
-        ```python
-        status = RunStatus.PENDING
-        status_from_str = RunStatus.from_any("running")
-        ```
     """
 
     PENDING = "pending"
@@ -37,28 +29,15 @@ class RunStatus(StrEnum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
-    @classmethod
-    def from_any(
-        cls,
-        value: str | RunStatus,
-    ) -> RunStatus:
-        """
-        Convert string or RunStatus instance to RunStatus.
-        """
-        if isinstance(value, cls):
-            return value
-        try:
-            return cls(value)
-        except ValueError:
-            raise ValueError(f"Invalid RunStatus value: {value}")
-
 
 class BaseRunModel(IBastionModel):
     """
     Base run model for tracking bridge execution lifecycle.
 
     Attributes:
+        id (str): Unique identifier for the run, auto-generated if not provided.
         bridge_name (str): Name of the bridge associated with the run.
+        name (str | None): Optional name for the run.
         status (RunStatus): Current status of the run.
         created_at (datetime): Datetime when the run was created.
         started_at (datetime | None): Datetime when the run started.
@@ -88,7 +67,7 @@ class BaseRunModel(IBastionModel):
         ...,
         description="Name of the bridge associated with the run.",
     )
-    name: str = Field(
+    name: str | None = Field(
         default=None,
         description="Optional name for the run.",
     )
@@ -96,7 +75,6 @@ class BaseRunModel(IBastionModel):
         RunStatus.PENDING,
         description="Current status of the run.",
     )
-    # created_at is set at base model
     created_at: datetime = Field(
         default_factory=IBastionClock.current,
         description="Datetime when the run was created.",
@@ -110,60 +88,39 @@ class BaseRunModel(IBastionModel):
         description="Datetime when the run finished.",
     )
 
+    @field_validator("created_at", mode="before")
     @classmethod
-    def from_any(
-        cls,
-        value: dict | BaseRunModel,
-    ) -> BaseRunModel:
-        if isinstance(value, BaseRunModel):
-            return value
-        try:
-            _attrs = {
-                "id": value.get("id"),
-                "name": value.get("name"),
-                "bridge_name": value.get("bridge_name"),
-                "status": RunStatus.from_any(value.get("status", RunStatus.PENDING)),
-                "created_at": IBastionClock.from_iso(value.get("created_at")),
-                "started_at": IBastionClock.from_iso(value.get("started_at")),
-                "finished_at": IBastionClock.from_iso(value.get("finished_at")),
-            }
-            _attrs = {k: v for k, v in _attrs.items() if v is not None}
-            return cls(**_attrs)
-        except Exception as e:
-            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
+    def _coerce_required_datetime(cls, v: Any) -> Any:
+        if v is None:
+            return IBastionClock.current()  # None means "use factory default"
+        if isinstance(v, str):
+            return IBastionClock.from_iso(v)
+        return v
+
+    @field_validator("started_at", "finished_at", mode="before")
+    @classmethod
+    def _coerce_optional_datetime(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return IBastionClock.from_iso(v)
+        return v
 
     def start(self) -> None:
-        """
-        Mark the run as started and set started_at timestamp.
-        """
         self.status = RunStatus.RUNNING
         self.started_at = IBastionClock.current()
 
     def succeed(self) -> None:
-        """
-        Mark the run as succeeded and set finished_at timestamp.
-        """
         self.status = RunStatus.SUCCEEDED
         self.finished_at = IBastionClock.current()
 
     def fail(self) -> None:
-        """
-        Mark the run as failed and set finished_at timestamp.
-        """
         self.status = RunStatus.FAILED
         self.finished_at = IBastionClock.current()
 
     def cancel(self) -> None:
-        """
-        Mark the run as cancelled and set finished_at timestamp.
-        """
         self.status = RunStatus.CANCELLED
         self.finished_at = IBastionClock.current()
 
     def export(self) -> dict[str, Any]:
-        """
-        Export the run as a dictionary with serialized fields.
-        """
         _created_at = self.created_at.isoformat() if self.created_at else None
         _started_at = self.started_at.isoformat() if self.started_at else None
         _finished_at = self.finished_at.isoformat() if self.finished_at else None

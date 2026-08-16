@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, ClassVar
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from bastion._internal.clock import IBastionClock
 from bastion._internal.model import IBastionModel
@@ -39,27 +39,14 @@ class BaseQualityModel(IBastionModel):
         description="Dictionary of quality metrics.",
     )
 
+    @field_validator("created_at", mode="before")
     @classmethod
-    def from_any(
-        cls,
-        value: dict | BaseQualityModel,
-    ) -> BaseQualityModel:
-        if isinstance(value, BaseQualityModel):
-            return value
-        try:
-            _attrs = {
-                "id": value.get("id"),
-                "run_id": value.get("run_id"),
-                "kind": value.get("kind", "base"),
-                "passed": value.get("passed", True),
-                "description": value.get("description", None),
-                "created_at": IBastionClock.from_iso(value.get("created_at")),
-                "metrics": value.get("metrics", {}),
-            }
-            _attrs = {k: v for k, v in _attrs.items() if v is not None}
-            return cls(**_attrs)
-        except Exception as e:
-            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
+    def _coerce_required_datetime(cls, v: Any) -> Any:
+        if v is None:
+            return IBastionClock.current()
+        if isinstance(v, str):
+            return IBastionClock.from_iso(v)
+        return v
 
     def export(self) -> dict[str, Any]:
         return {

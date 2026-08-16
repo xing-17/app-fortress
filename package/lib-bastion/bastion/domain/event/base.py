@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, ClassVar
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from bastion._internal.clock import IBastionClock
 from bastion._internal.model import IBastionModel
@@ -52,25 +52,14 @@ class BaseEventModel(IBastionModel):
         description="Additional metadata related to the event.",
     )
 
+    @field_validator("created_at", mode="before")
     @classmethod
-    def from_any(
-        cls,
-        value: dict | BaseEventModel,
-    ) -> BaseEventModel:
-        if isinstance(value, BaseEventModel):
-            return value
-        try:
-            _attrs = {
-                "id": value.get("id"),
-                "run_id": value.get("run_id"),
-                "message": value.get("message"),
-                "created_at": IBastionClock.from_iso(value.get("created_at")),
-                "metadata": value.get("metadata", {}),
-            }
-            _attrs = {k: v for k, v in _attrs.items() if v is not None}
-            return cls(**_attrs)
-        except Exception as e:
-            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
+    def _coerce_required_datetime(cls, v: Any) -> Any:
+        if v is None:
+            return IBastionClock.current()
+        if isinstance(v, str):
+            return IBastionClock.from_iso(v)
+        return v
 
     def export(self) -> dict[str, Any]:
         return {

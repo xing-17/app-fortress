@@ -2,7 +2,6 @@
 Unit tests for bastion.domain.store.base module.
 """
 
-import pytest
 
 from bastion.domain.store.base import BaseStoreModel, StoreKind
 
@@ -13,24 +12,6 @@ class TestStoreKind:
     def test_store_kind_values(self):
         """Test StoreKind has correct memory value."""
         assert StoreKind.MEMORY == "memory"
-
-    def test_from_any_with_store_kind(self):
-        """Test from_any returns same StoreKind instance."""
-        kind = StoreKind.MEMORY
-        result = StoreKind.from_any(kind)
-        assert result == kind
-        assert result is kind
-
-    def test_from_any_with_valid_string(self):
-        """Test from_any converts valid string to StoreKind."""
-        result = StoreKind.from_any("memory")
-        assert result == StoreKind.MEMORY
-        assert isinstance(result, StoreKind)
-
-    def test_from_any_with_invalid_string(self):
-        """Test from_any raises ValueError for invalid string."""
-        with pytest.raises(ValueError, match="Invalid StoreKind value: invalid"):
-            StoreKind.from_any("invalid")
 
 
 class TestBaseStoreModel:

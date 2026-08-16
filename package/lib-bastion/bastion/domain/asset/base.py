@@ -4,10 +4,9 @@ from abc import ABC
 from enum import StrEnum
 from typing import Any, ClassVar
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from bastion._internal.model import IBastionModel
-from bastion._internal.clock import IBastionClock
 
 
 class AssetKind(StrEnum):

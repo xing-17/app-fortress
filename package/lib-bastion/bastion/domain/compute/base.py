@@ -28,21 +28,6 @@ class ComputeKind(StrEnum):
 
     LOCAL_PY_FN = "local_py_fn"
 
-    @classmethod
-    def from_any(
-        cls,
-        value: str | ComputeKind,
-    ) -> ComputeKind:
-        """
-        Convert a string or ComputeKind instance to a ComputeKind enum value.
-        """
-        if isinstance(value, cls):
-            return value
-        try:
-            return cls(value)
-        except ValueError:
-            raise ValueError(f"Invalid ComputeKind value: {value}")
-
 
 class BaseComputeModel(IBastionModel):
     """
@@ -81,24 +66,6 @@ class BaseComputeModel(IBastionModel):
         default_factory=dict,
         description="Tags associated with the compute resource",
     )
-
-    @classmethod
-    def from_any(
-        cls,
-        value: dict | BaseComputeModel,
-    ) -> BaseComputeModel:
-        if isinstance(value, BaseComputeModel):
-            return value
-        try:
-            _attrs = {
-                "name": value.get("name"),
-                "kind": ComputeKind.from_any(value.get("kind")),
-                "tags": value.get("tags", {}),
-            }
-            _attrs = {k: v for k, v in _attrs.items() if v is not None}
-            return cls(**_attrs)
-        except Exception as e:
-            raise ValueError(f"Cannot create {cls.__name__}: {e}") from e
 
     def export(self) -> dict[str, Any]:
         return {
