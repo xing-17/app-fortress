@@ -19,14 +19,14 @@ class BaseEventModel(IBastionModel):
         message (str | None): Message content of the event.
         created_at (datetime): Datetime when the event was created.
         metadata (dict[str, Any]): Additional metadata related to the event.
+        logic_name (str): Logical identifier combining bridge_name and optional name.
+        sha256 (str): SHA256 hash of the run's canonical representation.
 
     Methods:
         from_any(value): Convert dict or instance to event model (inherited).
         export(): Export the event as a dictionary with serialized fields.
         describe(): Export event as JSON string (inherited).
         clone(**updates): Create a deep copy with updates (inherited).
-        logic_name: Get logical name of the event (inherited property).
-        sha256: Get SHA256 hash of the event (inherited property).
 
     Example:
         ```python
@@ -36,7 +36,6 @@ class BaseEventModel(IBastionModel):
             metadata={"duration_ms": 1500}
         )
         exported = event.export()
-        print(event.id)  # event-a1b2c3d4e5f6
         ```
     """
 
@@ -68,12 +67,3 @@ class BaseEventModel(IBastionModel):
         if isinstance(v, str):
             return IBastionClock.from_iso(v)
         return v
-
-    def export(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "run_id": self.run_id,
-            "message": self.message,
-            "created_at": self.created_at.isoformat(),
-            "metadata": self.metadata,
-        }

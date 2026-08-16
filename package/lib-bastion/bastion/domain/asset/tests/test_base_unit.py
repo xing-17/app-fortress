@@ -60,20 +60,6 @@ class TestAssetKind:
         assert AssetKind.PARQUET == "parquet"
         assert AssetKind.CSV == "csv"
 
-    def test_from_any_accepts_string(self):
-        """测试 from_any() 接受字符串。"""
-        assert AssetKind.from_any("parquet") == AssetKind.PARQUET
-        assert AssetKind.from_any("csv") == AssetKind.CSV
-
-    def test_from_any_accepts_enum(self):
-        """测试 from_any() 接受枚举值。"""
-        assert AssetKind.from_any(AssetKind.PARQUET) == AssetKind.PARQUET
-
-    def test_from_any_invalid_value_raises(self):
-        """测试 from_any() 对无效值抛出异常。"""
-        with pytest.raises(ValueError, match="Invalid AssetKind value"):
-            AssetKind.from_any("json")
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TestAssetPlatform
@@ -88,20 +74,6 @@ class TestAssetPlatform:
         assert AssetPlatform.S3 == "s3"
         assert AssetPlatform.LOCAL == "local"
         assert AssetPlatform.OSS == "oss"
-
-    def test_from_any_accepts_string(self):
-        """测试 from_any() 接受字符串。"""
-        assert AssetPlatform.from_any("s3") == AssetPlatform.S3
-        assert AssetPlatform.from_any("local") == AssetPlatform.LOCAL
-
-    def test_from_any_accepts_enum(self):
-        """测试 from_any() 接受枚举值。"""
-        assert AssetPlatform.from_any(AssetPlatform.S3) == AssetPlatform.S3
-
-    def test_from_any_invalid_value_raises(self):
-        """测试 from_any() 对无效值抛出异常。"""
-        with pytest.raises(ValueError, match="Invalid AssetPlatform value"):
-            AssetPlatform.from_any("gcs")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

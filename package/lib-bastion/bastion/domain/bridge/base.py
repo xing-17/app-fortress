@@ -12,21 +12,20 @@ class BaseBridgeModel(IBastionModel):
     Represents the bridge relationship connecting compute resources to data assets.
 
     Attributes:
-        id (str): Unique identifier (inherited from IBastionModel, disabled for bridges).
         name (str): Name of the bridge.
         compute_name (str | None): Compute name associated with the bridge.
         asset_names (list[str]): List of asset names associated with the bridge.
         description (str | None): Optional description of the bridge.
         metadata (dict[str, Any]): Metadata associated with the bridge.
         tags (dict[str, str]): Tags associated with the bridge.
+        logic_name (str): Logical identifier combining bridge_name and optional name.
+        sha256 (str): SHA256 hash of the run's canonical representation.
 
     Methods:
         from_any(value): Convert dict or instance to bridge model (inherited).
         export(): Export the bridge data as a dictionary.
         describe(): Export bridge as JSON string (inherited).
         clone(**updates): Create a deep copy with updates (inherited).
-        logic_name: Get logical name of the bridge (inherited property).
-        sha256: Get SHA256 hash of the bridge (inherited property).
 
     Example:
         ```python
@@ -67,13 +66,3 @@ class BaseBridgeModel(IBastionModel):
         default_factory=dict,
         description="Tags associated with the bridge",
     )
-
-    def export(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "compute_name": self.compute_name,
-            "asset_names": self.asset_names,
-            "description": self.description,
-            "metadata": self.metadata,
-            "tags": self.tags,
-        }

@@ -123,3 +123,81 @@ class TestBaseEventModel:
         assert restored.message == original.message
         assert restored.created_at == original.created_at
         assert restored.metadata == original.metadata
+
+    def test_roundtrip_with_none_message(self):
+        """Test roundtrip conversion with None message."""
+        original = BaseEventModel(
+            run_id="run-none-test",
+            message=None,
+            metadata={"status": "pending"},
+        )
+        exported = original.export()
+        restored = BaseEventModel.from_any(exported)
+
+        assert restored.id == original.id
+        assert restored.message is None
+        assert restored.metadata == original.metadata
+
+    def test_roundtrip_with_nested_metadata(self):
+        """Test roundtrip conversion with nested metadata structures."""
+        original = BaseEventModel(
+            run_id="run-nested",
+            message="Complex metadata test",
+            metadata={
+                "level1": {
+                    "level2": {
+                        "level3": "deep value",
+                        "numbers": [1, 2, 3],
+                    },
+                    "list_data": ["a", "b", "c"],
+                },
+                "simple": "value",
+            },
+        )
+        exported = original.export()
+        restored = BaseEventModel.from_any(exported)
+
+        assert restored.metadata == original.metadata
+        assert restored.metadata["level1"]["level2"]["level3"] == "deep value"
+        assert restored.metadata["level1"]["list_data"] == ["a", "b", "c"]
+
+    def test_roundtrip_via_describe_json(self):
+        """Test roundtrip conversion through JSON string using describe()."""
+        import json
+
+        original = BaseEventModel(
+            run_id="run-json-test",
+            message="JSON roundtrip",
+            metadata={"mode": "json", "version": 2},
+        )
+        # Serialize to JSON string
+        json_str = original.describe()
+        # Parse back to dict and recreate
+        data = json.loads(json_str)
+        restored = BaseEventModel.from_any(data)
+
+        assert restored.id == original.id
+        assert restored.run_id == original.run_id
+        assert restored.message == original.message
+        assert restored.metadata == original.metadata
+
+    def test_roundtrip_via_clone(self):
+        """Test roundtrip using clone method."""
+        original = BaseEventModel(
+            run_id="run-clone-test",
+            message="Clone test",
+            metadata={"clone": True},
+        )
+        # Clone without changes
+        cloned = original.clone()
+
+        # Verify deep copy behavior
+        assert cloned.id == original.id
+        assert cloned.run_id == original.run_id
+        assert cloned.message == original.message
+        assert cloned.metadata == original.metadata
+        # Verify it's a different object
+        assert cloned is not original
+        # Verify metadata is deep copied
+        cloned.metadata["new_key"] = "new_value"
+        assert "new_key" not in original.metadata

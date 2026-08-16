@@ -21,14 +21,14 @@ class BaseQualityModel(IBastionModel):
         description (str | None): Optional description of the quality metrics.
         created_at (datetime): Datetime when the quality metrics were created.
         metrics (dict[str, Any]): Dictionary of quality metrics.
+        logic_name (str): Logical identifier combining bridge_name and optional name.
+        sha256 (str): SHA256 hash of the run's canonical representation.
 
     Methods:
         from_any(value): Convert dict or instance to quality model (inherited).
         export(): Export the quality model as a dictionary with serialized fields.
         describe(): Export quality as JSON string (inherited).
         clone(**updates): Create a deep copy with updates (inherited).
-        logic_name: Get logical name of the quality (inherited property).
-        sha256: Get SHA256 hash of the quality (inherited property).
 
     Example:
         ```python
@@ -39,7 +39,6 @@ class BaseQualityModel(IBastionModel):
             metrics={"row_count": 1000, "null_rate": 0.02}
         )
         exported = quality.export()
-        print(quality.id)  # qual-a1b2c3d4e5f6g7h8i9j0
         ```
     """
 
@@ -53,11 +52,11 @@ class BaseQualityModel(IBastionModel):
     )
     kind: str = Field(
         default="base",
-        description="Kind of the model, fixed to 'quality'.",
+        description="Kind of the model, defaults to 'base'.",
     )
-    passed: bool = Field(
-        default=True,
-        description="Indicates whether the quality check passed.",
+    passed: bool | None = Field(
+        default=None,
+        description="Indicates whether the quality check passed, defaults to None.",
     )
     description: str | None = Field(
         default=None,
@@ -80,14 +79,3 @@ class BaseQualityModel(IBastionModel):
         if isinstance(v, str):
             return IBastionClock.from_iso(v)
         return v
-
-    def export(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "run_id": self.run_id,
-            "kind": self.kind,
-            "passed": self.passed,
-            "description": self.description,
-            "created_at": self.created_at.isoformat(),
-            "metrics": self.metrics,
-        }

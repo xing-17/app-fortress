@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from pydantic import Field
 
@@ -34,18 +34,17 @@ class BaseComputeModel(IBastionModel):
     Base model for compute resources defining execution environments and their properties.
 
     Attributes:
-        id (str): Unique identifier (inherited from IBastionModel, disabled for compute).
         name (str): Name of the compute resource.
         kind (ComputeKind): Kind of the compute resource (e.g., local_py_fn).
         tags (dict[str, str]): Tags associated with the compute resource.
+        logic_name (str): Logical identifier combining bridge_name and optional name.
+        sha256 (str): SHA256 hash of the run's canonical representation.
 
     Methods:
         from_any(value): Convert dict or instance to compute model (inherited).
         export(): Export the compute model as a dictionary.
         describe(): Export compute as JSON string (inherited).
         clone(**updates): Create a deep copy with updates (inherited).
-        logic_name: Get logical name of the compute (inherited property).
-        sha256: Get SHA256 hash of the compute (inherited property).
 
     Example:
         ```python
@@ -55,7 +54,6 @@ class BaseComputeModel(IBastionModel):
             tags={"env": "dev"}
         )
         data = compute.export()
-        print(compute.logic_name)  # BaseComputeModel()
         ```
 
     """
@@ -73,10 +71,3 @@ class BaseComputeModel(IBastionModel):
         default_factory=dict,
         description="Tags associated with the compute resource",
     )
-
-    def export(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "kind": self.kind.value,
-            "tags": self.tags,
-        }

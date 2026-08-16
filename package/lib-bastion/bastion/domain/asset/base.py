@@ -36,24 +36,6 @@ class AssetKind(StrEnum):
     PARQUET = "parquet"
     CSV = "csv"
 
-    @classmethod
-    def from_any(
-        cls,
-        value: str | AssetKind,
-    ) -> AssetKind:
-        """
-        Convert a string or AssetKind instance to AssetKind enum.
-
-        Accepts both string values and existing enum instances. Raises ValueError
-        if the string value is not a valid AssetKind.
-        """
-        if isinstance(value, cls):
-            return value
-        try:
-            return cls(value)
-        except ValueError:
-            raise ValueError(f"Invalid AssetKind value: {value}")
-
 
 class AssetPlatform(StrEnum):
     """
@@ -84,31 +66,12 @@ class AssetPlatform(StrEnum):
     LOCAL = "local"
     OSS = "oss"
 
-    @classmethod
-    def from_any(
-        cls,
-        value: str | AssetPlatform,
-    ) -> AssetPlatform:
-        """
-        Convert a string or AssetPlatform instance to AssetPlatform enum.
-
-        Accepts both string values and existing enum instances. Raises ValueError
-        if the string value is not a valid AssetPlatform.
-        """
-        if isinstance(value, cls):
-            return value
-        try:
-            return cls(value)
-        except ValueError:
-            raise ValueError(f"Invalid AssetPlatform value: {value}")
-
 
 class BaseAssetModel(IBastionModel, ABC):
     """
     Abstract base class for all data asset models representing logical data assets across platforms.
 
     Attributes:
-        id (str): Unique identifier (inherited from IBastionModel, disabled for assets).
         name (str): Name of the asset.
         kind (AssetKind): Kind of the asset (e.g., parquet, csv).
         platform (AssetPlatform): Platform where the asset is stored (s3, local, oss).
@@ -116,38 +79,27 @@ class BaseAssetModel(IBastionModel, ABC):
         owner (str | None): Owner of the asset.
         metadata (dict[str, Any]): Additional metadata associated with the asset.
         tags (dict[str, str]): Tags associated with the asset.
+        logic_name (str): Logical identifier combining bridge_name and optional name.
+        sha256 (str): SHA256 hash of the run's canonical representation.
 
     Methods:
         from_any(value): Convert dict or instance to asset model (inherited).
-        get_location_uri(): Get the full URI location of the asset (abstract, must implement).
         export(): Export asset information to a dictionary.
         describe(): Export asset as JSON string (inherited).
         clone(**updates): Create a deep copy with updates (inherited).
-        logic_name: Get logical name of the asset (inherited property).
-        sha256: Get SHA256 hash of the asset (inherited property).
 
     Example:
         ```python
-        from bastion.domain.asset import BaseAssetModel, AssetKind, AssetPlatform
-
-        class S3Asset(BaseAssetModel):
-            bucket: str
-            key: str
-
-            def get_location_uri(self) -> str:
-                return f"s3://{self.bucket}/{self.key}"
-
-        asset = S3Asset(
-            name="sales_data",
+        asset = BaseAssetModel(
+            name="data-asset",
             kind=AssetKind.PARQUET,
             platform=AssetPlatform.S3,
-            bucket="my-bucket",
-            key="data/sales.parquet",
-            description="Monthly sales data",
+            description="Asset for data processing",
             owner="data-team",
+            metadata={"priority": "high"},
             tags={"env": "prod"}
         )
-        print(asset.get_location_uri())  # s3://my-bucket/data/sales.parquet
+        data = asset.export()
         ```
     """
 
@@ -180,14 +132,3 @@ class BaseAssetModel(IBastionModel, ABC):
         default_factory=dict,
         description="Tags associated with the asset",
     )
-
-    def export(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "kind": self.kind.value,
-            "platform": self.platform.value,
-            "description": self.description,
-            "owner": self.owner,
-            "metadata": self.metadata,
-            "tags": self.tags,
-        }

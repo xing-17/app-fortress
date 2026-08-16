@@ -34,28 +34,6 @@ class TestBaseStoreModel:
         # ID should be empty string since _id_enabled is False
         assert store.id == ""
 
-    def test_identifier_property(self):
-        """Test identifier property combines kind and name."""
-        store = BaseStoreModel(
-            name="test_store",
-            kind=StoreKind.MEMORY,
-        )
-        assert store.identifier == "memory:test_store"
-
-    def test_identifier_format(self):
-        """Test identifier format is kind:name."""
-        store = BaseStoreModel(
-            name="my_data_store",
-            kind=StoreKind.MEMORY,
-        )
-        identifier = store.identifier
-
-        assert ":" in identifier
-        parts = identifier.split(":")
-        assert len(parts) == 2
-        assert parts[0] == "memory"
-        assert parts[1] == "my_data_store"
-
     def test_create_with_string_kind(self):
         """Test creating store with string kind value."""
         store = BaseStoreModel(
@@ -63,31 +41,6 @@ class TestBaseStoreModel:
             kind="memory",  # String instead of enum
         )
         assert store.kind == StoreKind.MEMORY
-
-    def test_multiple_stores_have_different_identifiers(self):
-        """Test that different stores have unique identifiers."""
-        store1 = BaseStoreModel(name="store1", kind=StoreKind.MEMORY)
-        store2 = BaseStoreModel(name="store2", kind=StoreKind.MEMORY)
-
-        assert store1.identifier != store2.identifier
-        assert store1.identifier == "memory:store1"
-        assert store2.identifier == "memory:store2"
-
-    def test_store_kind_in_identifier(self):
-        """Test identifier starts with store kind."""
-        store = BaseStoreModel(
-            name="test_store",
-            kind=StoreKind.MEMORY,
-        )
-        assert store.identifier.startswith("memory:")
-
-    def test_store_name_in_identifier(self):
-        """Test identifier ends with store name."""
-        store = BaseStoreModel(
-            name="test_store",
-            kind=StoreKind.MEMORY,
-        )
-        assert store.identifier.endswith(":test_store")
 
     def test_from_any_with_dict(self):
         """Test from_any creates model from dictionary."""
@@ -121,4 +74,3 @@ class TestBaseStoreModel:
         # Verify all fields match
         assert restored.name == original.name
         assert restored.kind == original.kind
-        assert restored.identifier == original.identifier
