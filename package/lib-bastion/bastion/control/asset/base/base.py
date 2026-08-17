@@ -15,11 +15,19 @@ class IAssetLike(Protocol):
     owner: str | None
     metadata: dict[str, Any]
     tags: dict[str, str]
+    sha256: str
+    logic_name: str | None
 
     @classmethod
     def from_dict(
         cls,
         data: dict[str, Any],
+    ) -> IAssetLike: ...
+    
+    @classmethod
+    def from_domain(
+        cls,
+        domain: BaseAssetModel,
     ) -> IAssetLike: ...
 
     def get_location_uri(self) -> str: ...
