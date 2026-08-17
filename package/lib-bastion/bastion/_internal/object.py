@@ -48,6 +48,15 @@ class IBastionObject:
 
     _domain_class: ClassVar[type[IBastionModel] | None] = None
 
+    def __init__(
+        self, 
+        **kwargs,
+    ) -> None:
+        if kwargs:
+            if self._domain_class is None:
+                raise TypeError(f"{self.__class__.__name__} has no _domain_class")
+            self.domain = self._domain_class(**kwargs)
+
     @classmethod
     def from_dict(
         cls,
