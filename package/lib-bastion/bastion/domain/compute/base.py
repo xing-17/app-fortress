@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC
 from enum import StrEnum
 from typing import ClassVar
 
@@ -29,7 +30,10 @@ class ComputeKind(StrEnum):
     PY_ENTRYPOINT = "py_entrypoint"
 
 
-class BaseComputeModel(IBastionModel):
+class BaseComputeModel(
+    IBastionModel,
+    ABC,
+):
     """
     Base model for compute resources defining execution environments and their properties.
 

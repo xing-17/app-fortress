@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC
 from enum import StrEnum
 from typing import ClassVar
 
@@ -30,7 +31,10 @@ class StoreKind(StrEnum):
     LOCAL = "local"
 
 
-class BaseStoreModel(IBastionModel):
+class BaseStoreModel(
+    IBastionModel,
+    ABC,
+):
     """
     Base store model for persistence interface defining storage backend configuration.
 

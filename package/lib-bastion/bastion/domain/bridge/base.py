@@ -5,6 +5,8 @@ from typing import Any, ClassVar
 from pydantic import Field
 
 from bastion._internal.model import IBastionModel
+from bastion.domain.asset.base import BaseAssetModel
+from bastion.domain.compute.base import BaseComputeModel
 
 
 class BaseBridgeModel(IBastionModel):
@@ -46,13 +48,13 @@ class BaseBridgeModel(IBastionModel):
         ...,
         description="Name of the bridge",
     )
-    compute_name: str | None = Field(
+    compute_domain: BaseComputeModel | None = Field(
         default=None,
-        description="Compute name associated with the bridge",
+        description="Compute domain associated with the bridge",
     )
-    asset_names: list[str] = Field(
+    asset_domains: list[BaseAssetModel] = Field(
         default_factory=list,
-        description="List of asset names associated with the bridge",
+        description="List of asset domains associated with the bridge",
     )
     description: str | None = Field(
         default=None,
