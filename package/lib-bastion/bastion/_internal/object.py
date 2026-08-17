@@ -49,7 +49,7 @@ class IBastionObject:
     _domain_class: ClassVar[type[IBastionModel] | None] = None
 
     def __init__(
-        self, 
+        self,
         **kwargs,
     ) -> None:
         if kwargs:

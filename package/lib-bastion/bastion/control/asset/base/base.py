@@ -23,7 +23,7 @@ class IAssetLike(Protocol):
         cls,
         data: dict[str, Any],
     ) -> IAssetLike: ...
-    
+
     @classmethod
     def from_domain(
         cls,

@@ -41,6 +41,8 @@ class IQualityLike(Protocol):
 
     def export(self) -> dict[str, Any]: ...
 
+    def describe(self) -> str: ...
+
 
 class Quality(
     IBastionObject,

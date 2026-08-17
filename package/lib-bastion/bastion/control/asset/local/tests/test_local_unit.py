@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from bastion.control.asset.local.local import LocalAsset, LocalAssetModel
 from bastion.domain.asset.base import AssetKind, AssetPlatform
 
@@ -22,7 +20,7 @@ class TestLocalAssetModel:
             platform=AssetPlatform.LOCAL,
             path="/tmp/test.parquet",
         )
-        
+
         assert model.name == "test_asset"
         assert model.kind == AssetKind.PARQUET
         assert model.platform == AssetPlatform.LOCAL
@@ -40,7 +38,7 @@ class TestLocalAssetModel:
             metadata={"key": "value"},
             tags={"env": "test"},
         )
-        
+
         assert model.name == "test_asset"
         assert model.kind == AssetKind.CSV
         assert model.platform == AssetPlatform.LOCAL
@@ -58,9 +56,9 @@ class TestLocalAssetModel:
             "platform": "local",
             "path": "/tmp/test.parquet",
         }
-        
+
         model = LocalAssetModel.from_any(data)
-        
+
         assert model.name == "test_asset"
         assert model.kind == AssetKind.PARQUET
         assert model.platform == AssetPlatform.LOCAL
@@ -78,9 +76,9 @@ class TestLocalAsset:
             "platform": "local",
             "path": "/tmp/test.parquet",
         }
-        
+
         asset = LocalAsset.from_dict(data)
-        
+
         assert asset.name == "test_asset"
         assert asset.kind == "parquet"
         assert asset.platform == "local"
@@ -94,9 +92,9 @@ class TestLocalAsset:
             platform=AssetPlatform.LOCAL,
             path="/tmp/test.csv",
         )
-        
+
         asset = LocalAsset.from_domain(model)
-        
+
         assert asset.name == "test_asset"
         assert asset.kind == AssetKind.CSV
         assert asset.platform == AssetPlatform.LOCAL
@@ -104,17 +102,19 @@ class TestLocalAsset:
 
     def test_attribute_access(self):
         """Test attribute access via __getattr__."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "parquet",
-            "platform": "local",
-            "path": "/tmp/test.parquet",
-            "description": "Test description",
-            "owner": "test_owner",
-            "metadata": {"priority": "high"},
-            "tags": {"env": "prod"},
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "parquet",
+                "platform": "local",
+                "path": "/tmp/test.parquet",
+                "description": "Test description",
+                "owner": "test_owner",
+                "metadata": {"priority": "high"},
+                "tags": {"env": "prod"},
+            }
+        )
+
         # Test all attributes
         assert asset.name == "test_asset"
         assert asset.kind == "parquet"
@@ -127,47 +127,53 @@ class TestLocalAsset:
 
     def test_get_location_uri(self):
         """Test get_location_uri method."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "parquet",
-            "platform": "local",
-            "path": "/tmp/test.parquet",
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "parquet",
+                "platform": "local",
+                "path": "/tmp/test.parquet",
+            }
+        )
+
         uri = asset.get_location_uri()
-        
+
         # Should return resolved absolute path
         assert uri.endswith("test.parquet")
         assert Path(uri).is_absolute()
 
     def test_get_location_uri_with_home_expansion(self):
         """Test get_location_uri with ~ expansion."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "csv",
-            "platform": "local",
-            "path": "~/data/test.csv",
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "csv",
+                "platform": "local",
+                "path": "~/data/test.csv",
+            }
+        )
+
         uri = asset.get_location_uri()
-        
+
         # Should expand ~ and resolve to absolute path
         assert "~" not in uri
         assert Path(uri).is_absolute()
 
     def test_export(self):
         """Test export method."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "parquet",
-            "platform": "local",
-            "path": "/tmp/test.parquet",
-            "description": "Test asset",
-            "metadata": {"key": "value"},
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "parquet",
+                "platform": "local",
+                "path": "/tmp/test.parquet",
+                "description": "Test asset",
+                "metadata": {"key": "value"},
+            }
+        )
+
         data = asset.export()
-        
+
         assert isinstance(data, dict)
         assert data["name"] == "test_asset"
         assert data["kind"] == "parquet"
@@ -178,17 +184,19 @@ class TestLocalAsset:
 
     def test_describe(self):
         """Test describe method."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "csv",
-            "platform": "local",
-            "path": "/tmp/test.csv",
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "csv",
+                "platform": "local",
+                "path": "/tmp/test.csv",
+            }
+        )
+
         description = asset.describe()
-        
+
         assert isinstance(description, str)
-        
+
         # Should be valid JSON
         data = json.loads(description)
         assert data["name"] == "test_asset"
@@ -197,13 +205,15 @@ class TestLocalAsset:
 
     def test_domain_attribute(self):
         """Test direct access to domain attribute."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "parquet",
-            "platform": "local",
-            "path": "/tmp/test.parquet",
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "parquet",
+                "platform": "local",
+                "path": "/tmp/test.parquet",
+            }
+        )
+
         assert isinstance(asset.domain, LocalAssetModel)
         assert asset.domain.name == "test_asset"
 
@@ -215,16 +225,16 @@ class TestLocalAsset:
             "platform": "local",
             "path": "/tmp/test.parquet",
         }
-        
+
         # Create asset from dict
         asset = LocalAsset.from_dict(original_data)
-        
+
         # Export to dict
         exported = asset.export()
-        
+
         # Create new asset from exported dict
         roundtrip_asset = LocalAsset.from_dict(exported)
-        
+
         # Verify all fields match
         assert roundtrip_asset.name == asset.name
         assert roundtrip_asset.kind == asset.kind
@@ -255,16 +265,16 @@ class TestLocalAsset:
                 "project": "ml-pipeline",
             },
         }
-        
+
         # Create asset from dict
         asset = LocalAsset.from_dict(original_data)
-        
+
         # Export to dict
         exported = asset.export()
-        
+
         # Create new asset from exported dict
         roundtrip_asset = LocalAsset.from_dict(exported)
-        
+
         # Verify all fields match
         assert roundtrip_asset.name == asset.name == "full_test_asset"
         assert roundtrip_asset.kind == asset.kind == "csv"
@@ -272,29 +282,39 @@ class TestLocalAsset:
         assert roundtrip_asset.path == asset.path == "~/data/test.csv"
         assert roundtrip_asset.description == asset.description == "Full test asset with all fields"
         assert roundtrip_asset.owner == asset.owner == "data_team"
-        assert roundtrip_asset.metadata == asset.metadata == {
-            "priority": "high",
-            "size": "large",
-            "version": "v1.2.3",
-        }
-        assert roundtrip_asset.tags == asset.tags == {
-            "env": "production",
-            "team": "analytics",
-            "project": "ml-pipeline",
-        }
+        assert (
+            roundtrip_asset.metadata
+            == asset.metadata
+            == {
+                "priority": "high",
+                "size": "large",
+                "version": "v1.2.3",
+            }
+        )
+        assert (
+            roundtrip_asset.tags
+            == asset.tags
+            == {
+                "env": "production",
+                "team": "analytics",
+                "project": "ml-pipeline",
+            }
+        )
 
     def test_export_equals_domain_export(self):
         """Test that asset.export() equals asset.domain.export()."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "parquet",
-            "platform": "local",
-            "path": "/tmp/test.parquet",
-            "description": "Test asset",
-            "metadata": {"key": "value"},
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "parquet",
+                "platform": "local",
+                "path": "/tmp/test.parquet",
+                "description": "Test asset",
+                "metadata": {"key": "value"},
+            }
+        )
+
         asset_export = asset.export()
         domain_export = asset.domain.model_dump(mode="json")
-        
+
         assert asset_export == domain_export

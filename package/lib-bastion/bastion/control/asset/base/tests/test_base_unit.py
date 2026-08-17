@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bastion.control.asset.base.base import IAssetLike
 from bastion.control.asset.local.local import LocalAsset
 
@@ -13,28 +11,32 @@ class TestIAssetLikeProtocol:
 
     def test_protocol_check_with_local_asset(self):
         """Test that LocalAsset implements IAssetLike protocol."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "parquet",
-            "platform": "local",
-            "path": "/tmp/test.parquet",
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "parquet",
+                "platform": "local",
+                "path": "/tmp/test.parquet",
+            }
+        )
+
         assert isinstance(asset, IAssetLike)
 
     def test_protocol_required_attributes(self):
         """Test protocol required attributes are accessible."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "csv",
-            "platform": "local",
-            "path": "/tmp/test.csv",
-            "description": "Test asset",
-            "owner": "test_user",
-            "metadata": {"key": "value"},
-            "tags": {"env": "test"},
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "csv",
+                "platform": "local",
+                "path": "/tmp/test.csv",
+                "description": "Test asset",
+                "owner": "test_user",
+                "metadata": {"key": "value"},
+                "tags": {"env": "test"},
+            }
+        )
+
         # Test protocol attributes
         assert asset.name == "test_asset"
         assert asset.kind == "csv"
@@ -46,13 +48,15 @@ class TestIAssetLikeProtocol:
 
     def test_protocol_required_methods(self):
         """Test protocol required methods exist."""
-        asset = LocalAsset.from_dict({
-            "name": "test_asset",
-            "kind": "parquet",
-            "platform": "local",
-            "path": "/tmp/test.parquet",
-        })
-        
+        asset = LocalAsset.from_dict(
+            {
+                "name": "test_asset",
+                "kind": "parquet",
+                "platform": "local",
+                "path": "/tmp/test.parquet",
+            }
+        )
+
         # Test protocol methods
         assert hasattr(asset, "get_location_uri")
         assert hasattr(asset, "export")

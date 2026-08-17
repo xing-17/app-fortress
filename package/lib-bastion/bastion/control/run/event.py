@@ -39,6 +39,8 @@ class IEventLike(Protocol):
 
     def export(self) -> dict[str, Any]: ...
 
+    def describe(self) -> str: ...
+
 
 class Event(
     IBastionObject,

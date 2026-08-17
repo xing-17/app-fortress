@@ -9,8 +9,10 @@ from bastion.control.asset import (
     LocalAssetModel,
 )
 from bastion.control.compute import (
-    LocalPyFnCompute,
-    LocalPyFnComputeModel,
+    ComputeModel,
+    IComputeLike,
+    PyEntrypointCompute,
+    PyEntrypointModel,
 )
 from bastion.control.run import (
     IRunLike,
@@ -23,8 +25,10 @@ __all__ = [
     "LocalAsset",
     "LocalAssetModel",
     # Compute
-    "LocalPyFnCompute",
-    "LocalPyFnComputeModel",
+    "IComputeLike",
+    "ComputeModel",
+    "PyEntrypointCompute",
+    "PyEntrypointModel",
     # Run
     "IRunLike",
     "Run",
