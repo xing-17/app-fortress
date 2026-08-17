@@ -67,7 +67,10 @@ class AssetPlatform(StrEnum):
     OSS = "oss"
 
 
-class BaseAssetModel(IBastionModel, ABC):
+class BaseAssetModel(
+    IBastionModel, 
+    ABC,
+):
     """
     Abstract base class for all data asset models representing logical data assets across platforms.
 
