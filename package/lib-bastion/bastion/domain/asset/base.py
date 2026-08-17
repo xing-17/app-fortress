@@ -68,7 +68,7 @@ class AssetPlatform(StrEnum):
 
 
 class BaseAssetModel(
-    IBastionModel, 
+    IBastionModel,
     ABC,
 ):
     """
