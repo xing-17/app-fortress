@@ -6,8 +6,8 @@ from typing import Any, Callable
 from bastion._internal.object import IBastionObject
 from bastion.control.compute.base.base import IComputeLike
 from bastion.control.run import IRunLike
+from bastion.control.store.base.base import IStoreLike
 from bastion.domain.compute.base import BaseComputeModel, ComputeKind
-from bastion.infra.store.base.base import IStoreLike
 
 
 class PyEntrypointModel(BaseComputeModel):

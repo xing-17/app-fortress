@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from bastion.control.run import IRunLike
+from bastion.control.store.base.base import IStoreLike
 from bastion.domain.compute.base import BaseComputeModel, ComputeKind
-from bastion.infra.store.base.base import IStoreLike
 
 ComputeModel = BaseComputeModel
 
