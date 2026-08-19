@@ -96,16 +96,16 @@ class IBastionObject:
             return getattr(domain, name)
         _cls_name = self.__class__.__name__
         raise AttributeError(f"'{_cls_name}' object has no attribute '{name}'")
-    
+
     def _slice_from_list(
-            self,
-            items: list[Any],
-            limit: int | None,
-        ) -> list[Any]:
-            if not limit:
-                return items
-            else:
-                return items if limit > len(items) else items[:limit]
+        self,
+        items: list[Any],
+        limit: int | None = None,
+    ) -> list[Any]:
+        if limit is None:
+            return items
+        else:
+            return items if limit > len(items) else items[:limit]
 
     def export(self) -> dict:
         return self.domain.model_dump(mode="json")

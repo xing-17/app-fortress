@@ -38,8 +38,8 @@ from bastion._internal import (
 from bastion.control import (
     LocalAsset,
     LocalAssetModel,
-    LocalPyFnCompute,
-    LocalPyFnComputeModel,
+    # LocalPyFnCompute,
+    # LocalPyFnComputeModel,
     Run,
 )
 from bastion.domain import (
@@ -56,11 +56,11 @@ from bastion.domain import (
     RunStatus,
 )
 
-# Infrastructure layer
-from bastion.infra import (
-    IStoreLike,
-    MemoryStore,
-)
+# # Infrastructure layer
+# from bastion.control import (
+#     IStoreLike,
+#     MemoryStore,
+# )
 
 __all__ = [
     # Version

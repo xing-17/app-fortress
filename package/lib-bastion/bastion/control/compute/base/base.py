@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from bastion.control.run import IRunLike
-from bastion.control.store.base.base import IStoreLike
 from bastion.domain.compute.base import BaseComputeModel, ComputeKind
+
+if TYPE_CHECKING:
+    from bastion.control.run import IRunLike
+    from bastion.control.store.base.base import IStoreLike
 
 ComputeModel = BaseComputeModel
 
 
+@runtime_checkable
 class IComputeLike(Protocol):
     domain: BaseComputeModel
     name: str

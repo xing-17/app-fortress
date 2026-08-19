@@ -4,7 +4,7 @@ Store interface definition.
 
 """
 
-from bastion.infra.store.base.base import IStoreLike
+from bastion.control.store.base.base import IStoreLike
 
 __all__ = [
     "IStoreLike",

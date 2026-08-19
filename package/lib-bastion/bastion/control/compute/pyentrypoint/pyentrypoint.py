@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import importlib
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from bastion._internal.object import IBastionObject
 from bastion.control.compute.base.base import IComputeLike
-from bastion.control.run import IRunLike
-from bastion.control.store.base.base import IStoreLike
 from bastion.domain.compute.base import BaseComputeModel, ComputeKind
+
+if TYPE_CHECKING:
+    from bastion.control.run import IRunLike
+    from bastion.control.store.base.base import IStoreLike
 
 
 class PyEntrypointModel(BaseComputeModel):

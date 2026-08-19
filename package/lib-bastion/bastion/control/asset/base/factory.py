@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from bastion.control.asset.base.base import IAssetLike
+from bastion.domain.asset.base import BaseAssetModel
 
 
 class AssetFactory:
@@ -17,7 +18,7 @@ class AssetFactory:
         cls._registry[platform] = asset_cls
 
     @classmethod
-    def load(
+    def load_from_dict(
         cls,
         data: dict[str, Any],
     ) -> IAssetLike:
@@ -30,6 +31,37 @@ class AssetFactory:
             raise ValueError(f"No asset class registered for platform: '{platform}'")
 
         return asset_cls.from_dict(data)
+
+    @classmethod
+    def load_from_domain(
+        cls,
+        domain: BaseAssetModel,
+    ) -> IAssetLike:
+        platform = getattr(domain, "platform", None)
+        if platform is None:
+            raise ValueError("Domain object missing required attribute: 'platform'")
+
+        asset_cls: type[IAssetLike] | None = cls._registry.get(platform)
+        if asset_cls is None:
+            raise ValueError(f"No asset class registered for platform: '{platform}'")
+
+        return asset_cls.from_domain(domain)
+
+    @classmethod
+    def resolve(
+        cls,
+        value: IAssetLike | BaseAssetModel | dict[str, Any] | None,
+    ) -> IAssetLike | None:
+        if value is None:
+            return None
+        elif isinstance(value, IAssetLike):
+            return value
+        elif isinstance(value, BaseAssetModel):
+            return cls.load_from_domain(value)
+        elif isinstance(value, dict):
+            return cls.load_from_dict(value)
+        else:
+            raise TypeError(f"Invalid asset type: {type(value)}")
 
 
 def _register_defaults() -> None:

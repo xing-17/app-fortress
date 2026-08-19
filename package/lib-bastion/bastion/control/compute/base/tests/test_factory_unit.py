@@ -20,7 +20,7 @@ class TestComputeFactory:
             "entrypoint": "main",
         }
 
-        compute = ComputeFactory.load(data)
+        compute = ComputeFactory.load_from_dict(data)
 
         assert isinstance(compute, PyEntrypointCompute)
         assert compute.name == "test_compute"
@@ -34,7 +34,7 @@ class TestComputeFactory:
         }
 
         with pytest.raises(ValueError, match="missing required field: 'kind'"):
-            ComputeFactory.load(data)
+            ComputeFactory.load_from_dict(data)
 
     def test_load_unregistered_kind(self):
         """Test error when kind is not registered."""
@@ -47,7 +47,7 @@ class TestComputeFactory:
         with pytest.raises(
             ValueError, match="No compute class registered for kind: 'unknown_kind'"
         ):
-            ComputeFactory.load(data)
+            ComputeFactory.load_from_dict(data)
 
     def test_register_custom_compute(self):
         """Test registering a custom compute class."""
@@ -74,7 +74,7 @@ class TestComputeFactory:
             "kind": "custom",
         }
 
-        compute = ComputeFactory.load(data)
+        compute = ComputeFactory.load_from_dict(data)
 
         assert isinstance(compute, CustomCompute)
         assert compute.name == "custom_compute"
