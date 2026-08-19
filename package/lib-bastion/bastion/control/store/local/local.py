@@ -145,6 +145,13 @@ class LocalStore(
             _data: dict = json.loads(row[0])
             return Bridge.from_dict(_data)
 
+    def delete_bridge(
+        self,
+        name: str,
+    ) -> None:
+        _sql = f"DELETE FROM {self.table_bridges} WHERE name = ?"
+        self._conn.execute(_sql, [name])
+
     def list_bridges(
         self,
         limit: int | None = None,
@@ -206,6 +213,20 @@ class LocalStore(
         else:
             _data: dict = json.loads(row[0])
             return Run.from_dict(_data)
+
+    def delete_run(
+        self,
+        run_id: str,
+    ) -> None:
+        _sql = f"DELETE FROM {self.table_runs} WHERE id = ?"
+        self._conn.execute(_sql, [run_id])
+
+    def delete_runs(
+        self,
+        bridge_name: str,
+    ) -> None:
+        _sql = f"DELETE FROM {self.table_runs} WHERE bridge_name = ?"
+        self._conn.execute(_sql, [bridge_name])
 
     def list_runs(
         self,

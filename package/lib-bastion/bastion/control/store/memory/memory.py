@@ -59,6 +59,13 @@ class MemoryStore(
             return None
         return Bridge.from_domain(_model)
 
+    def delete_bridge(
+        self,
+        name: str,
+    ) -> None:
+        if name in self._bridges:
+            del self._bridges[name]
+
     def list_bridges(
         self,
         limit: int | None = None,
@@ -94,6 +101,24 @@ class MemoryStore(
         if _model is None:
             return None
         return Run.from_domain(_model)
+
+    def delete_run(
+        self,
+        run_id: str,
+    ) -> None:
+        if run_id in self._runs:
+            del self._runs[run_id]
+
+    def delete_runs(
+        self,
+        bridge_name: str,
+    ) -> None:
+        to_delete = []
+        for run_id, run in self._runs.items():
+            if run.bridge_name == bridge_name:
+                to_delete.append(run_id)
+        for run_id in to_delete:
+            del self._runs[run_id]
 
     def list_runs(
         self,

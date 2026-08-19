@@ -2,7 +2,6 @@
 Unit tests for bastion.control.store.memory module.
 """
 
-
 from bastion.control.run.run import RunStatus
 from bastion.control.store.memory.memory import MemoryStore, MemoryStoreModel
 from bastion.domain.store.base import StoreKind
