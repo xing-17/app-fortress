@@ -19,6 +19,7 @@ class BaseEventModel(IBastionModel):
         message (str | None): Message content of the event.
         created_at (datetime): Datetime when the event was created.
         metadata (dict[str, Any]): Additional metadata related to the event.
+        tags (dict[str, str]): Tags associated with the event.
         logic_name (str): Logical identifier combining bridge_name and optional name.
         sha256 (str): SHA256 hash of the run's canonical representation.
 
@@ -57,6 +58,10 @@ class BaseEventModel(IBastionModel):
     metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional metadata related to the event.",
+    )
+    tags: dict[str, str] = Field(
+        default_factory=dict,
+        description="Tags associated with the event.",
     )
 
     @field_validator("created_at", mode="before")
