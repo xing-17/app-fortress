@@ -3,8 +3,6 @@
 
 覆盖范围
 --------
-- TestAssetKind         枚举值正确性；from_any() 类型转换；无效值处理
-- TestAssetPlatform     枚举值正确性；from_any() 类型转换；无效值处理
 - TestBaseAssetModel    初始化；必填字段验证；可选字段默认值；export() 序列化
 """
 
@@ -13,15 +11,9 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from bastion.domain.asset import (
-    AssetKind,
-    AssetPlatform,
-    BaseAssetModel,
-)
-
-# ──────────────────────────────────────────────────────────────────────────────
-# 测试用具体实现类
-# ──────────────────────────────────────────────────────────────────────────────
+from bastion.domain.asset import BaseAssetModel
+from bastion.domain.assetkind import AssetKind
+from bastion.domain.platform import Platform
 
 
 class DummyAsset(BaseAssetModel):
@@ -43,37 +35,23 @@ def sample_asset():
     return DummyAsset(
         name="test_asset",
         kind=AssetKind.PARQUET,
-        platform=AssetPlatform.LOCAL,
+        platform=Platform.LOCAL,
     )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# TestAssetKind
+# TestPlatform
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class TestAssetKind:
-    """测试 AssetKind 枚举。"""
+class TestPlatform:
+    """测试 Platform 枚举。"""
 
     def test_enum_values_exist(self):
         """测试所有预定义值存在。"""
-        assert AssetKind.PARQUET == "parquet"
-        assert AssetKind.CSV == "csv"
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# TestAssetPlatform
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-class TestAssetPlatform:
-    """测试 AssetPlatform 枚举。"""
-
-    def test_enum_values_exist(self):
-        """测试所有预定义值存在。"""
-        assert AssetPlatform.S3 == "s3"
-        assert AssetPlatform.LOCAL == "local"
-        assert AssetPlatform.OSS == "oss"
+        assert Platform.S3 == "s3"
+        assert Platform.LOCAL == "local"
+        assert Platform.OSS == "oss"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -89,35 +67,35 @@ class TestBaseAssetModel:
         asset = DummyAsset(
             name="test",
             kind=AssetKind.PARQUET,
-            platform=AssetPlatform.LOCAL,
+            platform=Platform.LOCAL,
         )
         assert asset.name == "test"
         assert asset.kind == AssetKind.PARQUET
-        assert asset.platform == AssetPlatform.LOCAL
+        assert asset.platform == Platform.LOCAL
 
     def test_init_missing_name_raises(self):
         """测试缺少 name 时抛出异常。"""
         with pytest.raises(ValidationError):
             DummyAsset(
                 kind=AssetKind.PARQUET,
-                platform=AssetPlatform.LOCAL,
+                platform=Platform.LOCAL,
             )
 
-    def test_init_missing_kind_raises(self):
+    def test_init_missing_kind_fall_to_any(self):
         """测试缺少 kind 时抛出异常。"""
-        with pytest.raises(ValidationError):
-            DummyAsset(
-                name="test",
-                platform=AssetPlatform.LOCAL,
-            )
+        _test = DummyAsset(
+            name="test",
+            platform=Platform.LOCAL,
+        )
+        assert _test.kind == AssetKind.ANY
 
-    def test_init_missing_platform_raises(self):
+    def test_init_missing_platform_fall_to_local(self):
         """测试缺少 platform 时抛出异常。"""
-        with pytest.raises(ValidationError):
-            DummyAsset(
-                name="test",
-                kind=AssetKind.PARQUET,
-            )
+        _test = DummyAsset(
+            name="test",
+            kind=AssetKind.PARQUET,
+        )
+        assert _test.platform == Platform.LOCAL
 
     def test_init_description_defaults_to_none(self, sample_asset):
         """测试 description 默认为 None。"""
@@ -140,7 +118,7 @@ class TestBaseAssetModel:
         asset = DummyAsset(
             name="test",
             kind=AssetKind.PARQUET,
-            platform=AssetPlatform.S3,
+            platform=Platform.S3,
             description="Test description",
             owner="test_owner",
             metadata={"key": "value"},
@@ -170,7 +148,7 @@ class TestBaseAssetModel:
         asset = DummyAsset.from_any(data)
         assert asset.name == "test"
         assert asset.kind == AssetKind.PARQUET
-        assert asset.platform == AssetPlatform.S3
+        assert asset.platform == Platform.S3
         assert asset.description == "Test asset"
         assert asset.owner == "test_owner"
         assert asset.metadata == {"key": "value"}
@@ -186,7 +164,7 @@ class TestBaseAssetModel:
         original = DummyAsset(
             name="roundtrip_test",
             kind=AssetKind.CSV,
-            platform=AssetPlatform.OSS,
+            platform=Platform.OSS,
             description="Roundtrip test",
             owner="test_owner",
             metadata={"key1": "value1", "key2": 123},
@@ -245,7 +223,7 @@ class TestExport:
         asset = DummyAsset(
             name="test",
             kind=AssetKind.CSV,
-            platform=AssetPlatform.S3,
+            platform=Platform.S3,
             description="Test",
             owner="owner1",
             metadata={"foo": "bar"},
@@ -274,7 +252,7 @@ class TestEdgeCases:
         asset = DummyAsset(
             name="test-asset_123",
             kind=AssetKind.PARQUET,
-            platform=AssetPlatform.LOCAL,
+            platform=Platform.LOCAL,
         )
         assert asset.name == "test-asset_123"
 
@@ -283,7 +261,7 @@ class TestEdgeCases:
         asset = DummyAsset(
             name="test",
             kind=AssetKind.PARQUET,
-            platform=AssetPlatform.LOCAL,
+            platform=Platform.LOCAL,
             metadata={"level1": {"level2": "value"}},
         )
         assert asset.metadata["level1"]["level2"] == "value"
@@ -295,6 +273,6 @@ class TestEdgeCases:
             DummyAsset(
                 name="test",
                 kind=AssetKind.PARQUET,
-                platform=AssetPlatform.LOCAL,
+                platform=Platform.LOCAL,
                 tags={"key": 123},  # 应该是字符串
             )

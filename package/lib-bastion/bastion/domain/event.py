@@ -9,13 +9,13 @@ from bastion._internal.clock import IBastionClock
 from bastion._internal.model import IBastionModel
 
 
-class BaseEventModel(IBastionModel):
+class EventModel(IBastionModel):
     """
-    Base event model for recording events that occurred during a run execution.
+    Base EventModel model for recording events that occurred during a run execution.
 
     Attributes:
         id (str): Unique identifier with 'event' prefix (inherited from IBastionModel).
-        run_id (str): ID of the run associated with the event.
+        run_id (str): ID of the run associated with the EventModel.
         message (str | None): Message content of the event.
         created_at (datetime): Datetime when the event was created.
         metadata (dict[str, Any]): Additional metadata related to the event.
@@ -24,14 +24,14 @@ class BaseEventModel(IBastionModel):
         sha256 (str): SHA256 hash of the run's canonical representation.
 
     Methods:
-        from_any(value): Convert dict or instance to event model (inherited).
+        from_any(value): Convert dict or instance to EventModel model (inherited).
         export(): Export the event as a dictionary with serialized fields.
         describe(): Export event as JSON string (inherited).
         clone(**updates): Create a deep copy with updates (inherited).
 
     Example:
         ```python
-        event = BaseEventModel(
+        event = EventModel(
             run_id="run-123abc",
             message="Task completed successfully",
             metadata={"duration_ms": 1500}
@@ -45,7 +45,7 @@ class BaseEventModel(IBastionModel):
     _id_length: ClassVar[int] = 16
     run_id: str = Field(
         ...,
-        description="ID of the run associated with the event.",
+        description="ID of the run associated with the EventModel.",
     )
     message: str | None = Field(
         default=None,

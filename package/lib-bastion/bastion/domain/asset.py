@@ -1,70 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC
-from enum import StrEnum
 from typing import Any, ClassVar
 
 from pydantic import Field
 
 from bastion._internal.model import IBastionModel
-
-
-class AssetKind(StrEnum):
-    """
-    Enumeration of supported asset file formats.
-
-    Attributes:
-        PARQUET (str): Parquet columnar storage format.
-        CSV (str): Comma-separated values format.
-
-    Methods:
-        from_any(str | AssetKind value): Convert string or enum to AssetKind.
-
-    Example:
-        ```python
-            # Create from string
-            kind = AssetKind.from_any("parquet")
-
-            # Create from enum
-            kind = AssetKind.from_any(AssetKind.CSV)
-
-            # Use directly
-            kind = AssetKind.PARQUET
-        ```
-    """
-
-    PARQUET = "parquet"
-    CSV = "csv"
-
-
-class AssetPlatform(StrEnum):
-    """
-    Enumeration of supported storage platforms for assets.
-
-    Attributes:
-        S3 (str): Amazon S3 cloud storage.
-        LOCAL (str): Local file system storage.
-        OSS (str): Alibaba Cloud Object Storage Service.
-
-    Methods:
-        from_any(str | AssetPlatform value): Convert string or enum to AssetPlatform.
-
-    Example:
-        ```python
-            # Create from string
-            platform = AssetPlatform.from_any("s3")
-
-            # Create from enum
-            platform = AssetPlatform.from_any(AssetPlatform.LOCAL)
-
-            # Use directly
-            platform = AssetPlatform.OSS
-        ```
-    """
-
-    S3 = "s3"
-    LOCAL = "local"
-    OSS = "oss"
+from bastion.domain.assetkind import AssetKind
+from bastion.domain.platform import Platform
 
 
 class BaseAssetModel(
@@ -77,7 +20,7 @@ class BaseAssetModel(
     Attributes:
         name (str): Name of the asset.
         kind (AssetKind): Kind of the asset (e.g., parquet, csv).
-        platform (AssetPlatform): Platform where the asset is stored (s3, local, oss).
+        platform (Platform): Platform where the asset is stored (s3, local, oss).
         description (str | None): Optional description of the asset.
         owner (str | None): Owner of the asset.
         metadata (dict[str, Any]): Additional metadata associated with the asset.
@@ -96,7 +39,7 @@ class BaseAssetModel(
         asset = BaseAssetModel(
             name="data-asset",
             kind=AssetKind.PARQUET,
-            platform=AssetPlatform.S3,
+            platform=Platform.S3,
             description="Asset for data processing",
             owner="data-team",
             metadata={"priority": "high"},
@@ -112,12 +55,16 @@ class BaseAssetModel(
         description="Name of the asset",
     )
     kind: AssetKind = Field(
-        ...,
+        AssetKind.ANY,
         description="Kind of the asset",
     )
-    platform: AssetPlatform = Field(
-        ...,
+    platform: Platform = Field(
+        Platform.LOCAL,
         description="Platform of the asset",
+    )
+    partitions: list[str] = Field(
+        default_factory=list,
+        description="Partition keys for the asset",
     )
     description: str | None = Field(
         default=None,

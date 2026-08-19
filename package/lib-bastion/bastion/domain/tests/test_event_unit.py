@@ -7,15 +7,15 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from bastion.domain.event.base import BaseEventModel
+from bastion.domain.event import EventModel
 
 
-class TestBaseEventModel:
-    """Test BaseEventModel class."""
+class TestEventModel:
+    """Test EventModel class."""
 
     def test_create_base_event_model(self):
         """Test creating a basic event model."""
-        event = BaseEventModel(
+        event = EventModel(
             run_id="run-123",
             message="Test event",
         )
@@ -28,8 +28,8 @@ class TestBaseEventModel:
 
     def test_id_generation(self):
         """Test that events have unique IDs with correct prefix."""
-        event1 = BaseEventModel(run_id="run-123")
-        event2 = BaseEventModel(run_id="run-123")
+        event1 = EventModel(run_id="run-123")
+        event2 = EventModel(run_id="run-123")
 
         assert event1.id != event2.id
         assert event1.id.startswith("event-")
@@ -39,26 +39,26 @@ class TestBaseEventModel:
     def test_missing_run_id_raises(self):
         """Test creating event without run_id raises error."""
         with pytest.raises(ValidationError):
-            BaseEventModel()
+            EventModel()
 
     def test_create_with_metadata(self):
         """Test creating event with metadata."""
-        event = BaseEventModel(
+        event = EventModel(
             run_id="run-123",
-            message="Event with metadata",
+            message="EventModel with metadata",
             metadata={"key": "value", "count": 42},
         )
         assert event.metadata == {"key": "value", "count": 42}
 
     def test_created_at_auto_generated(self):
         """Test created_at is automatically set."""
-        event = BaseEventModel(run_id="run-123")
+        event = EventModel(run_id="run-123")
         assert event.created_at is not None
         assert isinstance(event.created_at, datetime)
 
     def test_export(self):
         """Test export method returns correct dictionary."""
-        event = BaseEventModel(
+        event = EventModel(
             run_id="run-456",
             message="Export test",
             metadata={"type": "info"},
@@ -76,7 +76,7 @@ class TestBaseEventModel:
 
     def test_export_with_none_message(self):
         """Test export with None message."""
-        event = BaseEventModel(run_id="run-789")
+        event = EventModel(run_id="run-789")
         exported = event.export()
 
         assert exported["message"] is None
@@ -90,7 +90,7 @@ class TestBaseEventModel:
             "created_at": "2026-08-14T10:00:00",
             "metadata": {"key": "value"},
         }
-        event = BaseEventModel.from_any(data)
+        event = EventModel.from_any(data)
         assert event.id == "event-abc123def456789"
         assert event.run_id == "run-123"
         assert event.message == "Test event"
@@ -101,13 +101,13 @@ class TestBaseEventModel:
 
     def test_from_any_with_model_instance(self):
         """Test from_any returns same instance when given model."""
-        original = BaseEventModel(run_id="run-123")
-        result = BaseEventModel.from_any(original)
+        original = EventModel(run_id="run-123")
+        result = EventModel.from_any(original)
         assert result is original
 
     def test_roundtrip_export_from_any(self):
         """Test export and from_any roundtrip conversion."""
-        original = BaseEventModel(
+        original = EventModel(
             run_id="run-roundtrip",
             message="Roundtrip test event",
             metadata={"priority": "high", "count": 99},
@@ -115,7 +115,7 @@ class TestBaseEventModel:
         # Export to dict
         exported = original.export()
         # Recreate from dict
-        restored = BaseEventModel.from_any(exported)
+        restored = EventModel.from_any(exported)
 
         # Verify all fields match
         assert restored.id == original.id
@@ -126,13 +126,13 @@ class TestBaseEventModel:
 
     def test_roundtrip_with_none_message(self):
         """Test roundtrip conversion with None message."""
-        original = BaseEventModel(
+        original = EventModel(
             run_id="run-none-test",
             message=None,
             metadata={"status": "pending"},
         )
         exported = original.export()
-        restored = BaseEventModel.from_any(exported)
+        restored = EventModel.from_any(exported)
 
         assert restored.id == original.id
         assert restored.message is None
@@ -140,7 +140,7 @@ class TestBaseEventModel:
 
     def test_roundtrip_with_nested_metadata(self):
         """Test roundtrip conversion with nested metadata structures."""
-        original = BaseEventModel(
+        original = EventModel(
             run_id="run-nested",
             message="Complex metadata test",
             metadata={
@@ -155,7 +155,7 @@ class TestBaseEventModel:
             },
         )
         exported = original.export()
-        restored = BaseEventModel.from_any(exported)
+        restored = EventModel.from_any(exported)
 
         assert restored.metadata == original.metadata
         assert restored.metadata["level1"]["level2"]["level3"] == "deep value"
@@ -165,7 +165,7 @@ class TestBaseEventModel:
         """Test roundtrip conversion through JSON string using describe()."""
         import json
 
-        original = BaseEventModel(
+        original = EventModel(
             run_id="run-json-test",
             message="JSON roundtrip",
             metadata={"mode": "json", "version": 2},
@@ -174,7 +174,7 @@ class TestBaseEventModel:
         json_str = original.describe()
         # Parse back to dict and recreate
         data = json.loads(json_str)
-        restored = BaseEventModel.from_any(data)
+        restored = EventModel.from_any(data)
 
         assert restored.id == original.id
         assert restored.run_id == original.run_id
@@ -183,7 +183,7 @@ class TestBaseEventModel:
 
     def test_roundtrip_via_clone(self):
         """Test roundtrip using clone method."""
-        original = BaseEventModel(
+        original = EventModel(
             run_id="run-clone-test",
             message="Clone test",
             metadata={"clone": True},

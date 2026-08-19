@@ -1,50 +1,11 @@
-"""
-
-Domain layer — Domain models and interfaces.
-
-"""
-
-from bastion.domain.asset import (
-    AssetKind,
-    AssetPlatform,
-    BaseAssetModel,
-)
-from bastion.domain.bridge import BaseBridgeModel
-from bastion.domain.compute import (
-    BaseComputeModel,
-    ComputeKind,
-)
-from bastion.domain.event import (
-    BaseEventModel,
-)
-from bastion.domain.quality import BaseQualityModel
-from bastion.domain.run import (
-    BaseRunModel,
-    RunStatus,
-)
-from bastion.domain.store import (
-    BaseStoreModel,
-    StoreKind,
-)
+from bastion.domain.asset import BaseAssetModel
+from bastion.domain.assetkind import AssetKind
+from bastion.domain.event import EventModel
+from bastion.domain.platform import Platform
 
 __all__ = [
-    # Asset
     "AssetKind",
-    "AssetPlatform",
+    "Platform",
     "BaseAssetModel",
-    # Bridge
-    "BaseBridgeModel",
-    # Compute
-    "BaseComputeModel",
-    "ComputeKind",
-    # Event
-    "BaseEventModel",
-    # Quality
-    "BaseQualityModel",
-    # Run
-    "BaseRunModel",
-    "RunStatus",
-    # Store
-    "BaseStoreModel",
-    "StoreKind",
+    "EventModel",  # Independent model
 ]
