@@ -1,4 +1,4 @@
-"""Unit tests for AssetFactory."""
+"""Unit tests for asset base factory."""
 
 from __future__ import annotations
 
@@ -6,15 +6,42 @@ import pytest
 
 from bastion.control.asset.base.factory import AssetFactory
 from bastion.control.asset.local.local import LocalAsset
-from bastion.control.asset.oss.oss import OSSAsset
-from bastion.control.asset.s3.s3 import S3Asset
+from bastion.domain.asset import BaseAssetModel
 
 
 class TestAssetFactory:
-    """Test AssetFactory functionality."""
+    """Test AssetFactory registration and loading."""
 
-    def test_load_local_asset(self):
-        """Test loading a local asset."""
+    def test_register_and_load_from_dict(self):
+        """Test registering platform and loading from dict."""
+        AssetFactory._registry.clear()
+
+        @AssetFactory.register("local")
+        class TestAsset:
+            pass
+
+        assert "local" in AssetFactory._registry
+        assert AssetFactory._registry["local"] is TestAsset
+
+    def test_register_duplicate_platform_raises(self):
+        """Test duplicate platform registration raises ValueError."""
+        AssetFactory._registry.clear()
+
+        @AssetFactory.register("test_platform")
+        class FirstAsset:
+            pass
+
+        with pytest.raises(ValueError, match="already registered"):
+
+            @AssetFactory.register("test_platform")
+            class SecondAsset:
+                pass
+
+    def test_load_from_dict(self):
+        """Test loading asset from dictionary."""
+        AssetFactory._registry.clear()
+        AssetFactory.register("local")(LocalAsset)
+
         data = {
             "name": "test_asset",
             "kind": "parquet",
@@ -22,94 +49,44 @@ class TestAssetFactory:
             "path": "/tmp/test.parquet",
         }
 
-        asset = AssetFactory.load_from_dict(data)
-
+        asset = AssetFactory.load(data)
         assert isinstance(asset, LocalAsset)
         assert asset.name == "test_asset"
         assert asset.platform == "local"
 
-    def test_load_s3_asset(self):
-        """Test loading an S3 asset."""
-        data = {
-            "name": "test_s3_asset",
-            "kind": "parquet",
-            "platform": "s3",
-            "bucket": "test-bucket",
-            "prefix": "test.parquet",
-        }
+    def test_load_from_domain_model(self):
+        """Test loading asset from domain model."""
+        AssetFactory._registry.clear()
+        AssetFactory.register("local")(LocalAsset)
 
-        asset = AssetFactory.load_from_dict(data)
+        domain = BaseAssetModel(
+            name="test_asset",
+            kind="parquet",
+            platform="local",
+            path="/tmp/test.parquet",
+        )
 
-        assert isinstance(asset, S3Asset)
-        assert asset.name == "test_s3_asset"
-        assert asset.platform == "s3"
+        asset = AssetFactory.load(domain)
+        assert isinstance(asset, LocalAsset)
+        assert asset.name == "test_asset"
 
-    def test_load_oss_asset(self):
-        """Test loading an OSS asset."""
-        data = {
-            "name": "test_oss_asset",
-            "kind": "parquet",
-            "platform": "oss",
-            "bucket": "test-bucket",
-            "prefix": "test.parquet",
-        }
+    def test_load_missing_platform_raises(self):
+        """Test loading without platform field raises ValueError."""
+        AssetFactory._registry.clear()
 
-        asset = AssetFactory.load_from_dict(data)
+        with pytest.raises(ValueError, match="missing required field"):
+            AssetFactory.load({})
 
-        assert isinstance(asset, OSSAsset)
-        assert asset.name == "test_oss_asset"
-        assert asset.platform == "oss"
+    def test_load_unregistered_platform_raises(self):
+        """Test loading unregistered platform raises ValueError."""
+        AssetFactory._registry.clear()
 
-    def test_load_missing_platform(self):
-        """Test error when platform field is missing."""
         data = {
             "name": "test_asset",
             "kind": "parquet",
+            "platform": "nonexistent",
+            "path": "/tmp/test.parquet",
         }
 
-        with pytest.raises(ValueError, match="missing required field: 'platform'"):
-            AssetFactory.load_from_dict(data)
-
-    def test_load_unregistered_platform(self):
-        """Test error when platform is not registered."""
-        data = {
-            "name": "test_asset",
-            "kind": "parquet",
-            "platform": "unknown_platform",
-        }
-
-        with pytest.raises(
-            ValueError, match="No asset class registered for platform: 'unknown_platform'"
-        ):
-            AssetFactory.load_from_dict(data)
-
-    def test_register_custom_asset(self):
-        """Test registering a custom asset class."""
-
-        # Create a mock asset class
-        class CustomAsset:
-            def __init__(self, name: str, platform: str):
-                self.name = name
-                self.platform = platform
-
-            @classmethod
-            def from_dict(cls, data: dict):
-                return cls(
-                    name=data["name"],
-                    platform=data["platform"],
-                )
-
-        # Register the custom asset
-        AssetFactory.register(platform="custom", asset_cls=CustomAsset)
-
-        # Load an asset with the custom platform
-        data = {
-            "name": "custom_asset",
-            "platform": "custom",
-        }
-
-        asset = AssetFactory.load_from_dict(data)
-
-        assert isinstance(asset, CustomAsset)
-        assert asset.name == "custom_asset"
-        assert asset.platform == "custom"
+        with pytest.raises(ValueError, match="No asset registered"):
+            AssetFactory.load(data)
