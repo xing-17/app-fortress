@@ -7,7 +7,8 @@ from bastion.domain.asset import BaseAssetModel
 
 
 class AssetFactory:
-    """Factory for creating platform-specific asset instances.
+    """
+    Factory for creating platform-specific asset instances.
 
     Attributes:
         _registry: Platform-to-class mapping.
@@ -37,6 +38,7 @@ class AssetFactory:
         cls,
         data: dict[str, Any] | BaseAssetModel,
     ) -> IAssetLike:
+        # Determine the platform from the data or domain model
         if isinstance(data, BaseAssetModel):
             platform = getattr(data, "platform", None)
         else:
@@ -45,10 +47,12 @@ class AssetFactory:
         if not platform:
             raise ValueError("Asset data missing required field: 'platform'")
 
+        # Look up the registered class for the platform
         klass: type[IAssetLike] | None = cls._registry.get(platform)
         if klass is None:
             raise ValueError(f"No asset registered for platform '{platform}'")
 
+        # Determine whether to load from dict or domain model
         if isinstance(data, BaseAssetModel):
             return klass.from_domain(data)
         else:

@@ -10,7 +10,8 @@ from bastion.domain.platform import Platform
 
 @runtime_checkable
 class IAssetRefLike(Protocol):
-    """Protocol for asset reference objects.
+    """
+    Protocol for asset reference objects.
 
     Attributes:
         location: Reference location identifier.
@@ -49,7 +50,8 @@ class IAssetRefLike(Protocol):
 
 @runtime_checkable
 class IAssetLike(Protocol):
-    """Protocol for asset control objects.
+    """
+    Protocol for asset control objects.
 
     Attributes:
         domain: Underlying domain model.
