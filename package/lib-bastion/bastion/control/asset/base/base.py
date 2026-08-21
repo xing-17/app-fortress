@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 from bastion.domain.asset import BaseAssetModel
@@ -14,10 +15,13 @@ class IAssetRefLike(Protocol):
     Protocol for asset reference objects.
 
     Attributes:
-        location: Reference location identifier.
-        partitions: Partition key-value pairs.
-        metadata: Arbitrary metadata.
-        tags: Tag key-value pairs.
+        uri (str): Reference URI.
+        partitions (dict[str, str]): Partition key-value pairs.
+        metadata (dict[str, Any]): Arbitrary metadata.
+        tags (dict[str, str]): Tag key-value pairs.
+        size (int | None): Size of the asset reference in bytes.
+        created_at (datetime | None): Creation timestamp of the asset reference.
+        updated_at (datetime | None): Last modified timestamp of the asset reference.
 
     Methods:
         from_dict: Create from dictionary.
@@ -26,7 +30,10 @@ class IAssetRefLike(Protocol):
         export: Export to dictionary.
     """
 
-    location: str
+    uri: str
+    size: int | None
+    created_at: datetime | None
+    updated_at: datetime | None
     partitions: dict[str, str]
     metadata: dict[str, Any]
     tags: dict[str, str]
@@ -74,7 +81,7 @@ class IAssetLike(Protocol):
         inspect: Display asset details.
         export: Export to dictionary.
         describe: Get human-readable description.
-    
+
     """
 
     domain: BaseAssetModel
