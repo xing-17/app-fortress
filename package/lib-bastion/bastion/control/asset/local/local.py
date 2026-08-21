@@ -30,17 +30,19 @@ class LocalAssetRef(BaseAssetRefModel):
         size: File size in bytes (None if file doesn't exist)
         modified_at: File last modified timestamp (None if unavailable)
         partitions: Partition values from path (e.g., {"year": "2024"})
-        
+
     """
+
     @computed_field
     @property
     def name(self) -> str:
         return Path(self.uri).name
-    
+
     @computed_field
     @property
     def stem(self) -> str:
         return Path(self.uri).stem
+
 
 class LocalAssetModel(BaseAssetModel):
     """
@@ -60,6 +62,7 @@ class LocalAssetModel(BaseAssetModel):
         tags: Classification tags
 
     """
+
     platform: Platform = Platform.LOCAL
     path: str = Field(
         ...,
@@ -95,14 +98,14 @@ class LocalAsset(
         inspect() -> list[LocalAssetRef]:
             Scans the filesystem and returns all matching files as references.
             Updates the asset's refs list.
-            
+
         _resolve_path() -> Path:
             Converts the path to an absolute Path object (expands ~ and resolves ..)
-            
+
         _resolve_glob_pattern() -> str:
             Creates a glob pattern based on partitions and file kind.
             Example: "year=*/month=*/*.parquet"
-            
+
         _resolve_partition(path: Path) -> dict[str, str]:
             Extracts partition values from a file path.
             Example: "/data/year=2024/month=01/file.parquet" -> {"year": "2024", "month": "01"}
@@ -121,7 +124,7 @@ class LocalAsset(
         # Scan the filesystem to find all matching files
         refs = asset.inspect()
         print(f"Found {len(refs)} files")
-        
+
         # Each ref has file details
         for ref in refs:
             print(f"{ref.name}: {ref.size} bytes, partitions: {ref.partitions}")
@@ -161,21 +164,7 @@ class LocalAsset(
                 result[key] = value
         return result
 
-    def inspect(
-        self,
-        **kwargs: Any,
-    ) -> list[LocalAssetRef]:
-        """
-        Scan the filesystem and discover all files belonging to this asset.
-        
-        This method searches the asset's path for files matching the glob pattern,
-        extracts partition values, collects file metadata, and stores references.
-
-        Returns:
-            List of file references with metadata (path, size, timestamps, partitions).
-            Also updates self.domain.refs with the discovered files.
-        
-        """
+    def inspect(self) -> list[LocalAssetRef]:
         _root: Path = self._resolve_path()
         _pattern: str = self._resolve_glob_pattern()
         refs: list[LocalAssetRef] = []
@@ -206,6 +195,6 @@ class LocalAsset(
                 refs.append(_ref)
 
         # Store the refs in the instance for later use
-        logger.info(f"Found {len(refs)} files in  {_pattern}")
+        logger.info(f"Found {len(refs)} objects in  {_pattern}")
         self.domain.refs = refs
         return refs

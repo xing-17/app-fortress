@@ -4,24 +4,17 @@ Asset control layer implementations.
 
 """
 
+from bastion.control.asset import (
+    local,  # noqa: F401 - 副作用导入，触发装饰器
+)
 from bastion.control.asset.local import (
     LocalAsset,
     LocalAssetModel,
-)
-from bastion.control.asset.oss import (
-    OSSAsset,
-    OSSAssetModel,
-)
-from bastion.control.asset.s3 import (
-    S3Asset,
-    S3AssetModel,
+    LocalAssetRef,
 )
 
 __all__ = [
     "LocalAsset",
     "LocalAssetModel",
-    "S3Asset",
-    "S3AssetModel",
-    "OSSAsset",
-    "OSSAssetModel",
+    "LocalAssetRef",
 ]
