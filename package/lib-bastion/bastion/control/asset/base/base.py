@@ -33,8 +33,7 @@ class IAssetRefLike(Protocol):
 
     uri: str
     size: int | None
-    created_at: datetime | None
-    updated_at: datetime | None
+    modified_at: datetime | None
     partitions: dict[str, str]
 
     @classmethod
