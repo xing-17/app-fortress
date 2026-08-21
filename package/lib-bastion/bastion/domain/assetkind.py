@@ -7,13 +7,11 @@ class AssetKind(StrEnum):
     """
     Enumeration of supported asset file formats.
 
-    Attributes:
-        PARQUET (str): Parquet columnar storage format.
-        CSV (str): Comma-separated values format.
-        ANY (str): Any asset format.
-
+    Values:
+        PARQUET: Parquet columnar storage format.
+        CSV: Comma-separated values format.
+        
     """
-
+    
     PARQUET = "parquet"
     CSV = "csv"
-    ANY = "any"
