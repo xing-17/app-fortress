@@ -74,6 +74,7 @@ class IAssetLike(Protocol):
         inspect: Display asset details.
         export: Export to dictionary.
         describe: Get human-readable description.
+    
     """
 
     domain: BaseAssetModel
