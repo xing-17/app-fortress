@@ -28,8 +28,7 @@ class LocalAssetRef(BaseAssetRefModel):
         name: Filename with extension (e.g., "sales.parquet")
         stem: Filename without extension (e.g., "sales")
         size: File size in bytes (None if file doesn't exist)
-        created_at: File creation timestamp (None if unavailable)
-        updated_at: File last modified timestamp (None if unavailable)
+        modified_at: File last modified timestamp (None if unavailable)
         partitions: Partition values from path (e.g., {"year": "2024"})
         
     """
@@ -194,10 +193,6 @@ class LocalAsset(
                 _uri: str = str(file.expanduser().resolve())
                 _parts: dict[str, str] = self._resolve_partition(file)
                 _size: int = _stat.st_size
-                _created_at: datetime = datetime.fromtimestamp(
-                    timestamp=_stat.st_ctime,
-                    tz=UTC,
-                )
                 _updated_at: datetime = datetime.fromtimestamp(
                     timestamp=_stat.st_mtime,
                     tz=UTC,
@@ -206,8 +201,7 @@ class LocalAsset(
                     uri=_uri,
                     partitions=_parts,
                     size=_size,
-                    created_at=_created_at,
-                    updated_at=_updated_at,
+                    modified_at=_updated_at,
                 )
                 refs.append(_ref)
 
