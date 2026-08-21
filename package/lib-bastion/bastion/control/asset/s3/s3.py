@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from urllib.parse import urlparse
 
 from pydantic import Field, computed_field
 
 from bastion._internal.object import IBastionObject
 from bastion.control.asset.base.base import IAssetLike
-from bastion.domain.platform import Platform
 from bastion.control.asset.base.factory import AssetFactory
 from bastion.domain.asset import BaseAssetModel
 from bastion.domain.assetref import BaseAssetRefModel
-
+from bastion.domain.platform import Platform
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +30,20 @@ class S3AssetRef(
     BaseAssetRefModel,
     _S3ObjectMixin,
 ):
+    """
+    A S3 object reference in AWS S3 storage.
+
+    Attributes:
+        uri: S3 URI of the object (e.g., s3://bucket-name/path/to/object)
+        size: Size of the object in bytes
+        modified_at: Last modified timestamp of the object
+        partitions: Partition values extracted from the S3 key (if applicable)
+        region: AWS region of the S3 bucket
+        storage_class: Storage class of the S3 object (e.g., STANDARD, GLACIER)
+        etag: ETag of the S3 object
+
+    """
+
     region: str | None = Field(
         default=None,
         description="Region of the S3 bucket",
@@ -67,7 +80,6 @@ class S3AssetModel(
     Attributes:
         name (str): Asset name.
         kind (AssetKind): Asset kind (parquet, csv, etc.).
-        platform (Platform): Storage platform (always S3).
         uri (str): S3 URI of the asset (e.g., s3://bucket-name/path/to/object).
         region (str | None): AWS region of the S3 bucket.
         partitions (list[str]): Partition column names.
@@ -109,6 +121,40 @@ class S3Asset(
     IBastionObject,
     IAssetLike,
 ):
+    """
+    A S3 asset definition on AWS S3 storage, consists of multiple S3 objects.
+
+    Args:
+        name (str): Asset name.
+        kind (AssetKind): Asset kind (parquet, csv, etc.).
+        uri (str): S3 URI of the asset (e.g., s3://bucket-name/path/to/object).
+        region (str | None): AWS region of the S3 bucket.
+        partitions (list[str]): Partition column names.
+        refs (list[BaseAssetRefModel]): Asset references.
+        description (str | None): Optional description.
+        owner (str | None): Optional owner identifier.
+        metadata (dict[str, Any]): Arbitrary metadata.
+        tags (dict[str, str]): Tag key-value pairs.
+        bucket (str): Computed from uri - the S3 bucket name.
+        prefix (str): Computed from uri - the S3 object key/path.
+
+    Methods:
+        inspect() -> list[S3AssetRef]: Discover S3 objects and return their references.
+
+    Example:
+        >>> s3_asset = S3Asset(
+        ...     name="my_s3_asset",
+        ...     kind=AssetKind.PARQUET,
+        ...     uri="s3://my-bucket/path/to/data",
+        ...     region="us-west-2",
+        ...     partitions=["year", "month"],
+        ... )
+        >>> refs = s3_asset.inspect()
+        >>> for ref in refs:
+        ...     print(ref.uri, ref.size, ref.modified_at)
+
+    """
+
     _domain_class: type[S3AssetModel] = S3AssetModel
 
     def _parse_partition(

@@ -3,16 +3,15 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from pydantic import Field, computed_field
 
 from bastion._internal.object import IBastionObject
 from bastion.control.asset.base.base import IAssetLike
-from bastion.domain.platform import Platform
 from bastion.control.asset.base.factory import AssetFactory
 from bastion.domain.asset import BaseAssetModel
 from bastion.domain.assetref import BaseAssetRefModel
+from bastion.domain.platform import Platform
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +19,6 @@ logger = logging.getLogger(__name__)
 class LocalAssetRef(BaseAssetRefModel):
     """
     Represents a single file on the local filesystem.
-
-    This is a reference to an actual file with its metadata and partition information.
 
     Attributes:
         uri: Absolute file path (e.g., "/home/user/data/year=2024/sales.parquet")
@@ -78,11 +75,7 @@ class LocalAsset(
     """
     Manages a local filesystem asset and its files.
 
-    Use this class to work with data stored on the local filesystem. It can discover
-    files, build glob patterns, and manage partitioned data.
-
-    Attributes:
-        domain: The underlying domain model with core data
+    Args:
         name: Asset identifier
         kind: File format (parquet, csv, json, etc.)
         platform: Always Platform.LOCAL for local assets
@@ -111,24 +104,17 @@ class LocalAsset(
             Example: "/data/year=2024/month=01/file.parquet" -> {"year": "2024", "month": "01"}
 
     Example:
-        ```python
-        # Create an asset for partitioned parquet files
-        asset = LocalAsset(
-            name="sales_data",
-            kind=AssetKind.PARQUET,
-            platform=Platform.LOCAL,
-            path="~/data/sales",
-            partitions=["year", "month"],
-        )
+        >>> asset = LocalAsset(
+        ...    name="sales_data",
+        ...    kind=AssetKind.PARQUET,
+        ...    platform=Platform.LOCAL,
+        ...    path="~/data/sales",
+        ...    partitions=["year", "month"],
+        ... )
+        >>> refs = asset.inspect()
+        >>> for ref in refs:
+        >>>     print(f"{ref.name}: {ref.size} bytes, partitions: {ref.partitions}")
 
-        # Scan the filesystem to find all matching files
-        refs = asset.inspect()
-        print(f"Found {len(refs)} files")
-
-        # Each ref has file details
-        for ref in refs:
-            print(f"{ref.name}: {ref.size} bytes, partitions: {ref.partitions}")
-        ```
     """
 
     _domain_class: type[LocalAssetModel] = LocalAssetModel

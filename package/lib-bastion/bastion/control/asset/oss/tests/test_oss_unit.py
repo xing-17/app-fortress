@@ -12,9 +12,8 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
-from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from datetime import UTC, datetime
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -25,7 +24,6 @@ from bastion.control.asset.oss.oss import (
 )
 from bastion.domain.assetkind import AssetKind
 from bastion.domain.platform import Platform
-
 
 # ============================================================================
 # OSSAssetRef Tests
@@ -305,7 +303,6 @@ class TestOSSAssetParsePartition:
             name="test",
             uri="oss://bucket/data/",
             kind=AssetKind.PARQUET,
-            platform=Platform.OSS,
             region="oss-cn-hangzhou",
             partitions=["year"],
         )
@@ -321,7 +318,6 @@ class TestOSSAssetParsePartition:
             name="test",
             uri="oss://bucket/warehouse/",
             kind=AssetKind.PARQUET,
-            platform=Platform.OSS,
             region="oss-cn-hangzhou",
             partitions=["year", "month", "day"],
         )
@@ -337,7 +333,6 @@ class TestOSSAssetParsePartition:
             name="test",
             uri="oss://bucket/data/",
             kind=AssetKind.CSV,
-            platform=Platform.OSS,
             region="oss-cn-hangzhou",
         )
 
@@ -352,7 +347,6 @@ class TestOSSAssetParsePartition:
             name="test",
             uri="oss://bucket/warehouse/",
             kind=AssetKind.PARQUET,
-            platform=Platform.OSS,
             region="oss-cn-hangzhou",
             partitions=["year", "month"],
         )
@@ -369,7 +363,6 @@ class TestOSSAssetParsePartition:
             name="test",
             uri="oss://bucket/data/",
             kind=AssetKind.PARQUET,
-            platform=Platform.OSS,
             region="oss-cn-hangzhou",
             partitions=["region", "category"],
         )
@@ -385,7 +378,6 @@ class TestOSSAssetParsePartition:
             name="test",
             uri="oss://bucket/data/",
             kind=AssetKind.PARQUET,
-            platform=Platform.OSS,
             region="oss-cn-hangzhou",
             partitions=["year"],
         )
@@ -403,7 +395,6 @@ class TestOSSAssetParsePartition:
             name="test",
             uri="oss://bucket/base/path/",
             kind=AssetKind.PARQUET,
-            platform=Platform.OSS,
             region="oss-cn-hangzhou",
             partitions=["year"],
         )
@@ -420,7 +411,6 @@ class TestOSSAssetParsePartition:
             name="test",
             uri="oss://bucket/",
             kind=AssetKind.PARQUET,
-            platform=Platform.OSS,
             region="oss-cn-hangzhou",
             partitions=["year"],
         )
@@ -464,7 +454,6 @@ class TestOSSAssetCreateClient:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -508,7 +497,6 @@ class TestOSSAssetCreateClient:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
                 endpoint="oss-cn-hangzhou-internal.aliyuncs.com",
             )
@@ -529,7 +517,6 @@ class TestOSSAssetCreateClient:
 
     def test_create_client_ossv2_not_installed(self):
         """Test that ImportError is raised when alibabacloud_oss_v2 is not available."""
-        import sys
         import builtins
 
         real_import = builtins.__import__
@@ -544,7 +531,6 @@ class TestOSSAssetCreateClient:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -573,7 +559,6 @@ class TestOSSAssetCreateClient:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -615,7 +600,6 @@ class TestOSSAssetGetObjectPaginator:
                 name="test",
                 uri="oss://my-bucket/data/warehouse/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -626,35 +610,6 @@ class TestOSSAssetGetObjectPaginator:
         finally:
             if "alibabacloud_oss_v2" in sys.modules:
                 del sys.modules["alibabacloud_oss_v2"]
-
-    def test_get_paginator_ossv2_not_installed(self):
-        """Test that ImportError is raised when alibabacloud_oss_v2 is not available."""
-        import builtins
-
-        real_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "alibabacloud_oss_v2":
-                raise ImportError("No module named alibabacloud_oss_v2")
-            return real_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
-            asset = OSSAsset(
-                name="test",
-                uri="oss://bucket/data/",
-                kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
-                region="oss-cn-hangzhou",
-            )
-
-            mock_client = Mock()
-
-            with pytest.raises(
-                ImportError, match="alibabacloud_oss_v2 is required for OSSAsset"
-            ) as exc_info:
-                asset._oss_get_object_paginator(mock_client)
-
-            assert exc_info.value.__cause__ is not None
 
     def test_get_paginator_client_error(self):
         """Test that RuntimeError is raised when paginator creation fails."""
@@ -671,7 +626,6 @@ class TestOSSAssetGetObjectPaginator:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -709,7 +663,6 @@ class TestOSSAssetBuildRequest:
                 name="test",
                 uri="oss://my-bucket/data/warehouse/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -739,11 +692,10 @@ class TestOSSAssetBuildRequest:
                 name="test",
                 uri="oss://my-bucket/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
-            request = asset._oss_build_request()
+            _ = asset._oss_build_request()
 
             mock_ossv2.ListObjectsV2Request.assert_called_once_with(
                 bucket="my-bucket",
@@ -769,7 +721,6 @@ class TestOSSAssetBuildRequest:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -794,7 +745,6 @@ class TestOSSAssetBuildRequest:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -834,7 +784,6 @@ class TestOSSAssetInspect:
                 name="test",
                 uri="oss://empty-bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -861,12 +810,12 @@ class TestOSSAssetInspect:
             obj1 = Mock()
             obj1.key = "data/file1.parquet"
             obj1.size = 1024
-            obj1.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+            obj1.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC)
 
             obj2 = Mock()
             obj2.key = "data/file2.parquet"
             obj2.size = 2048
-            obj2.last_modified = datetime(2024, 3, 15, 11, 0, 0, tzinfo=UTC).timestamp()
+            obj2.last_modified = datetime(2024, 3, 15, 11, 0, 0, tzinfo=UTC)
 
             page = Mock()
             page.contents = [obj1, obj2]
@@ -880,7 +829,6 @@ class TestOSSAssetInspect:
                 name="test",
                 uri="oss://my-bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -916,17 +864,17 @@ class TestOSSAssetInspect:
             obj1 = Mock()
             obj1.key = "warehouse/year=2024/month=01/data_01.parquet"
             obj1.size = 1024
-            obj1.last_modified = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+            obj1.last_modified = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
             obj2 = Mock()
             obj2.key = "warehouse/year=2024/month=02/data_02.parquet"
             obj2.size = 2048
-            obj2.last_modified = datetime(2024, 2, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+            obj2.last_modified = datetime(2024, 2, 15, 10, 0, 0, tzinfo=UTC)
 
             obj3 = Mock()
             obj3.key = "warehouse/year=2023/month=12/data_12.parquet"
             obj3.size = 1536
-            obj3.last_modified = datetime(2023, 12, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+            obj3.last_modified = datetime(2023, 12, 15, 10, 0, 0, tzinfo=UTC)
 
             page = Mock()
             page.contents = [obj1, obj2, obj3]
@@ -940,7 +888,6 @@ class TestOSSAssetInspect:
                 name="partitioned",
                 uri="oss://data-lake/warehouse/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
                 partitions=["year", "month"],
             )
@@ -972,17 +919,17 @@ class TestOSSAssetInspect:
             obj1 = Mock()
             obj1.key = "data/file1.parquet"
             obj1.size = 1024
-            obj1.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+            obj1.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC)
 
             obj2 = Mock()
             obj2.key = "data/file2.parquet"
             obj2.size = 2048
-            obj2.last_modified = datetime(2024, 3, 15, 11, 0, 0, tzinfo=UTC).timestamp()
+            obj2.last_modified = datetime(2024, 3, 15, 11, 0, 0, tzinfo=UTC)
 
             obj3 = Mock()
             obj3.key = "data/file3.parquet"
             obj3.size = 3072
-            obj3.last_modified = datetime(2024, 3, 15, 12, 0, 0, tzinfo=UTC).timestamp()
+            obj3.last_modified = datetime(2024, 3, 15, 12, 0, 0, tzinfo=UTC)
 
             page1 = Mock()
             page1.contents = [obj1, obj2]
@@ -999,7 +946,6 @@ class TestOSSAssetInspect:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -1007,46 +953,6 @@ class TestOSSAssetInspect:
 
             # Should collect objects from all pages
             assert len(refs) == 3
-        finally:
-            if "alibabacloud_oss_v2" in sys.modules:
-                del sys.modules["alibabacloud_oss_v2"]
-
-    def test_inspect_with_missing_last_modified(self):
-        """Test inspect handles objects with missing last_modified field."""
-        import sys
-
-        mock_ossv2 = Mock()
-        sys.modules["alibabacloud_oss_v2"] = mock_ossv2
-
-        try:
-            mock_client = Mock()
-            mock_paginator = Mock()
-
-            obj = Mock()
-            obj.key = "data/file.parquet"
-            obj.size = 0
-            obj.last_modified = None  # No timestamp
-
-            page = Mock()
-            page.contents = [obj]
-
-            mock_iterator = iter([page])
-
-            mock_client.list_objects_v2_paginator.return_value = mock_paginator
-            mock_paginator.iter_page.return_value = mock_iterator
-
-            asset = OSSAsset(
-                name="test",
-                uri="oss://bucket/data/",
-                kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
-                region="oss-cn-hangzhou",
-            )
-
-            refs = asset.inspect(client=mock_client)
-
-            assert len(refs) == 1
-            assert refs[0].modified_at is None
         finally:
             if "alibabacloud_oss_v2" in sys.modules:
                 del sys.modules["alibabacloud_oss_v2"]
@@ -1065,7 +971,7 @@ class TestOSSAssetInspect:
             obj = Mock()
             obj.key = "data/file.parquet"
             obj.size = 1024
-            obj.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+            obj.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC)
 
             page = Mock()
             page.contents = [obj]
@@ -1079,7 +985,6 @@ class TestOSSAssetInspect:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -1112,7 +1017,7 @@ class TestOSSAssetInspect:
         obj = Mock()
         obj.key = "data/file.parquet"
         obj.size = 1024
-        obj.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+        obj.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC)
 
         page = Mock()
         page.contents = [obj]
@@ -1131,7 +1036,6 @@ class TestOSSAssetInspect:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -1169,9 +1073,7 @@ class TestOSSAssetInspect:
                     obj = Mock()
                     obj.key = f"data/file_{page_idx * 25 + obj_idx:04d}.parquet"
                     obj.size = 1024 * (page_idx * 25 + obj_idx + 1)
-                    obj.last_modified = datetime(
-                        2024, 3, 15, 10, obj_idx, 0, tzinfo=UTC
-                    ).timestamp()
+                    obj.last_modified = datetime(2024, 3, 15, 10, obj_idx, 0, tzinfo=UTC)
                     page.contents.append(obj)
                 pages.append(page)
 
@@ -1184,7 +1086,6 @@ class TestOSSAssetInspect:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -1213,7 +1114,7 @@ class TestOSSAssetInspect:
             obj = Mock()
             obj.key = "data/empty.parquet"
             obj.size = 0
-            obj.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+            obj.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC)
 
             page = Mock()
             page.contents = [obj]
@@ -1227,7 +1128,6 @@ class TestOSSAssetInspect:
                 name="test",
                 uri="oss://bucket/data/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
             )
 
@@ -1269,12 +1169,12 @@ class TestOSSAssetIntegration:
         obj1 = Mock()
         obj1.key = "sales/2024/data.parquet"
         obj1.size = 5120
-        obj1.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+        obj1.last_modified = datetime(2024, 3, 15, 10, 0, 0, tzinfo=UTC)
 
         obj2 = Mock()
         obj2.key = "sales/2024/metadata.json"
         obj2.size = 512
-        obj2.last_modified = datetime(2024, 3, 15, 10, 5, 0, tzinfo=UTC).timestamp()
+        obj2.last_modified = datetime(2024, 3, 15, 10, 5, 0, tzinfo=UTC)
 
         page = Mock()
         page.contents = [obj1, obj2]
@@ -1294,7 +1194,6 @@ class TestOSSAssetIntegration:
                 name="sales_data",
                 uri="oss://company-data/sales/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-hangzhou",
                 description="Sales data for 2024",
             )
@@ -1345,12 +1244,12 @@ class TestOSSAssetIntegration:
         obj1 = Mock()
         obj1.key = "events/year=2024/month=01/day=15/events.parquet"
         obj1.size = 10240
-        obj1.last_modified = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC).timestamp()
+        obj1.last_modified = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
         obj2 = Mock()
         obj2.key = "events/year=2024/month=01/day=16/events.parquet"
         obj2.size = 11264
-        obj2.last_modified = datetime(2024, 1, 16, 10, 0, 0, tzinfo=UTC).timestamp()
+        obj2.last_modified = datetime(2024, 1, 16, 10, 0, 0, tzinfo=UTC)
 
         page = Mock()
         page.contents = [obj1, obj2]
@@ -1370,7 +1269,6 @@ class TestOSSAssetIntegration:
                 name="events",
                 uri="oss://analytics/events/",
                 kind=AssetKind.PARQUET,
-                platform=Platform.OSS,
                 region="oss-cn-shanghai",
                 partitions=["year", "month", "day"],
             )

@@ -13,8 +13,7 @@ Tests cover:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -25,7 +24,6 @@ from bastion.control.asset.s3.s3 import (
 )
 from bastion.domain.assetkind import AssetKind
 from bastion.domain.platform import Platform
-
 
 # ============================================================================
 # S3AssetRef Tests
@@ -461,7 +459,6 @@ class TestS3AssetCreateClient:
 
     def test_create_client_boto3_not_installed(self):
         """Test that ImportError is raised when boto3 is not available."""
-        import sys
         import builtins
 
         real_import = builtins.__import__
@@ -555,7 +552,7 @@ class TestS3AssetGetPageIterator:
             platform=Platform.S3,
         )
 
-        iterator = asset._s3_get_page_iterator(mock_client)
+        _ = asset._s3_get_page_iterator(mock_client)
 
         mock_paginator.paginate.assert_called_once_with(
             Bucket="my-bucket",
@@ -897,7 +894,7 @@ class TestS3AssetInspect:
                     platform=Platform.S3,
                 )
 
-                refs = asset.inspect()
+                _ = asset.inspect()
 
                 # Should have called _s3_create_client
                 mock_create.assert_called_once()
@@ -920,7 +917,7 @@ class TestS3AssetInspect:
         )
 
         with patch.object(S3Asset, "_s3_create_client") as mock_create:
-            refs = asset.inspect(client=mock_client)
+            _ = asset.inspect(client=mock_client)
 
             # Should NOT have called _s3_create_client
             mock_create.assert_not_called()

@@ -13,7 +13,6 @@ from __future__ import annotations
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -24,7 +23,6 @@ from bastion.control.asset.local.local import (
 )
 from bastion.domain.assetkind import AssetKind
 from bastion.domain.platform import Platform
-
 
 # ============================================================================
 # LocalAssetRef Tests

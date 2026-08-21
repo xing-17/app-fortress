@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC
 import logging
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from pydantic import Field, computed_field
 
 from bastion._internal.object import IBastionObject
 from bastion.control.asset.base.base import IAssetLike
-from bastion.domain.platform import Platform
 from bastion.control.asset.base.factory import AssetFactory
 from bastion.domain.asset import BaseAssetModel
 from bastion.domain.assetref import BaseAssetRefModel
-
+from bastion.domain.platform import Platform
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +30,18 @@ class OSSAssetRef(
     BaseAssetRefModel,
     _OSSObjectMixin,
 ):
+    """
+    An OSS object reference in Alibaba Cloud OSS storage.
+
+    Attributes:
+        uri: OSS URI of the object (e.g., oss://bucket-name/path/to/object)
+        size: Size of the object in bytes
+        modified_at: Last modified timestamp of the object
+        partitions: Partition values extracted from the OSS key (if applicable)
+        region: Alibaba Cloud region of the OSS bucket
+
+    """
+
     region: str | None = Field(
         default=None,
         description="Region of the OSS bucket",
@@ -53,6 +64,26 @@ class OSSAssetModel(
     BaseAssetModel,
     _OSSObjectMixin,
 ):
+    """
+    Domain model for OSS assets.
+
+    Attributes:
+        name (str): Asset name.
+        kind (AssetKind): Asset kind (parquet, csv, etc.).
+        uri (str): OSS URI of the asset (e.g., oss://bucket-name/path/to/object).
+        region (str): Alibaba Cloud region of the OSS bucket.
+        endpoint (str | None): Optional custom OSS endpoint URL.
+        partitions (list[str]): Partition column names.
+        refs (list[BaseAssetRefModel]): Asset references.
+        description (str | None): Optional description.
+        owner (str | None): Optional owner identifier.
+        metadata (dict[str, Any]): Arbitrary metadata.
+        tags (dict[str, str]): Tag key-value pairs.
+        bucket (str): Computed from uri - the OSS bucket name.
+        prefix (str): Computed from uri - the OSS object key/path.
+
+    """
+
     platform: Platform = Platform.OSS
     uri: str = Field(
         ...,
@@ -85,6 +116,38 @@ class OSSAsset(
     IBastionObject,
     IAssetLike,
 ):
+    """
+    An OSS asset definition on Alibaba Cloud OSS storage, consists of multiple OSS objects.
+
+    Args:
+        name (str): Asset name.
+        kind (AssetKind): Asset kind (parquet, csv, etc.).
+        uri (str): OSS URI of the asset (e.g., oss://bucket-name/path/to/object).
+        region (str): Alibaba Cloud region of the OSS bucket.
+        endpoint (str | None): Optional custom OSS endpoint URL.
+        partitions (list[str]): Partition column names.
+        refs (list[BaseAssetRefModel]): Asset references.
+        description (str | None): Optional description.
+        owner (str | None): Optional owner identifier.
+        metadata (dict[str, Any]): Arbitrary metadata.
+        tags (dict[str, str]): Tag key-value pairs.
+
+    Methods:
+        inspect() -> list[OSSAssetRef]: Discover and return a list of OSS object references for the asset.
+
+    Example:
+        >>> oss_asset = OSSAsset(
+        ...     name="my_oss_asset",
+        ...     kind=AssetKind.PARQUET,
+        ...     uri="oss://my-bucket/path/to/data",
+        ...     region="oss-cn-hangzhou",
+        ... )
+        >>> refs = oss_asset.inspect()
+        >>> for ref in refs:
+        ...     print(ref.uri, ref.size, ref.modified_at)
+
+    """
+
     _domain_class: type[OSSAssetModel] = OSSAssetModel
 
     def _parse_partition(
@@ -126,10 +189,7 @@ class OSSAsset(
         client: object,
     ) -> object:
         try:
-            import alibabacloud_oss_v2 as ossv2
-
-            _client: ossv2.Client = client
-            _paginator = _client.list_objects_v2_paginator()
+            _paginator = client.list_objects_v2_paginator()
             return _paginator
         except ImportError as e:
             raise ImportError(f"alibabacloud_oss_v2 is required for OSSAsset: {e}") from e
@@ -166,13 +226,8 @@ class OSSAsset(
                 _uri: str = f"oss://{_bucket_name}/{_key}"
                 _size: int = obj.size
                 _partitions: dict[str, str] = self._parse_partition(_key)
-                if obj.last_modified is not None:
-                    _modified_at: datetime | None = datetime.fromtimestamp(
-                        timestamp=obj.last_modified,
-                        tz=UTC,
-                    )
-                else:
-                    _modified_at = None
+                _dt: datetime = obj.last_modified
+                _modified_at: datetime = _dt.astimezone(UTC)
                 ref = OSSAssetRef(
                     uri=_uri,
                     size=_size,
