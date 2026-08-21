@@ -8,6 +8,7 @@ from pydantic import Field
 from bastion._internal.model import IBastionModel
 from bastion.domain.assetkind import AssetKind
 from bastion.domain.platform import Platform
+from bastion.domain.assetref import BaseAssetRefModel
 
 
 class BaseAssetModel(
@@ -19,10 +20,11 @@ class BaseAssetModel(
 
     Attributes:
         name (str): Name of the asset.
-        kind (AssetKind): Kind of the asset (e.g., parquet, csv).
-        platform (Platform): Platform where the asset is stored (s3, local, oss).
+        kind (AssetKind): Kind of the asset (e.g., parquet, csv, any).
+        platform (Platform): Platform where the asset is stored (local, s3, oss).
+        partitions (list[str]): List of partition keys for the asset.
         description (str | None): Optional description of the asset.
-        owner (str | None): Owner of the asset.
+        owner (str | None): Optional owner of the asset.
         metadata (dict[str, Any]): Additional metadata associated with the asset.
         tags (dict[str, str]): Tags associated with the asset.
         logic_name (str): Logical identifier combining bridge_name and optional name.
@@ -40,6 +42,7 @@ class BaseAssetModel(
             name="data-asset",
             kind=AssetKind.PARQUET,
             platform=Platform.S3,
+            partitions=["year", "month"],
             description="Asset for data processing",
             owner="data-team",
             metadata={"priority": "high"},
@@ -55,7 +58,7 @@ class BaseAssetModel(
         description="Name of the asset",
     )
     kind: AssetKind = Field(
-        AssetKind.ANY,
+        ...,
         description="Kind of the asset",
     )
     platform: Platform = Field(
@@ -65,6 +68,10 @@ class BaseAssetModel(
     partitions: list[str] = Field(
         default_factory=list,
         description="Partition keys for the asset",
+    )
+    refs: list[BaseAssetRefModel] = Field(
+        default_factory=list,
+        description="List of asset references (components) for the asset",
     )
     description: str | None = Field(
         default=None,
