@@ -12,22 +12,23 @@ from bastion.domain.platform import Platform
 @runtime_checkable
 class IAssetRefLike(Protocol):
     """
-    Protocol for asset reference objects.
+    Represents a single file or object within an asset.
+
+    An asset reference points to an actual file (e.g., a parquet file) and includes
+    metadata like size, timestamps, and partition values.
 
     Attributes:
-        uri (str): Reference URI.
-        partitions (dict[str, str]): Partition key-value pairs.
-        metadata (dict[str, Any]): Arbitrary metadata.
-        tags (dict[str, str]): Tag key-value pairs.
-        size (int | None): Size of the asset reference in bytes.
-        created_at (datetime | None): Creation timestamp of the asset reference.
-        updated_at (datetime | None): Last modified timestamp of the asset reference.
+        uri: Full path or URL to the file
+        partitions: Partition values extracted from the path (e.g., {"year": "2024", "month": "01"})
+        size: File size in bytes (None if unknown)
+        created_at: When the file was created (None if unknown)
+        updated_at: When the file was last modified (None if unknown)
 
     Methods:
-        from_dict: Create from dictionary.
-        from_domain: Create from domain model.
-        describe: Get human-readable description.
-        export: Export to dictionary.
+        from_dict: Create a reference from a dictionary
+        from_domain: Create a reference from a domain model
+        describe: Get a human-readable summary of the reference
+        export: Convert the reference to a dictionary
     """
 
     uri: str
@@ -35,8 +36,6 @@ class IAssetRefLike(Protocol):
     created_at: datetime | None
     updated_at: datetime | None
     partitions: dict[str, str]
-    metadata: dict[str, Any]
-    tags: dict[str, str]
 
     @classmethod
     def from_dict(
@@ -58,29 +57,30 @@ class IAssetRefLike(Protocol):
 @runtime_checkable
 class IAssetLike(Protocol):
     """
-    Protocol for asset control objects.
+    Represents a logical data asset that may consist of multiple files.
+
+    An asset is a collection of files organized by name, type, and optionally partitions.
+    For example, a sales dataset partitioned by year and month.
 
     Attributes:
-        domain: Underlying domain model.
-        name: Asset name.
-        kind: Asset kind (parquet, csv, etc.).
-        platform: Storage platform.
-        partitions: Partition column names.
-        refs: Asset references.
-        description: Optional description.
-        owner: Optional owner identifier.
-        metadata: Arbitrary metadata.
-        tags: Tag key-value pairs.
-        sha256: Content hash.
+        domain: The underlying domain model containing core data
+        name: Unique identifier for this asset
+        kind: File format (parquet, csv, json, etc.)
+        platform: Where the data lives (local, s3, azure, etc.)
+        partitions: List of partition column names (e.g., ["year", "month"])
+        refs: List of actual files belonging to this asset
+        description: Human-readable description of the asset
+        owner: Who owns or manages this asset
+        metadata: Custom key-value pairs for additional information
+        tags: Classification tags for organization
+        sha256: Content hash for data integrity
 
     Methods:
-        from_dict: Create from dictionary.
-        from_domain: Create from domain model.
-        get_uri: Get asset URI.
-        get_glob: Get glob pattern.
-        inspect: Display asset details.
-        export: Export to dictionary.
-        describe: Get human-readable description.
+        from_dict: Create an asset from a dictionary
+        from_domain: Create an asset from a domain model
+        inspect: Scan storage and discover all files in this asset
+        export: Convert the asset to a dictionary
+        describe: Get a human-readable summary of the asset
 
     """
 
@@ -107,10 +107,6 @@ class IAssetLike(Protocol):
         cls,
         domain: BaseAssetModel,
     ) -> IAssetLike: ...
-
-    def get_uri(self) -> str: ...
-
-    def get_glob(self) -> str: ...
 
     def inspect(self) -> None: ...
 

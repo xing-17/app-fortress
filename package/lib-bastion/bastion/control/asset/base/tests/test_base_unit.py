@@ -36,8 +36,6 @@ class TestIAssetLikeProtocol:
                 "path": "/tmp/test.csv",
                 "description": "Test asset",
                 "owner": "test_user",
-                "metadata": {"key": "value"},
-                "tags": {"env": "test"},
             }
         )
 
@@ -47,8 +45,6 @@ class TestIAssetLikeProtocol:
         assert asset.platform == "local"
         assert asset.description == "Test asset"
         assert asset.owner == "test_user"
-        assert asset.metadata == {"key": "value"}
-        assert asset.tags == {"env": "test"}
 
     def test_protocol_required_methods(self):
         """Test protocol required methods exist."""
@@ -62,10 +58,8 @@ class TestIAssetLikeProtocol:
         )
 
         # Test protocol methods
-        assert hasattr(asset, "get_uri")
         assert hasattr(asset, "export")
         assert hasattr(asset, "describe")
-        assert callable(asset.get_uri)
         assert callable(asset.export)
         assert callable(asset.describe)
 
