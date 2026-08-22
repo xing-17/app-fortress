@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from urllib.parse import urlparse
 
@@ -9,10 +8,10 @@ from pydantic import Field, computed_field
 from bastion._internal.object import IBastionObject
 from bastion.control.asset.base.base import IAssetLike
 from bastion.control.asset.base.factory import AssetFactory
+from bastion.control.asset.oss.adaptor import IOSSAdaptorLike, OSSAdaptor
 from bastion.domain.asset import BaseAssetModel
 from bastion.domain.assetref import BaseAssetRefModel
 from bastion.domain.platform import Platform
-from bastion.control.asset.oss.adaptor import IOSSAdaptorLike, OSSAdaptor
 
 
 class _OSSObjectMixin:
@@ -45,7 +44,7 @@ class OSSAssetRef(
         default=None,
         description="Region of the OSS bucket",
     )
-    
+
     @computed_field
     @property
     def bucket(self) -> str:

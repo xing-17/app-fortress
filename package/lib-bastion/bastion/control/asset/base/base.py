@@ -60,7 +60,7 @@ class IAdaptorLike(Protocol):
 
     Methods:
         list_objects: List all objects under a given path
-        
+
     """
 
     def list_objects(

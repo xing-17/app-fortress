@@ -11,12 +11,11 @@ Tests cover:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 from bastion.control.asset.oss.adaptor import IOSSAdaptorLike, OSSAdaptor
-
 
 # ============================================================================
 # Protocol Compliance Tests
@@ -37,7 +36,7 @@ class TestIOSSAdaptorLikeProtocol:
     def test_oss_adaptor_implements_protocol(self):
         """Test that OSSAdaptor implements the protocol."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
-        
+
         assert isinstance(adaptor, IOSSAdaptorLike)
         assert hasattr(adaptor, "list_objects")
         assert callable(adaptor.list_objects)
@@ -54,28 +53,23 @@ class TestOSSAdaptorInit:
     def test_init_with_region_only(self):
         """Test creating adaptor with only region."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
-        
+
         assert adaptor.region == "oss-cn-hangzhou"
         assert adaptor.endpoint is None
 
     def test_init_with_region_and_endpoint(self):
         """Test creating adaptor with region and endpoint."""
-        adaptor = OSSAdaptor(
-            region="oss-cn-hangzhou",
-            endpoint="oss-cn-hangzhou.aliyuncs.com"
-        )
-        
+        adaptor = OSSAdaptor(region="oss-cn-hangzhou", endpoint="oss-cn-hangzhou.aliyuncs.com")
+
         assert adaptor.region == "oss-cn-hangzhou"
         assert adaptor.endpoint == "oss-cn-hangzhou.aliyuncs.com"
 
     def test_init_with_credentials(self):
         """Test creating adaptor with credentials."""
         adaptor = OSSAdaptor(
-            region="oss-cn-hangzhou",
-            access_key_id="test_key",
-            access_key_secret="test_secret"
+            region="oss-cn-hangzhou", access_key_id="test_key", access_key_secret="test_secret"
         )
-        
+
         assert adaptor._creds["access_key_id"] == "test_key"
         assert adaptor._creds["access_key_secret"] == "test_secret"
 
@@ -100,15 +94,15 @@ class TestOSSAdaptorSliceByTime:
         """Test that no filters returns all files."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
         now = datetime.now(UTC)
-        
+
         files = [
             self._create_mock_file(now - timedelta(hours=3)),
             self._create_mock_file(now - timedelta(hours=2)),
             self._create_mock_file(now - timedelta(hours=1)),
         ]
-        
+
         result = adaptor._slice_by_time(files, since=None, until=None)
-        
+
         assert len(result) == 3
         assert result == files
 
@@ -117,15 +111,15 @@ class TestOSSAdaptorSliceByTime:
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
         now = datetime.now(UTC)
         since_time = now - timedelta(hours=2)
-        
+
         files = [
             self._create_mock_file(now - timedelta(hours=3)),
             self._create_mock_file(now - timedelta(hours=1)),
             self._create_mock_file(now),
         ]
-        
+
         result = adaptor._slice_by_time(files, since=since_time, until=None)
-        
+
         assert len(result) == 2
 
     def test_slice_by_time_with_until(self):
@@ -133,15 +127,15 @@ class TestOSSAdaptorSliceByTime:
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
         now = datetime.now(UTC)
         until_time = now - timedelta(hours=1)
-        
+
         files = [
             self._create_mock_file(now - timedelta(hours=3)),
             self._create_mock_file(now - timedelta(hours=2)),
             self._create_mock_file(now),
         ]
-        
+
         result = adaptor._slice_by_time(files, since=None, until=until_time)
-        
+
         assert len(result) == 2
 
     def test_slice_by_time_with_both_filters(self):
@@ -150,24 +144,24 @@ class TestOSSAdaptorSliceByTime:
         now = datetime.now(UTC)
         since_time = now - timedelta(hours=3)
         until_time = now - timedelta(hours=1)
-        
+
         files = [
             self._create_mock_file(now - timedelta(hours=4)),
             self._create_mock_file(now - timedelta(hours=2)),
             self._create_mock_file(now),
         ]
-        
+
         result = adaptor._slice_by_time(files, since=since_time, until=until_time)
-        
+
         assert len(result) == 1
 
     def test_slice_by_time_empty_input(self):
         """Test slicing with empty file list."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
         now = datetime.now(UTC)
-        
+
         result = adaptor._slice_by_time([], since=now, until=None)
-        
+
         assert result == []
 
 
@@ -183,9 +177,9 @@ class TestOSSAdaptorSliceByLimit:
         """Test that None limit returns all files."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
         files = [Mock() for _ in range(5)]
-        
+
         result = adaptor._slice_by_limit(files, limit=None)
-        
+
         assert len(result) == 5
         assert result == files
 
@@ -193,9 +187,9 @@ class TestOSSAdaptorSliceByLimit:
         """Test limiting the number of files."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
         files = [Mock() for _ in range(10)]
-        
+
         result = adaptor._slice_by_limit(files, limit=3)
-        
+
         assert len(result) == 3
         assert result == files[:3]
 
@@ -203,9 +197,9 @@ class TestOSSAdaptorSliceByLimit:
         """Test that zero limit returns all files."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
         files = [Mock() for _ in range(5)]
-        
+
         result = adaptor._slice_by_limit(files, limit=0)
-        
+
         assert len(result) == 5
         assert result == files
 
@@ -213,18 +207,18 @@ class TestOSSAdaptorSliceByLimit:
         """Test that limit exceeding file count returns all files."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
         files = [Mock() for _ in range(3)]
-        
+
         result = adaptor._slice_by_limit(files, limit=10)
-        
+
         assert len(result) == 3
         assert result == files
 
     def test_slice_by_limit_empty_input(self):
         """Test limiting with empty file list."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
-        
+
         result = adaptor._slice_by_limit([], limit=5)
-        
+
         assert result == []
 
 
@@ -239,15 +233,17 @@ class TestOSSAdaptorClientCreation:
     def test_get_client_missing_dependency(self):
         """Test that missing dependency raises ImportError."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
-        
-        with patch('builtins.__import__', side_effect=ImportError("No module named 'alibabacloud_oss_v2'")):
+
+        with patch(
+            "builtins.__import__", side_effect=ImportError("No module named 'alibabacloud_oss_v2'")
+        ):
             with pytest.raises(ImportError, match="alibabacloud_oss_v2 is required"):
                 adaptor._get_client()
 
     def test_get_request_missing_dependency(self):
         """Test that missing dependency in request creation raises ImportError."""
         adaptor = OSSAdaptor(region="oss-cn-hangzhou")
-        
-        with patch('builtins.__import__', side_effect=ImportError("No module")):
+
+        with patch("builtins.__import__", side_effect=ImportError("No module")):
             with pytest.raises(ImportError, match="alibabacloud_oss_v2 is required"):
                 adaptor._get_oss_request(bucket="test-bucket", prefix="test/")

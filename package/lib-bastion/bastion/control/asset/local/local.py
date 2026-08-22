@@ -7,12 +7,12 @@ from pathlib import Path
 from pydantic import Field, computed_field
 
 from bastion._internal.object import IBastionObject
-from bastion.control.asset.base.base import IAdaptorLike, IAssetLike
+from bastion.control.asset.base.base import IAssetLike
 from bastion.control.asset.base.factory import AssetFactory
+from bastion.control.asset.local.adaptor import ILocalAdaptorLike, LocalAdaptor
 from bastion.domain.asset import BaseAssetModel
 from bastion.domain.assetref import BaseAssetRefModel
 from bastion.domain.platform import Platform
-from bastion.control.asset.local.adaptor import ILocalAdaptorLike, LocalAdaptor
 
 
 class LocalAssetRef(BaseAssetRefModel):

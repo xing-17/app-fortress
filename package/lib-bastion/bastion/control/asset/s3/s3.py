@@ -8,11 +8,10 @@ from pydantic import Field, computed_field
 from bastion._internal.object import IBastionObject
 from bastion.control.asset.base.base import IAssetLike
 from bastion.control.asset.base.factory import AssetFactory
+from bastion.control.asset.s3.adaptor import IS3AdaptorLike, S3Adaptor
 from bastion.domain.asset import BaseAssetModel
 from bastion.domain.assetref import BaseAssetRefModel
 from bastion.domain.platform import Platform
-from bastion.control.asset.s3.adaptor import IS3AdaptorLike, S3Adaptor
-
 
 
 class _S3ObjectMixin:
@@ -199,7 +198,7 @@ class S3Asset(
             if _key in self.domain.partitions:
                 result[_key] = _value
         return result
-    
+
     def inspect(
         self,
         adaptor: IS3AdaptorLike | None = None,

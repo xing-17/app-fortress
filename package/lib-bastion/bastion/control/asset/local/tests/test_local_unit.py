@@ -11,21 +11,20 @@ Tests cover:
 from __future__ import annotations
 
 import time
+import warnings
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from bastion.control.asset.local.adaptor import ILocalAdaptorLike, LocalAdaptor
 from bastion.control.asset.local.local import (
     LocalAsset,
     LocalAssetModel,
     LocalAssetRef,
 )
-from bastion.control.asset.local.adaptor import ILocalAdaptorLike, LocalAdaptor
 from bastion.domain.assetkind import AssetKind
 from bastion.domain.platform import Platform
-
-import warnings
 
 warnings.filterwarnings("ignore")
 pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
@@ -766,6 +765,7 @@ class TestLocalAssetInspect:
 
     def test_inspect_with_custom_adaptor_implementation(self, tmp_path: Path):
         """Test inspect with custom adaptor implementation."""
+
         # Create a custom adaptor that filters files by name
         class FilteringAdaptor(ILocalAdaptorLike):
             def list_objects(
@@ -779,7 +779,7 @@ class TestLocalAssetInspect:
                 # Only return files with "special" in the name
                 all_files = list(path.rglob(pattern))
                 filtered = [f for f in all_files if "special" in f.name]
-                return filtered[:limit if limit else None]
+                return filtered[: limit if limit else None]
 
         # Create test files
         (tmp_path / "normal1.parquet").write_text("data1")

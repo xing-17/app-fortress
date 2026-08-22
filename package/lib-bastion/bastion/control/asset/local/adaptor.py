@@ -1,20 +1,22 @@
 from __future__ import annotations
 
-from pathlib import Path
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from bastion.control.asset.base.base import IAdaptorLike
+
 
 @runtime_checkable
 class ILocalAdaptorLike(IAdaptorLike, Protocol):
     """
     Protocol an adaptor that can read files from local filesystem.
-    
+
     Methods:
         list_objects: List files in a directory matching a pattern, with optional time slicing and limit
-        
+
     """
+
     def list_objects(
         self,
         path: Path,
@@ -28,14 +30,15 @@ class ILocalAdaptorLike(IAdaptorLike, Protocol):
 class LocalAdaptor(ILocalAdaptorLike):
     """
     An adaptor that can read files from local filesystem.
-    
-    Methods: 
+
+    Methods:
         list_objects: List files in a directory matching a pattern, with optional time slicing and limit
-        
+
     """
+
     def __init__(self) -> None:
         pass
-    
+
     def _slice_by_time(
         self,
         files: list[Path],
@@ -43,7 +46,7 @@ class LocalAdaptor(ILocalAdaptorLike):
         until: datetime | None = None,
     ) -> list[Path]:
         if since is None and until is None:
-            return files 
+            return files
         _filtered: list[Path] = []
         for file in files:
             _stat = file.stat()
@@ -57,7 +60,7 @@ class LocalAdaptor(ILocalAdaptorLike):
                 continue
             _filtered.append(file)
         return _filtered
-    
+
     def _slice_by_limit(
         self,
         files: list[Path],
@@ -68,7 +71,7 @@ class LocalAdaptor(ILocalAdaptorLike):
         if limit <= 0 or limit > len(files):
             return files
         return files[:limit]
-    
+
     def list_objects(
         self,
         path: Path,
@@ -80,7 +83,7 @@ class LocalAdaptor(ILocalAdaptorLike):
         _result: list[Path] = []
         for file in path.rglob(pattern):
             _result.append(file)
-        _result=self._slice_by_time(_result, since=since, until=until)
-        _result=self._slice_by_limit(_result, limit=limit)
+        _result = self._slice_by_time(_result, since=since, until=until)
+        _result = self._slice_by_limit(_result, limit=limit)
         _result.sort(key=lambda x: x.stat().st_mtime, reverse=True)
         return _result

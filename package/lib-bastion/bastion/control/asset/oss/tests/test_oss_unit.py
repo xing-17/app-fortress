@@ -9,17 +9,16 @@ Tests cover:
 
 from __future__ import annotations
 
+import warnings
 from datetime import UTC, datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
-from bastion.control.asset.oss.oss import OSSAsset, OSSAssetModel, OSSAssetRef
 from bastion.control.asset.oss.adaptor import IOSSAdaptorLike
+from bastion.control.asset.oss.oss import OSSAsset, OSSAssetModel, OSSAssetRef
 from bastion.domain.assetkind import AssetKind
 from bastion.domain.platform import Platform
-
-import warnings
 
 warnings.filterwarnings("ignore")
 pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
@@ -258,7 +257,7 @@ class TestOSSAssetInspect:
         """Test inspect with a mocked adaptor."""
         # Create mock adaptor
         mock_adaptor = Mock(spec=IOSSAdaptorLike)
-        
+
         # Create mock OSS objects
         mock_obj = Mock()
         mock_obj.key = "data/file.parquet"
@@ -266,7 +265,7 @@ class TestOSSAssetInspect:
         mock_dt = Mock()
         mock_dt.astimezone.return_value = datetime(2024, 1, 15, tzinfo=UTC)
         mock_obj.last_modified = mock_dt
-        
+
         mock_adaptor.list_objects.return_value = [mock_obj]
 
         # Create asset
@@ -291,7 +290,7 @@ class TestOSSAssetInspect:
         """Test inspect with partitioned data."""
         # Create mock adaptor
         mock_adaptor = Mock(spec=IOSSAdaptorLike)
-        
+
         # Create mock OSS objects
         mock_obj = Mock()
         mock_obj.key = "data/year=2024/month=01/file.parquet"
@@ -299,7 +298,7 @@ class TestOSSAssetInspect:
         mock_dt = Mock()
         mock_dt.astimezone.return_value = datetime(2024, 1, 15, tzinfo=UTC)
         mock_obj.last_modified = mock_dt
-        
+
         mock_adaptor.list_objects.return_value = [mock_obj]
 
         # Create asset with partitions

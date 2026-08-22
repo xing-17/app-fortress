@@ -1,21 +1,22 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
-import fnmatch
-from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 
 from bastion.control.asset.base.base import IAdaptorLike
+
 
 @runtime_checkable
 class IS3AdaptorLike(IAdaptorLike, Protocol):
     """
     Protocol an adaptor that can read files from S3.
-    
+
     Methods:
         list_objects: List files in a directory matching a pattern, with optional time slicing and limit
-        
+
     """
+
     def list_objects(
         self,
         bucket: str,
@@ -29,7 +30,7 @@ class IS3AdaptorLike(IAdaptorLike, Protocol):
 class S3Adaptor(IS3AdaptorLike):
     """
     An adaptor that can read files from S3.
-    
+
     Args:
         access_key_id: AWS access key ID (optional)
         access_key_secret: AWS secret access key (optional)
@@ -38,11 +39,12 @@ class S3Adaptor(IS3AdaptorLike):
         region: AWS region (optional)
         profile: AWS profile name (optional)
         kwargs: Additional keyword arguments for boto3 session (optional)
-    
+
     Methods:
         list_objects: List files in an S3 bucket under a prefix, with optional time slicing and limit
-        
+
     """
+
     def __init__(
         self,
         access_key_id: str | None = None,
@@ -62,16 +64,17 @@ class S3Adaptor(IS3AdaptorLike):
             "aws_account_id": account_id,
             **kwargs,
         }
-    
+
     def _get_client(self):
         try:
             import boto3
+
             _args = {k: v for k, v in self._creds.items() if v is not None}
             session = boto3.session.Session(**_args)
             return session.client("s3")
         except ImportError as e:
             raise ImportError(f"boto3 is required for S3Adaptor: {e}") from e
-    
+
     def _slice_by_time(
         self,
         files: list[dict[str, str | int | datetime]],
@@ -91,7 +94,7 @@ class S3Adaptor(IS3AdaptorLike):
                 continue
             _filtered.append(file)
         return _filtered
-    
+
     def _slice_by_limit(
         self,
         files: list[dict],
@@ -102,7 +105,7 @@ class S3Adaptor(IS3AdaptorLike):
         if limit <= 0 or limit > len(files):
             return files
         return files[:limit]
-    
+
     def list_objects(
         self,
         bucket: str,
@@ -123,7 +126,7 @@ class S3Adaptor(IS3AdaptorLike):
         for _page in _iterator:
             for obj in _page.get("Contents", []):
                 _result.append(obj)
-        _result=self._slice_by_time(_result, since=since, until=until)
-        _result=self._slice_by_limit(_result, limit=limit)
+        _result = self._slice_by_time(_result, since=since, until=until)
+        _result = self._slice_by_limit(_result, limit=limit)
         _result.sort(key=lambda x: x.get("LastModified"), reverse=True)
         return _result

@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from pathlib import Path
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 
 from bastion.control.asset.base.base import IAdaptorLike
+
 
 @runtime_checkable
 class IOSSAdaptorLike(IAdaptorLike, Protocol):
     """
     Protocol an adaptor that can read files from OSS.
-    
+
     Methods:
         list_objects: List files in a directory matching a pattern, with optional time slicing and limit
-        
+
     """
+
     def list_objects(
         self,
         bucket: str,
@@ -29,16 +30,16 @@ class OSSAdaptor(IOSSAdaptorLike):
     """
     An adaptor that can read files from OSS.
     deps: alibabacloud_credential
-    
-    
+
+
     Methods:
         list_objects: List files in a directory matching a pattern, with optional time slicing and limit
-        
+
     Dependencies:
         alibabacloud_oss_v2: Required for interacting with Alibaba Cloud OSS.
-        
+
     """
-    
+
     def __init__(
         self,
         region: str,
@@ -54,7 +55,7 @@ class OSSAdaptor(IOSSAdaptorLike):
             "access_key_secret": access_key_secret,
             **kwargs,
         }
-        
+
     def _get_client(self):
         try:
             import alibabacloud_oss_v2 as ossv2
@@ -62,6 +63,7 @@ class OSSAdaptor(IOSSAdaptorLike):
                 EnvironmentVariableCredentialsProvider,
                 StaticCredentialsProvider,
             )
+
             _args = {k: v for k, v in self._creds.items() if v is not None}
             if not _args:
                 _provider = EnvironmentVariableCredentialsProvider()
@@ -82,7 +84,7 @@ class OSSAdaptor(IOSSAdaptorLike):
             raise ImportError(f"alibabacloud_oss_v2 is required for OSSAdaptor: {e}") from e
         except Exception as e:
             raise RuntimeError(f"Failed to create OSS client: {e}") from e
-            
+
     def _get_oss_paginator(self):
         _client = self._get_client()
         try:
@@ -92,7 +94,7 @@ class OSSAdaptor(IOSSAdaptorLike):
             raise ImportError(f"alibabacloud_oss_v2 is required for OSSAdaptor: {e}") from e
         except Exception as e:
             raise RuntimeError(f"Failed to create OSS paginator: {e}") from e
-            
+
     def _get_oss_request(
         self,
         bucket: str,
@@ -100,6 +102,7 @@ class OSSAdaptor(IOSSAdaptorLike):
     ) -> object:
         try:
             import alibabacloud_oss_v2 as ossv2
+
             _request = ossv2.ListObjectsV2Request(
                 bucket=bucket,
                 prefix=prefix,
@@ -109,7 +112,7 @@ class OSSAdaptor(IOSSAdaptorLike):
             raise ImportError(f"alibabacloud_oss_v2 is required for OSSAdaptor: {e}") from e
         except Exception as e:
             raise RuntimeError(f"Failed to build OSS request: {e}") from e
-            
+
     def _slice_by_time(
         self,
         files: list[object],
@@ -129,7 +132,7 @@ class OSSAdaptor(IOSSAdaptorLike):
                 continue
             _filtered.append(file)
         return _filtered
-    
+
     def _slice_by_limit(
         self,
         files: list[object],
@@ -140,7 +143,7 @@ class OSSAdaptor(IOSSAdaptorLike):
         if limit <= 0 or limit > len(files):
             return files
         return files[:limit]
-    
+
     def list_objects(
         self,
         bucket: str,
@@ -155,7 +158,7 @@ class OSSAdaptor(IOSSAdaptorLike):
         for _ite in _paginator.iter_page(_request):
             for obj in _ite.contents or []:
                 _result.append(obj)
-        _result=self._slice_by_time(_result, since=since, until=until)
-        _result=self._slice_by_limit(_result, limit=limit)
+        _result = self._slice_by_time(_result, since=since, until=until)
+        _result = self._slice_by_limit(_result, limit=limit)
         _result.sort(key=lambda x: x.last_modified, reverse=True)
         return _result

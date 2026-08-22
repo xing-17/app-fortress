@@ -9,6 +9,7 @@ Tests cover:
 
 from __future__ import annotations
 
+import warnings
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -18,8 +19,6 @@ from bastion.control.asset.s3.adaptor import IS3AdaptorLike, S3Adaptor
 from bastion.control.asset.s3.s3 import S3Asset, S3AssetModel, S3AssetRef
 from bastion.domain.assetkind import AssetKind
 from bastion.domain.platform import Platform
-
-import warnings
 
 warnings.filterwarnings("ignore")
 pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
@@ -350,7 +349,7 @@ class TestS3AssetInspect:
         assert refs[0].size == 1024
         assert refs[1].uri == "s3://my-bucket/data/file2.parquet"
         assert refs[1].size == 2048
-        
+
         # Check that list_objects was called with correct parameters
         mock_adaptor.list_objects.assert_called_once_with(
             bucket="my-bucket",
@@ -410,8 +409,8 @@ class TestS3AssetInspect:
 
         since = datetime(2024, 1, 1, tzinfo=UTC)
         until = datetime(2024, 1, 10, tzinfo=UTC)
-        
-        refs = asset.inspect(adaptor=mock_adaptor, since=since, until=until)
+
+        _ = asset.inspect(adaptor=mock_adaptor, since=since, until=until)
 
         # Verify parameters passed to list_objects
         mock_adaptor.list_objects.assert_called_once_with(
