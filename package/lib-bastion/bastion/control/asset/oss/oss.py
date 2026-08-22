@@ -12,8 +12,7 @@ from bastion.control.asset.base.factory import AssetFactory
 from bastion.domain.asset import BaseAssetModel
 from bastion.domain.assetref import BaseAssetRefModel
 from bastion.domain.platform import Platform
-
-logger = logging.getLogger(__name__)
+from bastion.control.asset.oss.adaptor import IOSSAdaptorLike, OSSAdaptor
 
 
 class _OSSObjectMixin:
@@ -46,7 +45,7 @@ class OSSAssetRef(
         default=None,
         description="Region of the OSS bucket",
     )
-
+    
     @computed_field
     @property
     def bucket(self) -> str:
@@ -167,76 +166,42 @@ class OSSAsset(
                 result[_key] = _value
         return result
 
-    def _oss_create_client(self) -> object:
-        try:
-            import alibabacloud_oss_v2 as ossv2
-
-            _cred = ossv2.credentials.EnvironmentVariableCredentialsProvider()
-            _cfg = ossv2.config.load_default()
-            _cfg.credentials_provider = _cred
-            _cfg.region = self.domain.region
-            if self.domain.endpoint:
-                _cfg.endpoint = self.domain.endpoint
-            _client = ossv2.Client(_cfg)
-            return _client
-        except ImportError as e:
-            raise ImportError(f"alibabacloud_oss_v2 is required for OSSAsset: {e}") from e
-        except Exception as e:
-            raise RuntimeError(f"Failed to create OSS bucket client: {e}") from e
-
-    def _oss_get_object_paginator(
-        self,
-        client: object,
-    ) -> object:
-        try:
-            _paginator = client.list_objects_v2_paginator()
-            return _paginator
-        except ImportError as e:
-            raise ImportError(f"alibabacloud_oss_v2 is required for OSSAsset: {e}") from e
-        except Exception as e:
-            raise RuntimeError(f"Failed to create OSS object paginator: {e}") from e
-
-    def _oss_build_request(self) -> object:
-        try:
-            import alibabacloud_oss_v2 as ossv2
-
-            _request = ossv2.ListObjectsV2Request(
-                bucket=self.domain.bucket,
-                prefix=self.domain.prefix,
-            )
-            return _request
-        except ImportError as e:
-            raise ImportError(f"alibabacloud_oss_v2 is required for OSSAsset: {e}") from e
-        except Exception as e:
-            raise RuntimeError(f"Failed to build OSS request: {e}") from e
-
     def inspect(
         self,
-        client: object | None = None,
+        adaptor: IOSSAdaptorLike | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int | None = None,
     ) -> list[OSSAssetRef]:
-        _client: object = client or self._oss_create_client()
-        _paginator: object = self._oss_get_object_paginator(_client)
-        _request: object = self._oss_build_request()
+        _adaptor: IOSSAdaptorLike = adaptor or OSSAdaptor(
+            region=self.domain.region,
+            endpoint=self.domain.endpoint,
+        )
         refs: list[OSSAssetRef] = []
-        for _ite in _paginator.iter_page(_request):
-            for obj in _ite.contents:
-                _bucket_name: str = self.domain.bucket
-                _key: str = obj.key
-                _region: str | None = self.domain.region
-                _uri: str = f"oss://{_bucket_name}/{_key}"
-                _size: int = obj.size
-                _partitions: dict[str, str] = self._parse_partition(_key)
-                _dt: datetime = obj.last_modified
-                _modified_at: datetime = _dt.astimezone(UTC)
-                ref = OSSAssetRef(
-                    uri=_uri,
-                    size=_size,
-                    modified_at=_modified_at,
-                    partitions=_partitions,
-                    region=_region,
-                )
-                refs.append(ref)
+        _all_files = _adaptor.list_objects(
+            bucket=self.domain.bucket,
+            prefix=self.domain.prefix,
+            since=since,
+            until=until,
+            limit=limit,
+        )
+        _bucket: str = self.domain.bucket
+        _region: str | None = self.domain.region
+        for file in _all_files:
+            _key: str = file.key
+            _uri: str = f"oss://{_bucket}/{_key}"
+            _size: int = file.size
+            _partitions: dict[str, str] = self._parse_partition(_key)
+            _dt: datetime = file.last_modified
+            _modified_at: datetime = _dt.astimezone(UTC)
+            ref = OSSAssetRef(
+                uri=_uri,
+                size=_size,
+                modified_at=_modified_at,
+                partitions=_partitions,
+                region=_region,
+            )
+            refs.append(ref)
 
-        logger.info(f"Found {len(refs)} objects for asset '{self.domain.name}'")
         self.domain.refs = refs
         return refs

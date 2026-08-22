@@ -54,6 +54,25 @@ class IAssetRefLike(Protocol):
 
 
 @runtime_checkable
+class IAdaptorLike(Protocol):
+    """
+    Represents a storage adaptor that can read files.
+
+    Methods:
+        list_objects: List all objects under a given path
+        
+    """
+
+    def list_objects(
+        self,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int | None = None,
+        **kwargs: Any,
+    ) -> list[Any]: ...
+
+
+@runtime_checkable
 class IAssetLike(Protocol):
     """
     Represents a logical data asset that may consist of multiple files.
@@ -107,7 +126,13 @@ class IAssetLike(Protocol):
         domain: BaseAssetModel,
     ) -> IAssetLike: ...
 
-    def inspect(self, **kwargs) -> None: ...
+    def inspect(
+        self,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int | None = None,
+        adaptor: IAdaptorLike = None,
+    ) -> None: ...
 
     def export(self) -> dict[str, Any]: ...
 

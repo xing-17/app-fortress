@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -12,8 +11,8 @@ from bastion.control.asset.base.factory import AssetFactory
 from bastion.domain.asset import BaseAssetModel
 from bastion.domain.assetref import BaseAssetRefModel
 from bastion.domain.platform import Platform
+from bastion.control.asset.s3.adaptor import IS3AdaptorLike, S3Adaptor
 
-logger = logging.getLogger(__name__)
 
 
 class _S3ObjectMixin:
@@ -157,23 +156,6 @@ class S3Asset(
 
     _domain_class: type[S3AssetModel] = S3AssetModel
 
-    def _parse_partition(
-        self,
-        key: str,
-    ) -> dict[str, str]:
-        if not self.domain.partitions:
-            return {}
-        result: dict[str, str] = {}
-        relative_key = key[len(self.domain.prefix) :].lstrip("/")
-        parts = relative_key.split("/")
-        for part in parts:
-            if "=" not in part:
-                continue
-            _key, _value = part.split("=", 1)
-            if _key in self.domain.partitions:
-                result[_key] = _value
-        return result
-
     def _s3_create_client(self) -> object:
         try:
             import boto3
@@ -201,36 +183,60 @@ class S3Asset(
         except Exception as e:
             raise RuntimeError(f"Failed to get S3 paginator: {e}") from e
 
+    def _resolve_partition(
+        self,
+        key: str,
+    ) -> dict[str, str]:
+        if not self.domain.partitions:
+            return {}
+        result: dict[str, str] = {}
+        relative_key = key[len(self.domain.prefix) :].lstrip("/")
+        parts = relative_key.split("/")
+        for part in parts:
+            if "=" not in part:
+                continue
+            _key, _value = part.split("=", 1)
+            if _key in self.domain.partitions:
+                result[_key] = _value
+        return result
+    
     def inspect(
         self,
-        client: object | None = None,
+        adaptor: IS3AdaptorLike | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int | None = None,
     ) -> list[S3AssetRef]:
-        # Ensure boto3 is available
-        _client = client or self._s3_create_client()
-        _iterator = self._s3_get_page_iterator(_client)
-        refs: list[S3AssetRef] = []
-        for _ite in _iterator:
-            for obj in _ite.get("Contents", []):
-                _bucket: str = self.domain.bucket
-                _key: str = obj["Key"]
-                _region: str | None = self.domain.region
-                _uri: str = f"s3://{_bucket}/{_key}"
-                _size: int = obj.get("Size", 0)
-                _modified_at: datetime | None = obj.get("LastModified")
-                _etag: str | None = obj.get("ETag")
-                _storage_class: str | None = obj.get("StorageClass")
-                _partitions: dict[str, str] = self._parse_partition(_key)
-                ref = S3AssetRef(
-                    uri=_uri,
-                    size=_size,
-                    modified_at=_modified_at,
-                    etag=_etag,
-                    storage_class=_storage_class,
-                    partitions=_partitions,
-                    region=_region,
-                )
-                refs.append(ref)
+        _adaptor: IS3AdaptorLike = adaptor or S3Adaptor()
+        _refs: list[S3AssetRef] = []
+        _all_files: list[dict] = _adaptor.list_objects(
+            bucket=self.domain.bucket,
+            prefix=self.domain.prefix,
+            since=since,
+            until=until,
+            limit=limit,
+        )
+        _bucket: str = self.domain.bucket
+        _region: str | None = self.domain.region
+        for file in _all_files:
+            _key: str = file["Key"]
+            _uri: str = f"s3://{_bucket}/{_key}"
+            _size: int = file.get("Size", 0)
+            _modified_at: datetime | None = file.get("LastModified")
+            _etag: str | None = file.get("ETag")
+            _storage_class: str | None = file.get("StorageClass")
+            _partitions: dict[str, str] = self._resolve_partition(_key)
+            _ref = S3AssetRef(
+                uri=_uri,
+                size=_size,
+                modified_at=_modified_at,
+                etag=_etag,
+                storage_class=_storage_class,
+                partitions=_partitions,
+                region=_region,
+            )
+            _refs.append(_ref)
 
-        logger.info(f"Found {len(refs)} objects for asset '{self.domain.name}'")
-        self.domain.refs = refs
-        return refs
+        # Store the refs in the instance for later use
+        self.domain.refs = _refs
+        return _refs

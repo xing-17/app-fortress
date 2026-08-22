@@ -21,8 +21,15 @@ from bastion.control.asset.local.local import (
     LocalAssetModel,
     LocalAssetRef,
 )
+from bastion.control.asset.local.adaptor import ILocalAdaptorLike, LocalAdaptor
 from bastion.domain.assetkind import AssetKind
 from bastion.domain.platform import Platform
+
+import warnings
+
+warnings.filterwarnings("ignore")
+pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
+
 
 # ============================================================================
 # LocalAssetRef Tests
@@ -570,6 +577,261 @@ class TestLocalAssetInspect:
         assert len(refs) == 2
         file_names = {ref.name for ref in refs}
         assert file_names == {"root.parquet", "nested.parquet"}
+
+    def test_inspect_with_default_adaptor(self, tmp_path: Path):
+        """Test inspect with default adaptor (no adaptor argument)."""
+        # Create test files
+        (tmp_path / "file1.parquet").write_text("data1")
+        (tmp_path / "file2.parquet").write_text("data2")
+
+        asset = LocalAsset(
+            name="test",
+            path=str(tmp_path),
+            kind=AssetKind.PARQUET,
+            platform=Platform.LOCAL,
+        )
+
+        # Inspect without specifying adaptor (uses default LocalAdaptor)
+        refs = asset.inspect()
+
+        assert len(refs) == 2
+        assert all(ref.name.endswith(".parquet") for ref in refs)
+
+    def test_inspect_with_explicit_adaptor(self, tmp_path: Path):
+        """Test inspect with explicitly provided adaptor."""
+        # Create test files
+        (tmp_path / "file1.csv").write_text("data1")
+        (tmp_path / "file2.csv").write_text("data2")
+
+        asset = LocalAsset(
+            name="test",
+            path=str(tmp_path),
+            kind=AssetKind.CSV,
+            platform=Platform.LOCAL,
+        )
+
+        # Create explicit adaptor instance
+        adaptor = LocalAdaptor()
+        refs = asset.inspect(adaptor=adaptor)
+
+        assert len(refs) == 2
+        assert all(ref.name.endswith(".csv") for ref in refs)
+
+    def test_inspect_with_since_parameter(self, tmp_path: Path):
+        """Test inspect with since time filter."""
+        # Create old file
+        old_file = tmp_path / "old.parquet"
+        old_file.write_text("old data")
+
+        # Record time after first file
+        time.sleep(0.1)
+        since_time = datetime.now(UTC)
+        time.sleep(0.1)
+
+        # Create new file
+        new_file = tmp_path / "new.parquet"
+        new_file.write_text("new data")
+
+        asset = LocalAsset(
+            name="test",
+            path=str(tmp_path),
+            kind=AssetKind.PARQUET,
+            platform=Platform.LOCAL,
+        )
+
+        # Inspect with since filter
+        adaptor = LocalAdaptor()
+        refs = asset.inspect(adaptor=adaptor, since=since_time)
+
+        # Should only find the new file
+        assert len(refs) == 1
+        assert refs[0].name == "new.parquet"
+
+    def test_inspect_with_until_parameter(self, tmp_path: Path):
+        """Test inspect with until time filter."""
+        # Create first file
+        file1 = tmp_path / "file1.parquet"
+        file1.write_text("data1")
+
+        time.sleep(0.1)
+        until_time = datetime.now(UTC)
+        time.sleep(0.1)
+
+        # Create second file
+        file2 = tmp_path / "file2.parquet"
+        file2.write_text("data2")
+
+        asset = LocalAsset(
+            name="test",
+            path=str(tmp_path),
+            kind=AssetKind.PARQUET,
+            platform=Platform.LOCAL,
+        )
+
+        # Inspect with until filter
+        adaptor = LocalAdaptor()
+        refs = asset.inspect(adaptor=adaptor, until=until_time)
+
+        # Should only find file1
+        assert len(refs) == 1
+        assert refs[0].name == "file1.parquet"
+
+    def test_inspect_with_time_range(self, tmp_path: Path):
+        """Test inspect with both since and until filters."""
+        # Create files at different times
+        file1 = tmp_path / "file1.parquet"
+        file1.write_text("data1")
+        time.sleep(0.1)
+
+        since_time = datetime.now(UTC)
+        time.sleep(0.1)
+
+        file2 = tmp_path / "file2.parquet"
+        file2.write_text("data2")
+        time.sleep(0.1)
+
+        until_time = datetime.now(UTC)
+        time.sleep(0.1)
+
+        file3 = tmp_path / "file3.parquet"
+        file3.write_text("data3")
+
+        asset = LocalAsset(
+            name="test",
+            path=str(tmp_path),
+            kind=AssetKind.PARQUET,
+            platform=Platform.LOCAL,
+        )
+
+        # Inspect with time range
+        adaptor = LocalAdaptor()
+        refs = asset.inspect(adaptor=adaptor, since=since_time, until=until_time)
+
+        # Should only find file2
+        assert len(refs) == 1
+        assert refs[0].name == "file2.parquet"
+
+    def test_inspect_with_limit_parameter(self, tmp_path: Path):
+        """Test inspect with limit on number of results."""
+        # Create multiple files
+        for i in range(10):
+            (tmp_path / f"file_{i}.parquet").write_text(f"data {i}")
+
+        asset = LocalAsset(
+            name="test",
+            path=str(tmp_path),
+            kind=AssetKind.PARQUET,
+            platform=Platform.LOCAL,
+        )
+
+        # Inspect with limit
+        adaptor = LocalAdaptor()
+        refs = asset.inspect(adaptor=adaptor, limit=5)
+
+        # Should return exactly 5 files
+        assert len(refs) == 5
+        assert all(ref.name.endswith(".parquet") for ref in refs)
+
+    def test_inspect_with_all_parameters(self, tmp_path: Path):
+        """Test inspect with all parameters: adaptor, since, until, limit."""
+        # Create multiple files with delays
+        for i in range(10):
+            (tmp_path / f"file_{i}.csv").write_text(f"data {i}")
+            time.sleep(0.05)
+
+        # Get time range (skip first and last files)
+        all_files = sorted(tmp_path.glob("*.csv"), key=lambda f: f.stat().st_mtime)
+        since_time = datetime.fromtimestamp(all_files[2].stat().st_mtime, tz=UTC)
+        until_time = datetime.fromtimestamp(all_files[8].stat().st_mtime, tz=UTC)
+
+        asset = LocalAsset(
+            name="test",
+            path=str(tmp_path),
+            kind=AssetKind.CSV,
+            platform=Platform.LOCAL,
+        )
+
+        # Inspect with all parameters
+        adaptor = LocalAdaptor()
+        refs = asset.inspect(
+            adaptor=adaptor,
+            since=since_time,
+            until=until_time,
+            limit=3,
+        )
+
+        # Should return at most 3 files within the time range
+        assert len(refs) <= 3
+        assert len(refs) > 0
+
+    def test_inspect_with_custom_adaptor_implementation(self, tmp_path: Path):
+        """Test inspect with custom adaptor implementation."""
+        # Create a custom adaptor that filters files by name
+        class FilteringAdaptor(ILocalAdaptorLike):
+            def list_objects(
+                self,
+                path: Path,
+                pattern: str,
+                since: datetime | None = None,
+                until: datetime | None = None,
+                limit: int | None = None,
+            ) -> list[Path]:
+                # Only return files with "special" in the name
+                all_files = list(path.rglob(pattern))
+                filtered = [f for f in all_files if "special" in f.name]
+                return filtered[:limit if limit else None]
+
+        # Create test files
+        (tmp_path / "normal1.parquet").write_text("data1")
+        (tmp_path / "special1.parquet").write_text("data2")
+        (tmp_path / "normal2.parquet").write_text("data3")
+        (tmp_path / "special2.parquet").write_text("data4")
+
+        asset = LocalAsset(
+            name="test",
+            path=str(tmp_path),
+            kind=AssetKind.PARQUET,
+            platform=Platform.LOCAL,
+        )
+
+        # Use custom adaptor
+        custom_adaptor = FilteringAdaptor()
+        refs = asset.inspect(adaptor=custom_adaptor)
+
+        # Should only find files with "special" in name
+        assert len(refs) == 2
+        assert all("special" in ref.name for ref in refs)
+
+    def test_inspect_partitioned_with_adaptor_filters(self, tmp_path: Path):
+        """Test inspect on partitioned data with adaptor time filters."""
+        # Create partitioned structure with delays
+        for year in ["2023", "2024"]:
+            for month in ["01", "02"]:
+                dir_path = tmp_path / f"year={year}" / f"month={month}"
+                dir_path.mkdir(parents=True)
+                (dir_path / f"data_{year}_{month}.parquet").write_text(f"data-{year}-{month}")
+                time.sleep(0.1)
+
+        # Get middle timestamp
+        all_files = sorted(tmp_path.rglob("*.parquet"), key=lambda f: f.stat().st_mtime)
+        middle_time = datetime.fromtimestamp(all_files[1].stat().st_mtime, tz=UTC)
+
+        asset = LocalAsset(
+            name="partitioned",
+            path=str(tmp_path),
+            kind=AssetKind.PARQUET,
+            platform=Platform.LOCAL,
+            partitions=["year", "month"],
+        )
+
+        # Inspect with since filter
+        adaptor = LocalAdaptor()
+        refs = asset.inspect(adaptor=adaptor, since=middle_time)
+
+        # Should find files after middle_time
+        assert len(refs) >= 2
+        assert all(ref.partitions.get("year") in ["2023", "2024"] for ref in refs)
+        assert all(ref.partitions.get("month") in ["01", "02"] for ref in refs)
 
 
 # ============================================================================

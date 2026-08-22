@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import logging
+import warnings
 from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import Field, computed_field
 
 from bastion._internal.object import IBastionObject
-from bastion.control.asset.base.base import IAssetLike
+from bastion.control.asset.base.base import IAdaptorLike, IAssetLike
 from bastion.control.asset.base.factory import AssetFactory
 from bastion.domain.asset import BaseAssetModel
 from bastion.domain.assetref import BaseAssetRefModel
 from bastion.domain.platform import Platform
-
-logger = logging.getLogger(__name__)
+from bastion.control.asset.local.adaptor import ILocalAdaptorLike, LocalAdaptor
 
 
 class LocalAssetRef(BaseAssetRefModel):
@@ -150,20 +149,35 @@ class LocalAsset(
                 result[key] = value
         return result
 
-    def inspect(self) -> list[LocalAssetRef]:
+    def inspect(
+        self,
+        adaptor: ILocalAdaptorLike | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int | None = None,
+    ) -> list[LocalAssetRef]:
+        _adaptor: ILocalAdaptorLike = adaptor or LocalAdaptor()
         _root: Path = self._resolve_path()
         _pattern: str = self._resolve_glob_pattern()
-        refs: list[LocalAssetRef] = []
+        _refs: list[LocalAssetRef] = []
 
         # Check if the path exists
         if not _root.exists():
-            logger.warning(f"Path does not exist: {_root}")
+            msg = f"Path does not exist: {_root}"
+            warnings.warn(msg)
         # Check if the path is a file
         elif _root.is_file():
-            logger.warning(f"Path is not a directory: {_root}")
+            msg = f"Path is a file, not a directory: {_root}"
+            warnings.warn(msg)
         else:
-            # Use rglob to find all files matching the pattern
-            for file in _root.rglob(_pattern):
+            _all_files = _adaptor.list_objects(
+                path=_root,
+                pattern=_pattern,
+                since=since,
+                until=until,
+                limit=limit,
+            )
+            for file in _all_files:
                 _stat = file.stat()
                 _uri: str = str(file.expanduser().resolve())
                 _parts: dict[str, str] = self._resolve_partition(file)
@@ -178,9 +192,8 @@ class LocalAsset(
                     size=_size,
                     modified_at=_updated_at,
                 )
-                refs.append(_ref)
+                _refs.append(_ref)
 
         # Store the refs in the instance for later use
-        logger.info(f"Found {len(refs)} objects in  {_pattern}")
-        self.domain.refs = refs
-        return refs
+        self.domain.refs = _refs
+        return _refs
