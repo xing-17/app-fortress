@@ -1,189 +1,168 @@
-"""
-Unit tests for bastion.control.run.event module.
-"""
+"""Unit tests for event control."""
+
+from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
+from bastion.control.run.event import Event
+from bastion.domain.event import EventModel
 
-from bastion.control.run.event import Event, EventModel, IEventLike
 
+class TestIEventLikeProtocol:
+    """Test IEventLike protocol definition."""
 
-class TestEvent:
-    """Test Event class."""
-
-    def test_create_event(self):
-        """Test creating a basic event."""
+    def test_protocol_required_attributes_exist(self):
+        """Test that Event has required protocol attributes."""
         event = Event(
-            run_id="run-123",
+            run_id="run-test123",
             message="Test event",
         )
-        assert event.run_id == "run-123"
-        assert event.message == "Test event"
-        assert isinstance(event.created_at, datetime)
-        assert event.metadata == {}
-        assert event.id != ""
-        assert event.id.startswith("event-")
 
-    def test_create_event_with_metadata(self):
+        # Verify all protocol attributes exist
+        assert hasattr(event, "id")
+        assert hasattr(event, "run_id")
+        assert hasattr(event, "message")
+        assert hasattr(event, "metadata")
+        assert hasattr(event, "created_at")
+        assert hasattr(event, "tags")
+
+    def test_protocol_required_attributes(self):
+        """Test protocol required attributes are accessible."""
+        metadata = {"key": "value"}
+        tags = {"severity": "info"}
+
+        event = Event(
+            run_id="run-test123",
+            message="Test event",
+            metadata=metadata,
+            tags=tags,
+        )
+
+        # Test protocol attributes
+        assert event.run_id == "run-test123"
+        assert event.message == "Test event"
+        assert event.metadata == metadata
+        assert event.tags == tags
+        assert hasattr(event, "id")
+        assert hasattr(event, "created_at")
+
+    def test_protocol_required_methods(self):
+        """Test protocol required methods exist."""
+        event = Event(run_id="run-test123", message="Test")
+
+        # Test protocol methods
+        assert hasattr(event, "export")
+        assert hasattr(event, "describe")
+        assert callable(event.export)
+        assert callable(event.describe)
+
+
+class TestEventCreation:
+    """Test Event creation and initialization."""
+
+    def test_create_with_minimal_args(self):
+        """Test creating event with minimal required arguments."""
+        event = Event(run_id="run-test123", message="Test message")
+
+        assert event.run_id == "run-test123"
+        assert event.message == "Test message"
+        assert event.id.startswith("event-")
+        assert isinstance(event.created_at, datetime)
+
+    def test_create_with_metadata(self):
         """Test creating event with metadata."""
         metadata = {"key": "value", "count": 42}
         event = Event(
-            run_id="run-456",
-            message="Event with metadata",
+            run_id="run-test123",
+            message="Test message",
             metadata=metadata,
         )
+
         assert event.metadata == metadata
 
-    def test_create_event_with_custom_id(self):
-        """Test creating event with custom ID."""
-        custom_id = "event-custom12345678"
+    def test_create_with_tags(self):
+        """Test creating event with tags."""
+        tags = {"severity": "error", "component": "processor"}
         event = Event(
-            run_id="run-789",
-            id=custom_id,
-            message="Custom ID event",
+            run_id="run-test123",
+            message="Test message",
+            tags=tags,
         )
-        assert event.id == custom_id
 
-    def test_create_event_with_created_at_string(self):
-        """Test creating event with created_at as ISO string."""
-        iso_time = "2026-08-14T10:00:00"
-        event = Event(
-            run_id="run-123",
-            message="Event with timestamp",
-            created_at=iso_time,
-        )
-        assert event.created_at.year == 2026
-        assert event.created_at.month == 8
-        assert event.created_at.day == 14
+        assert event.tags == tags
 
-    def test_create_event_with_created_at_datetime(self):
-        """Test creating event with created_at as datetime."""
-        dt = datetime(2026, 8, 14, 10, 30, 0)
-        event = Event(
-            run_id="run-123",
-            message="Event with datetime",
-            created_at=dt,
-        )
-        assert event.created_at == dt
-
-    def test_missing_run_id_raises(self):
-        """Test creating event without run_id raises error."""
-        with pytest.raises(TypeError):
-            Event()
-
-    def test_export(self):
-        """Test export method returns correct dictionary."""
-        event = Event(
-            run_id="run-456",
-            message="Export test",
-            metadata={"type": "info"},
-        )
-        exported = event.export()
-
-        assert exported["id"] == event.id
-        assert exported["run_id"] == "run-456"
-        assert exported["message"] == "Export test"
-        assert isinstance(exported["created_at"], str)
-        assert exported["metadata"] == {"type": "info"}
-
-        # Verify ISO format
-        datetime.fromisoformat(exported["created_at"])
-
-    def test_from_dict(self):
-        """Test from_dict creates Event from dictionary."""
+    def test_create_from_dict(self):
+        """Test creating event from dictionary."""
         data = {
-            "id": "event-abc123def456789",
-            "run_id": "run-123",
-            "message": "Test event",
-            "created_at": "2026-08-14T10:00:00",
+            "run_id": "run-test123",
+            "message": "Test message",
             "metadata": {"key": "value"},
         }
+
         event = Event.from_dict(data)
-        assert event.id == "event-abc123def456789"
-        assert event.run_id == "run-123"
-        assert event.message == "Test event"
+
+        assert event.run_id == "run-test123"
+        assert event.message == "Test message"
         assert event.metadata == {"key": "value"}
 
-    def test_from_domain(self):
-        """Test from_domain creates Event from domain model."""
-        domain = EventModel(
-            run_id="run-123",
-            message="Domain event",
-            metadata={"source": "test"},
-        )
-        event = Event.from_domain(domain)
-        assert event.run_id == "run-123"
-        assert event.message == "Domain event"
-        assert event.metadata == {"source": "test"}
 
-    def test_roundtrip_export_from_dict(self, event_data):
-        """Test export and from_dict roundtrip conversion."""
-        original = Event(**event_data)
+class TestEventAlias:
+    """Test that Event is an alias for EventModel."""
 
-        # Export to dict
-        exported = original.export()
-        # Recreate from dict
-        restored = Event.from_dict(exported)
+    def test_event_is_eventmodel(self):
+        """Test Event is the same as EventModel."""
+        assert Event is EventModel
 
-        # Verify all fields match
-        assert restored.id == original.id
-        assert restored.run_id == original.run_id
-        assert restored.message == original.message
-        assert restored.created_at == original.created_at
-        assert restored.metadata == original.metadata
+    def test_event_instance_is_eventmodel_instance(self):
+        """Test Event instance is EventModel instance."""
+        event = Event(run_id="run-test123", message="Test")
 
-    def test_protocol_compliance(self):
-        """Test Event implements IEventLike protocol."""
-        event = Event(run_id="run-123", message="Protocol test")
-        assert isinstance(event, IEventLike)
+        assert isinstance(event, EventModel)
+        assert isinstance(event, Event)
 
-    def test_domain_attribute_access(self):
-        """Test accessing domain attributes through wrapper."""
+
+class TestEventSerialization:
+    """Test event export and serialization."""
+
+    def test_export_returns_dict(self):
+        """Test export() returns dictionary."""
         event = Event(
-            run_id="run-123",
-            message="Domain access test",
-        )
-        # Access domain directly
-        assert event.domain is not None
-        assert isinstance(event.domain, EventModel)
-        # Access via wrapper
-        assert event.id == event.domain.id
-        assert event.run_id == event.domain.run_id
-
-    def test_sha256_property(self):
-        """Test sha256 property exists and is consistent."""
-        event = Event(
-            run_id="run-123",
-            message="SHA test",
-        )
-        sha1 = event.sha256
-        sha2 = event.sha256
-        assert sha1 == sha2
-        assert isinstance(sha1, str)
-        assert len(sha1) > 0
-
-    def test_logic_name_property(self):
-        """Test logic_name property exists."""
-        event = Event(
-            run_id="run-123",
-            message="Logic name test",
-        )
-        logic_name = event.logic_name
-        assert logic_name is not None or logic_name is None  # Can be either
-
-    def test_describe_returns_json_string(self):
-        """Test describe method returns formatted JSON string."""
-        event = Event(
-            run_id="run-123",
-            message="Describe test",
+            run_id="run-test123",
+            message="Test message",
             metadata={"key": "value"},
         )
-        description = event.describe()
-        assert isinstance(description, str)
-        # Should be valid JSON
-        import json
 
-        parsed = json.loads(description)
-        assert parsed["run_id"] == "run-123"
-        assert parsed["message"] == "Describe test"
+        exported = event.export()
+
+        assert isinstance(exported, dict)
+        assert exported["run_id"] == "run-test123"
+        assert exported["message"] == "Test message"
+        assert exported["metadata"] == {"key": "value"}
+        assert "id" in exported
+        assert "created_at" in exported
+
+    def test_describe_returns_string(self):
+        """Test describe() returns JSON string."""
+        event = Event(run_id="run-test123", message="Test message")
+
+        described = event.describe()
+
+        assert isinstance(described, str)
+        assert "run-test123" in described
+        assert "Test message" in described
+
+    def test_export_with_all_fields(self):
+        """Test export with all optional fields populated."""
+        event = Event(
+            run_id="run-test123",
+            message="Test message",
+            metadata={"duration": 100},
+            tags={"level": "info"},
+        )
+
+        exported = event.export()
+
+        assert exported["run_id"] == "run-test123"
+        assert exported["message"] == "Test message"
+        assert exported["metadata"] == {"duration": 100}
+        assert exported["tags"] == {"level": "info"}

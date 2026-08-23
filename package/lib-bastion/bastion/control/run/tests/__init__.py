@@ -1,3 +1,1 @@
-"""
-Pytest configuration for bastion.control.run.tests module.
-"""
+"""Tests for run control module."""
