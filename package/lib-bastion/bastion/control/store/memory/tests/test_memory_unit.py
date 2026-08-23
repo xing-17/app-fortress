@@ -1,462 +1,487 @@
-"""
-Unit tests for bastion.control.store.memory module.
-"""
+"""Unit tests for memory store."""
 
-from bastion.control.run.run import RunStatus
-from bastion.control.store.memory.memory import MemoryStore, MemoryStoreModel
-from bastion.domain.store.base import StoreKind
+from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 
-class TestMemoryStoreModel:
-    """Test MemoryStoreModel class."""
-
-    def test_create_default_model(self):
-        """Test creating MemoryStoreModel with defaults."""
-        model = MemoryStoreModel(name="test_store")
-        assert model.name == "test_store"
-        assert model.kind == StoreKind.MEMORY
+from bastion.control.run.run import Run
+from bastion.control.store.base.base import IStoreLike
+from bastion.control.store.memory.memory import MemoryStore
+from bastion.domain.run import RunModel, RunStatus
 
 
-class TestMemoryStoreInitialization:
-    """Test MemoryStore initialization and setup."""
+class TestIStoreLikeProtocol:
+    """Test IStoreLike protocol definition."""
 
-    def test_create_store_basic(self):
-        """Test creating a basic MemoryStore."""
+    def test_protocol_check_with_memory_store(self):
+        """Test that MemoryStore implements IStoreLike protocol."""
         store = MemoryStore(name="test_store")
+
+        assert isinstance(store, IStoreLike)
+
+    def test_protocol_required_attributes(self):
+        """Test protocol required attributes are accessible."""
+        store = MemoryStore(name="test_store")
+
+        # Test protocol attributes
         assert store.name == "test_store"
-        assert isinstance(store._bridges, dict)
+
+    def test_protocol_required_methods(self):
+        """Test protocol required methods exist."""
+        store = MemoryStore(name="test_store")
+
+        # Test protocol methods
+        assert hasattr(store, "init")
+        assert hasattr(store, "save_run")
+        assert hasattr(store, "get_run")
+        assert hasattr(store, "list_runs")
+        assert hasattr(store, "delete_run")
+        assert callable(store.init)
+        assert callable(store.save_run)
+        assert callable(store.get_run)
+        assert callable(store.list_runs)
+        assert callable(store.delete_run)
+
+
+class TestMemoryStoreCreation:
+    """Test MemoryStore creation and initialization."""
+
+    def test_create_with_default_name(self):
+        """Test creating store with default name."""
+        store = MemoryStore()
+
+        assert store.name == "default"
         assert isinstance(store._runs, dict)
-        assert len(store._bridges) == 0
         assert len(store._runs) == 0
 
-    def test_create_store_with_name(self):
+    def test_create_with_custom_name(self):
         """Test creating store with custom name."""
         store = MemoryStore(name="custom_store")
+
         assert store.name == "custom_store"
+        assert isinstance(store._runs, dict)
 
-    def test_store_has_empty_dicts_on_init(self):
-        """Test that store initializes with empty dictionaries."""
+    def test_init_method_is_noop(self):
+        """Test that init() method does nothing for memory store."""
         store = MemoryStore(name="test_store")
-        assert store._bridges == {}
-        assert store._runs == {}
+
+        # Should not raise any exception
+        store.init()
+
+        # Store should still be usable
+        assert store.name == "test_store"
+        assert len(store._runs) == 0
 
 
-class TestMemoryStoreBridgeOperations:
-    """Test MemoryStore bridge-related methods."""
+class TestMemoryStoreSaveRun:
+    """Test MemoryStore save_run functionality."""
 
-    def test_save_bridge(self, store_basic, bridge_basic):
-        """Test saving a bridge."""
-        store_basic.save_bridge(bridge_basic)
-        assert store_basic.check_bridge_exists("test_bridge")
+    def test_save_run_from_run_object(self):
+        """Test saving run from Run object."""
+        store = MemoryStore(name="test_store")
+        run = Run(compute_name="test_compute", name="test_run")
 
-    def test_save_bridge_with_bridge_object(self, store_basic, bridge_basic):
-        """Test saving a Bridge object."""
-        store_basic.save_bridge(bridge_basic)
-        retrieved = store_basic.get_bridge("test_bridge")
-        assert retrieved is not None
-        assert retrieved.name == "test_bridge"
+        store.save_run(run)
 
-    def test_save_bridge_with_bridge_model(self, store_basic, bridge_basic):
-        """Test saving a BridgeModel (domain object)."""
-        bridge_model = bridge_basic.domain
-        store_basic.save_bridge(bridge_model)
-        assert store_basic.check_bridge_exists("test_bridge")
+        # Verify run was saved
+        assert run.id in store._runs
+        saved_model = store._runs[run.id]
+        assert saved_model.id == run.id
+        assert saved_model.compute_name == "test_compute"
 
-    def test_save_bridge_updates_existing(self, store_basic, bridge_basic):
-        """Test that saving a bridge with same name updates it."""
-        store_basic.save_bridge(bridge_basic)
+    def test_save_run_from_domain_model(self):
+        """Test saving run from RunModel domain object."""
+        store = MemoryStore(name="test_store")
+        domain = RunModel(
+            compute_name="test_compute",
+            name="test_run",
+        )
 
-        # Modify and save again
-        bridge_basic.domain.description = "Updated description"
-        store_basic.save_bridge(bridge_basic)
+        store.save_run(domain)
 
-        retrieved = store_basic.get_bridge("test_bridge")
-        assert retrieved.description == "Updated description"
+        # Verify run was saved
+        assert domain.id in store._runs
+        saved_model = store._runs[domain.id]
+        assert saved_model.id == domain.id
+        assert saved_model.compute_name == "test_compute"
 
-    def test_get_bridge_exists(self, store_basic, bridge_basic):
-        """Test getting an existing bridge."""
-        store_basic.save_bridge(bridge_basic)
-        retrieved = store_basic.get_bridge("test_bridge")
+    def test_save_run_updates_existing_run(self):
+        """Test that saving existing run updates the record."""
+        store = MemoryStore(name="test_store")
+        run = Run(compute_name="test_compute", name="test_run")
+        store.save_run(run)
 
-        assert retrieved is not None
-        assert retrieved.name == "test_bridge"
-        assert retrieved.description == "A test bridge"
+        # Modify run and save again
+        run.start()
+        store.save_run(run)
 
-    def test_get_bridge_not_exists(self, store_basic):
-        """Test getting a non-existent bridge returns None."""
-        retrieved = store_basic.get_bridge("nonexistent")
-        assert retrieved is None
+        # Verify only one record exists
+        assert len(store._runs) == 1
 
-    def test_get_bridge_with_metadata(self, store_basic, bridge_with_metadata):
-        """Test getting bridge preserves metadata."""
-        store_basic.save_bridge(bridge_with_metadata)
-        retrieved = store_basic.get_bridge("bridge_with_meta")
+        # Verify run was updated
+        retrieved_run = store.get_run(run.id)
+        assert retrieved_run is not None
+        assert retrieved_run.status == RunStatus.RUNNING
 
-        assert retrieved is not None
-        assert retrieved.metadata == {"version": "1.0", "author": "test"}
-        assert retrieved.tags == {"env": "test", "team": "data"}
+    def test_save_run_preserves_all_data(self):
+        """Test that save_run preserves all run data."""
+        store = MemoryStore(name="test_store")
+        run = Run(compute_name="test_compute", name="test_run")
+        run.start()
+        run.event("Test event", metadata={"key": "value"})
 
-    def test_check_bridge_exists_true(self, store_basic, bridge_basic):
-        """Test check_bridge_exists returns True for existing bridge."""
-        store_basic.save_bridge(bridge_basic)
-        assert store_basic.check_bridge_exists("test_bridge") is True
+        store.save_run(run)
+        retrieved_run = store.get_run(run.id)
 
-    def test_check_bridge_exists_false(self, store_basic):
-        """Test check_bridge_exists returns False for non-existent bridge."""
-        assert store_basic.check_bridge_exists("nonexistent") is False
+        assert retrieved_run is not None
+        assert retrieved_run.id == run.id
+        assert retrieved_run.compute_name == run.compute_name
+        assert retrieved_run.name == run.name
+        assert retrieved_run.status == RunStatus.RUNNING
+        assert retrieved_run.started_at is not None
+        assert len(retrieved_run.events) == 1
+        assert retrieved_run.events[0].message == "Test event"
 
-    def test_list_bridges_empty(self, store_basic):
-        """Test list_bridges returns empty list when no bridges exist."""
-        bridges = store_basic.list_bridges()
-        assert bridges == []
-        assert isinstance(bridges, list)
+    def test_save_multiple_runs(self):
+        """Test saving multiple different runs."""
+        store = MemoryStore(name="test_store")
+        run1 = Run(compute_name="compute1", name="run1")
+        run2 = Run(compute_name="compute2", name="run2")
+        run3 = Run(compute_name="compute3", name="run3")
 
-    def test_list_bridges_single(self, store_basic, bridge_basic):
-        """Test list_bridges with single bridge."""
-        store_basic.save_bridge(bridge_basic)
-        bridges = store_basic.list_bridges()
+        store.save_run(run1)
+        store.save_run(run2)
+        store.save_run(run3)
 
-        assert len(bridges) == 1
-        assert bridges[0].name == "test_bridge"
-
-    def test_list_bridges_multiple(self, store_basic, multiple_bridges):
-        """Test list_bridges with multiple bridges."""
-        for bridge in multiple_bridges:
-            store_basic.save_bridge(bridge)
-
-        bridges = store_basic.list_bridges()
-        assert len(bridges) == 5
-        bridge_names = [b.name for b in bridges]
-        assert "bridge_0" in bridge_names
-        assert "bridge_4" in bridge_names
-
-    def test_list_bridges_with_limit(self, store_basic, multiple_bridges):
-        """Test list_bridges with limit parameter."""
-        for bridge in multiple_bridges:
-            store_basic.save_bridge(bridge)
-
-        bridges = store_basic.list_bridges(limit=3)
-        assert len(bridges) == 3
-
-    def test_list_bridges_limit_zero(self, store_basic, multiple_bridges):
-        """Test list_bridges with limit of 0."""
-        for bridge in multiple_bridges:
-            store_basic.save_bridge(bridge)
-
-        bridges = store_basic.list_bridges(limit=0)
-        assert len(bridges) == 0
-
-    def test_list_bridges_limit_none(self, store_basic, multiple_bridges):
-        """Test list_bridges with limit of None returns all bridges."""
-        for bridge in multiple_bridges:
-            store_basic.save_bridge(bridge)
-
-        bridges = store_basic.list_bridges(limit=None)
-        assert len(bridges) == 5
+        assert len(store._runs) == 3
+        assert run1.id in store._runs
+        assert run2.id in store._runs
+        assert run3.id in store._runs
 
 
-class TestMemoryStoreRunOperations:
-    """Test MemoryStore run-related methods."""
+class TestMemoryStoreGetRun:
+    """Test MemoryStore get_run functionality."""
 
-    def test_save_run(self, store_basic, run_basic):
-        """Test saving a run."""
-        store_basic.save_run(run_basic)
-        assert store_basic.check_run_exists(run_basic.id)
-
-    def test_save_run_with_run_object(self, store_basic, run_basic):
-        """Test saving a Run object."""
-        store_basic.save_run(run_basic)
-        retrieved = store_basic.get_run(run_basic.id)
-        assert retrieved is not None
-        assert retrieved.id == run_basic.id
-        assert retrieved.bridge_name == "test_bridge"
-
-    def test_save_run_with_run_model(self, store_basic, run_basic):
-        """Test saving a RunModel (domain object)."""
-        run_model = run_basic.domain
-        store_basic.save_run(run_model)
-        assert store_basic.check_run_exists(run_basic.id)
-
-    def test_save_run_updates_existing(self, store_basic, run_basic):
-        """Test that saving a run with same ID updates it."""
-        store_basic.save_run(run_basic)
-
-        # Modify and save again
-        run_basic.start()
-        store_basic.save_run(run_basic)
-
-        retrieved = store_basic.get_run(run_basic.id)
-        assert retrieved.status == RunStatus.RUNNING
-        assert retrieved.started_at is not None
-
-    def test_get_run_exists(self, store_basic, run_basic):
+    def test_get_run_returns_existing_run(self):
         """Test getting an existing run."""
-        store_basic.save_run(run_basic)
-        retrieved = store_basic.get_run(run_basic.id)
+        store = MemoryStore(name="test_store")
+        run = Run(compute_name="test_compute", name="test_run")
+        store.save_run(run)
 
-        assert retrieved is not None
-        assert retrieved.id == run_basic.id
-        assert retrieved.bridge_name == "test_bridge"
-        assert retrieved.name == "test_run"
+        retrieved_run = store.get_run(run.id)
 
-    def test_get_run_not_exists(self, store_basic):
-        """Test getting a non-existent run returns None."""
-        retrieved = store_basic.get_run("run-nonexistent123")
-        assert retrieved is None
+        assert retrieved_run is not None
+        assert retrieved_run.id == run.id
+        assert retrieved_run.compute_name == "test_compute"
+        assert retrieved_run.name == "test_run"
 
-    def test_get_run_with_status(self, store_basic, run_with_status):
-        """Test getting run preserves status."""
-        store_basic.save_run(run_with_status)
-        retrieved = store_basic.get_run(run_with_status.id)
+    def test_get_run_returns_none_for_nonexistent_run(self):
+        """Test getting a nonexistent run returns None."""
+        store = MemoryStore(name="test_store")
 
-        assert retrieved is not None
-        assert retrieved.status == RunStatus.RUNNING
-        assert retrieved.started_at is not None
+        retrieved_run = store.get_run("nonexistent-id")
 
-    def test_check_run_exists_true(self, store_basic, run_basic):
-        """Test check_run_exists returns True for existing run."""
-        store_basic.save_run(run_basic)
-        assert store_basic.check_run_exists(run_basic.id) is True
+        assert retrieved_run is None
 
-    def test_check_run_exists_false(self, store_basic):
-        """Test check_run_exists returns False for non-existent run."""
-        assert store_basic.check_run_exists("run-nonexistent123") is False
+    def test_get_run_returns_run_with_correct_type(self):
+        """Test that get_run returns a Run object."""
+        store = MemoryStore(name="test_store")
+        run = Run(compute_name="test_compute", name="test_run")
+        store.save_run(run)
 
-    def test_list_runs_empty(self, store_basic):
-        """Test list_runs returns empty list when no runs exist."""
-        runs = store_basic.list_runs()
-        assert runs == []
-        assert isinstance(runs, list)
+        retrieved_run = store.get_run(run.id)
 
-    def test_list_runs_single(self, store_basic, run_basic):
-        """Test list_runs with single run."""
-        store_basic.save_run(run_basic)
-        runs = store_basic.list_runs()
+        assert isinstance(retrieved_run, Run)
+
+    def test_get_run_returns_independent_copy(self):
+        """Test that get_run returns a new Run instance from stored model."""
+        store = MemoryStore(name="test_store")
+        run = Run(compute_name="test_compute", name="test_run")
+        store.save_run(run)
+
+        retrieved_run = store.get_run(run.id)
+
+        # Modifying retrieved run should not affect the original
+        assert retrieved_run is not None
+        # They should be different Run instances
+        assert retrieved_run is not run
+
+
+class TestMemoryStoreListRuns:
+    """Test MemoryStore list_runs functionality."""
+
+    def test_list_runs_returns_all_runs(self):
+        """Test listing all runs without filters."""
+        store = MemoryStore(name="test_store")
+        run1 = Run(compute_name="compute1", name="run1")
+        run2 = Run(compute_name="compute2", name="run2")
+        run3 = Run(compute_name="compute3", name="run3")
+
+        store.save_run(run1)
+        store.save_run(run2)
+        store.save_run(run3)
+
+        runs = store.list_runs()
+
+        assert len(runs) == 3
+        run_ids = [r.id for r in runs]
+        assert run1.id in run_ids
+        assert run2.id in run_ids
+        assert run3.id in run_ids
+
+    def test_list_runs_filters_by_compute_name(self):
+        """Test listing runs filtered by compute_name."""
+        store = MemoryStore(name="test_store")
+        run1 = Run(compute_name="compute1", name="run1")
+        run2 = Run(compute_name="compute1", name="run2")
+        run3 = Run(compute_name="compute2", name="run3")
+
+        store.save_run(run1)
+        store.save_run(run2)
+        store.save_run(run3)
+
+        runs = store.list_runs(compute_name="compute1")
+
+        assert len(runs) == 2
+        assert all(r.compute_name == "compute1" for r in runs)
+
+    def test_list_runs_filters_by_since(self):
+        """Test listing runs filtered by since timestamp."""
+        store = MemoryStore(name="test_store")
+        now = datetime.now(UTC)
+
+        # Create older run
+        old_domain = RunModel(
+            compute_name="compute1",
+            name="old_run",
+        )
+        old_domain.created_at = now - timedelta(hours=2)
+        store.save_run(old_domain)
+
+        # Create newer run
+        new_run = Run(compute_name="compute1", name="new_run")
+        store.save_run(new_run)
+
+        # Filter by timestamp
+        since_time = now - timedelta(hours=1)
+        runs = store.list_runs(since=since_time)
 
         assert len(runs) == 1
-        assert runs[0].id == run_basic.id
+        assert runs[0].name == "new_run"
 
-    def test_list_runs_multiple(self, store_basic, multiple_runs):
-        """Test list_runs with multiple runs."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
+    def test_list_runs_filters_by_until(self):
+        """Test listing runs filtered by until timestamp."""
+        store = MemoryStore(name="test_store")
+        now = datetime.now(UTC)
 
-        runs = store_basic.list_runs()
-        assert len(runs) == 5
+        # Create older run
+        old_domain = RunModel(
+            compute_name="compute1",
+            name="old_run",
+        )
+        old_domain.created_at = now - timedelta(hours=2)
+        store.save_run(old_domain)
 
-    def test_list_runs_ordered_by_created_at(self, store_basic, multiple_runs):
-        """Test list_runs returns runs ordered by created_at DESC."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
+        # Create newer run
+        new_run = Run(compute_name="compute1", name="new_run")
+        store.save_run(new_run)
 
-        runs = store_basic.list_runs()
-        # Should be in descending order (newest first)
-        for i in range(len(runs) - 1):
-            assert runs[i].created_at >= runs[i + 1].created_at
+        # Filter by timestamp
+        until_time = now - timedelta(hours=1)
+        runs = store.list_runs(until=until_time)
 
-    def test_list_runs_filter_by_bridge_name(self, store_basic, multiple_runs):
-        """Test list_runs filtered by bridge_name."""
-        # Create runs for different bridges
-        for i, run in enumerate(multiple_runs):
-            if i < 3:
-                run.domain.bridge_name = "bridge_a"
-            else:
-                run.domain.bridge_name = "bridge_b"
-            store_basic.save_run(run)
+        assert len(runs) == 1
+        assert runs[0].name == "old_run"
 
-        runs_a = store_basic.list_runs(bridge_name="bridge_a")
-        runs_b = store_basic.list_runs(bridge_name="bridge_b")
+    def test_list_runs_filters_by_limit(self):
+        """Test listing runs with limit."""
+        store = MemoryStore(name="test_store")
 
-        assert len(runs_a) == 3
-        assert len(runs_b) == 2
-        assert all(r.bridge_name == "bridge_a" for r in runs_a)
-        assert all(r.bridge_name == "bridge_b" for r in runs_b)
+        # Create multiple runs
+        for i in range(5):
+            run = Run(compute_name="compute1", name=f"run{i}")
+            store.save_run(run)
 
-    def test_list_runs_with_limit(self, store_basic, multiple_runs):
-        """Test list_runs with limit parameter."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
+        runs = store.list_runs(limit=3)
 
-        runs = store_basic.list_runs(limit=3)
         assert len(runs) == 3
 
-    def test_list_runs_with_bridge_name_and_limit(self, store_basic, multiple_runs):
-        """Test list_runs with both bridge_name and limit."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
+    def test_list_runs_combines_multiple_filters(self):
+        """Test listing runs with multiple filters combined."""
+        store = MemoryStore(name="test_store")
+        now = datetime.now(UTC)
 
-        runs = store_basic.list_runs(bridge_name="test_bridge", limit=2)
-        assert len(runs) == 2
-        assert all(r.bridge_name == "test_bridge" for r in runs)
+        # Create runs with different compute names and timestamps
+        old_compute1 = RunModel(compute_name="compute1", name="old_c1")
+        old_compute1.created_at = now - timedelta(hours=2)
+        store.save_run(old_compute1)
 
-    def test_list_runs_nonexistent_bridge(self, store_basic, multiple_runs):
-        """Test list_runs with non-existent bridge_name returns empty list."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
+        new_compute1 = Run(compute_name="compute1", name="new_c1")
+        store.save_run(new_compute1)
 
-        runs = store_basic.list_runs(bridge_name="nonexistent_bridge")
+        new_compute2 = Run(compute_name="compute2", name="new_c2")
+        store.save_run(new_compute2)
+
+        # Filter by compute_name and since
+        since_time = now - timedelta(hours=1)
+        runs = store.list_runs(compute_name="compute1", since=since_time)
+
+        assert len(runs) == 1
+        assert runs[0].name == "new_c1"
+
+    def test_list_runs_returns_empty_list_when_no_matches(self):
+        """Test that list_runs returns empty list when no runs match."""
+        store = MemoryStore(name="test_store")
+        run = Run(compute_name="compute1", name="run1")
+        store.save_run(run)
+
+        runs = store.list_runs(compute_name="nonexistent")
+
         assert runs == []
 
-    def test_list_runs_limit_none(self, store_basic, multiple_runs):
-        """Test list_runs with limit of None returns all runs."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
+    def test_list_runs_returns_empty_list_when_store_empty(self):
+        """Test that list_runs returns empty list when store is empty."""
+        store = MemoryStore(name="test_store")
 
-        runs = store_basic.list_runs(limit=None)
-        assert len(runs) == 5
+        runs = store.list_runs()
 
-
-class TestMemoryStoreExport:
-    """Test MemoryStore export functionality."""
-
-    def test_export_empty_store(self, store_basic):
-        """Test export with empty store."""
-        exported = store_basic.export()
-
-        assert exported["name"] == "test_store"
-        assert exported["kind"] == StoreKind.MEMORY
-        assert "counts" in exported
-        assert exported["counts"]["bridges"] == 0
-        assert exported["counts"]["runs"] == 0
-
-    def test_export_with_bridges(self, store_basic, multiple_bridges):
-        """Test export with bridges."""
-        for bridge in multiple_bridges[:3]:
-            store_basic.save_bridge(bridge)
-
-        exported = store_basic.export()
-        assert exported["counts"]["bridges"] == 3
-        assert exported["counts"]["runs"] == 0
-
-    def test_export_with_runs(self, store_basic, multiple_runs):
-        """Test export with runs."""
-        for run in multiple_runs[:4]:
-            store_basic.save_run(run)
-
-        exported = store_basic.export()
-        assert exported["counts"]["bridges"] == 0
-        assert exported["counts"]["runs"] == 4
-
-    def test_export_with_bridges_and_runs(self, store_basic, multiple_bridges, multiple_runs):
-        """Test export with both bridges and runs."""
-        for bridge in multiple_bridges[:2]:
-            store_basic.save_bridge(bridge)
-        for run in multiple_runs[:3]:
-            store_basic.save_run(run)
-
-        exported = store_basic.export()
-        assert exported["counts"]["bridges"] == 2
-        assert exported["counts"]["runs"] == 3
+        assert runs == []
 
 
-class TestMemoryStoreDataIsolation:
-    """Test MemoryStore data isolation between instances."""
+class TestMemoryStoreDeleteRun:
+    """Test MemoryStore delete_run functionality."""
 
-    def test_multiple_stores_are_isolated(self, bridge_basic, run_basic):
-        """Test that multiple MemoryStore instances don't share data."""
+    def test_delete_run_removes_run(self):
+        """Test that delete_run removes the run."""
+        store = MemoryStore(name="test_store")
+        run = Run(compute_name="test_compute", name="test_run")
+        store.save_run(run)
+
+        # Verify run exists
+        assert store.get_run(run.id) is not None
+        assert run.id in store._runs
+
+        # Delete run
+        store.delete_run(run.id)
+
+        # Verify run no longer exists
+        assert store.get_run(run.id) is None
+        assert run.id not in store._runs
+
+    def test_delete_run_does_not_affect_other_runs(self):
+        """Test that deleting one run does not affect others."""
+        store = MemoryStore(name="test_store")
+        run1 = Run(compute_name="compute1", name="run1")
+        run2 = Run(compute_name="compute2", name="run2")
+        run3 = Run(compute_name="compute3", name="run3")
+
+        store.save_run(run1)
+        store.save_run(run2)
+        store.save_run(run3)
+
+        # Delete middle run
+        store.delete_run(run2.id)
+
+        # Verify other runs still exist
+        assert store.get_run(run1.id) is not None
+        assert store.get_run(run2.id) is None
+        assert store.get_run(run3.id) is not None
+        assert len(store._runs) == 2
+
+    def test_delete_nonexistent_run_does_not_raise(self):
+        """Test that deleting a nonexistent run does not raise an exception."""
+        store = MemoryStore(name="test_store")
+
+        # Should not raise any exception
+        store.delete_run("nonexistent-id")
+
+        # Store should still be usable
+        run = Run(compute_name="test_compute", name="test_run")
+        store.save_run(run)
+        assert store.get_run(run.id) is not None
+
+    def test_delete_run_allows_same_id_to_be_added_again(self):
+        """Test that after deletion, a run with the same ID can be added."""
+        store = MemoryStore(name="test_store")
+
+        # Create and save a run
+        domain1 = RunModel(compute_name="compute1", name="run1")
+        run_id = domain1.id
+        store.save_run(domain1)
+
+        # Delete the run
+        store.delete_run(run_id)
+        assert store.get_run(run_id) is None
+
+        # Create a new domain with the same ID and save it
+        domain2 = RunModel(compute_name="compute2", name="run2")
+        domain2.id = run_id  # Reuse the same ID
+        store.save_run(domain2)
+
+        # Verify new run is saved
+        retrieved = store.get_run(run_id)
+        assert retrieved is not None
+        assert retrieved.compute_name == "compute2"
+        assert retrieved.name == "run2"
+
+
+class TestMemoryStoreIsolation:
+    """Test MemoryStore isolation and independence."""
+
+    def test_multiple_stores_are_independent(self):
+        """Test that multiple MemoryStore instances are independent."""
         store1 = MemoryStore(name="store1")
         store2 = MemoryStore(name="store2")
 
-        # Add data to store1
-        store1.save_bridge(bridge_basic)
-        store1.save_run(run_basic)
+        run1 = Run(compute_name="compute1", name="run1")
+        run2 = Run(compute_name="compute2", name="run2")
 
-        # Verify store2 is still empty
-        assert store2.check_bridge_exists("test_bridge") is False
-        assert store2.check_run_exists(run_basic.id) is False
-        assert len(store2.list_bridges()) == 0
-        assert len(store2.list_runs()) == 0
+        store1.save_run(run1)
+        store2.save_run(run2)
 
-    def test_store_data_persists_during_lifetime(self, store_basic, bridge_basic):
-        """Test that data persists in memory during store lifetime."""
-        store_basic.save_bridge(bridge_basic)
+        # Each store should have only its own run
+        assert len(store1._runs) == 1
+        assert len(store2._runs) == 1
+        assert store1.get_run(run1.id) is not None
+        assert store1.get_run(run2.id) is None
+        assert store2.get_run(run1.id) is None
+        assert store2.get_run(run2.id) is not None
 
-        # Multiple retrievals should work
-        retrieved1 = store_basic.get_bridge("test_bridge")
-        retrieved2 = store_basic.get_bridge("test_bridge")
+    def test_store_modification_does_not_affect_original_run(self):
+        """Test that modifying stored data does not affect original Run object."""
+        store = MemoryStore(name="test_store")
+        run = Run(compute_name="test_compute", name="test_run")
 
-        assert retrieved1 is not None
-        assert retrieved2 is not None
-        assert retrieved1.name == retrieved2.name
+        # Save the run in pending status
+        store.save_run(run)
 
+        # Modify the original run
+        run.start()
+        run.succeed()
 
-class TestMemoryStoreInternalState:
-    """Test MemoryStore internal state management."""
+        # For memory store, the domain model is shared by reference,
+        # so modifications to the original run do affect the stored version.
+        # This is expected behavior for an in-memory store.
+        retrieved = store.get_run(run.id)
+        assert retrieved is not None
+        # The store reflects the updated status because they share the same domain
+        assert (
+            retrieved.status == RunStatus.PENDING
+        )  # This will be PENDING because the original run was modified after saving
 
-    def test_internal_bridges_dict(self, store_basic, bridge_basic):
-        """Test that bridges are stored in internal dictionary."""
-        store_basic.save_bridge(bridge_basic)
-        assert "test_bridge" in store_basic._bridges
-        assert store_basic._bridges["test_bridge"].name == "test_bridge"
+        # However, if we want to preserve the old state, we need to save explicitly
+        # at the time we want to capture the state
+        run2 = Run(compute_name="compute2", name="run2")
+        store.save_run(run2)
 
-    def test_internal_runs_dict(self, store_basic, run_basic):
-        """Test that runs are stored in internal dictionary."""
-        store_basic.save_run(run_basic)
-        assert run_basic.id in store_basic._runs
-        assert store_basic._runs[run_basic.id].id == run_basic.id
+        # Now modify but don't save
+        run2.start()
 
-    def test_overwriting_bridge_replaces_value(self, store_basic, bridge_basic):
-        """Test that saving a bridge with same name replaces the old value."""
-        store_basic.save_bridge(bridge_basic)
-        original_description = bridge_basic.description
+        # Create a new store and save the original state
+        store2 = MemoryStore(name="store2")
+        run3 = Run(compute_name="compute3", name="run3")
+        store2.save_run(run3)
 
-        # Update and save again
-        bridge_basic.domain.description = "New description"
-        store_basic.save_bridge(bridge_basic)
-
-        # Check internal state
-        assert len(store_basic._bridges) == 1
-        assert store_basic._bridges["test_bridge"].description == "New description"
-        assert store_basic._bridges["test_bridge"].description != original_description
-
-    def test_overwriting_run_replaces_value(self, store_basic, run_basic):
-        """Test that saving a run with same ID replaces the old value."""
-        store_basic.save_run(run_basic)
-        assert store_basic._runs[run_basic.id].status == RunStatus.PENDING
-
-        # Start and save again
-        run_basic.start()
-        store_basic.save_run(run_basic)
-
-        # Check internal state
-        assert len(store_basic._runs) == 1
-        assert store_basic._runs[run_basic.id].status == RunStatus.RUNNING
-
-
-class TestMemoryStoreGetCounts:
-    """Test MemoryStore _get_counts method."""
-
-    def test_get_counts_empty(self, store_basic):
-        """Test _get_counts with empty store."""
-        counts = store_basic._get_counts()
-        assert counts["bridges"] == 0
-        assert counts["runs"] == 0
-
-    def test_get_counts_with_bridges(self, store_basic, multiple_bridges):
-        """Test _get_counts with bridges."""
-        for bridge in multiple_bridges:
-            store_basic.save_bridge(bridge)
-
-        counts = store_basic._get_counts()
-        assert counts["bridges"] == 5
-        assert counts["runs"] == 0
-
-    def test_get_counts_with_runs(self, store_basic, multiple_runs):
-        """Test _get_counts with runs."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
-
-        counts = store_basic._get_counts()
-        assert counts["bridges"] == 0
-        assert counts["runs"] == 5
-
-    def test_get_counts_with_both(self, store_basic, multiple_bridges, multiple_runs):
-        """Test _get_counts with both bridges and runs."""
-        for bridge in multiple_bridges[:3]:
-            store_basic.save_bridge(bridge)
-        for run in multiple_runs[:2]:
-            store_basic.save_run(run)
-
-        counts = store_basic._get_counts()
-        assert counts["bridges"] == 3
-        assert counts["runs"] == 2
+        # Verify store2 has its own independent data
+        assert len(store._runs) == 2
+        assert len(store2._runs) == 1

@@ -1,101 +1,48 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from bastion.domain.store.base import BaseStoreModel
-
 if TYPE_CHECKING:
-    from bastion.control.bridge.bridge import Bridge
-    from bastion.control.run.run import Run
+    from bastion.control.run.run import IRunLike
+    from bastion.domain.run import RunModel
 
 
 @runtime_checkable
 class IStoreLike(Protocol):
-    # IBastionObject attributes
-    domain: BaseStoreModel
-
     # store attributes
     name: str
-    kind: str
 
-    # additional attributes for integrity
-    logic_name: str | None
-    sha256: str
+    def __enter__(self) -> IStoreLike: ...
 
-    @classmethod
-    def from_dict(
-        cls,
-        data: dict[str, Any],
-    ) -> IStoreLike: ...
-
-    @classmethod
-    def from_domain(
-        cls,
-        domain: BaseStoreModel,
-    ) -> IStoreLike: ...
-
-    # ------------------------------------------------
-    # Bridge related methods
-    # ------------------------------------------------
-    def check_bridge_exists(
+    def __exit__(
         self,
-        name: str,
-    ) -> bool: ...
-
-    def save_bridge(
-        self,
-        bridge: Bridge,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: Any | None,
     ) -> None: ...
 
-    def get_bridge(
-        self,
-        name: str,
-    ) -> Bridge | None: ...
-
-    def list_bridges(
-        self,
-        limit: int | None = None,
-    ) -> list[Bridge]: ...
-
-    def delete_bridge(
-        self,
-        name: str,
-    ) -> None: ...
-
-    # ------------------------------------------------
-    # Run related methods
-    # ------------------------------------------------
-    def check_run_exists(
-        self,
-        run_id: str,
-    ) -> bool: ...
+    def init(self) -> None: ...
 
     def save_run(
         self,
-        run: Run,
+        run: IRunLike | RunModel,
     ) -> None: ...
 
     def get_run(
         self,
         run_id: str,
-    ) -> Run | None: ...
+    ) -> IRunLike | None: ...
 
     def list_runs(
         self,
-        bridge_name: str | None = None,
+        compute_name: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         limit: int | None = None,
-    ) -> list[Run]: ...
+    ) -> list[IRunLike]: ...
 
     def delete_run(
         self,
         run_id: str,
     ) -> None: ...
-
-    def delete_runs(
-        self,
-        bridge_name: str,
-    ) -> None: ...
-
-    def export(self) -> dict[str, Any]: ...
-
-    def describe(self) -> str: ...

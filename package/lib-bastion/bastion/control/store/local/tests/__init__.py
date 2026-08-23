@@ -1,3 +1,1 @@
-"""
-Tests for bastion.control.store.local module.
-"""
+"""Tests for local store module."""

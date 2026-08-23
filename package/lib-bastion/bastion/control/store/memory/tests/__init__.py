@@ -1,1 +1,1 @@
-"""Tests for bastion.control.store.memory module."""
+"""Tests for memory store module."""

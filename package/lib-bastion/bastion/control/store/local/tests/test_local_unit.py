@@ -1,502 +1,531 @@
-"""
-Unit tests for bastion.control.store.local module.
-"""
+"""Unit tests for local store."""
 
+from __future__ import annotations
+
+import tempfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-import duckdb
 import pytest
 
-from bastion.control.run.run import RunStatus
-from bastion.control.store.local.local import LocalStore, LocalStoreModel
-from bastion.domain.store.base import StoreKind
+from bastion.control.run.run import Run
+from bastion.control.store.base.base import IStoreLike
+from bastion.control.store.local.local import LocalStore
+from bastion.domain.run import RunModel, RunStatus
 
 
-class TestLocalStoreModel:
-    """Test LocalStoreModel class."""
+class TestIStoreLikeProtocol:
+    """Test IStoreLike protocol definition."""
 
-    def test_create_default_model(self):
-        """Test creating LocalStoreModel with defaults."""
-        model = LocalStoreModel(name="test_store")
-        assert model.name == "test_store"
-        assert model.kind == StoreKind.LOCAL
-        assert model.path == "./data/store.duckdb"
-        assert model.table_bridges == "_bridges"
-        assert model.table_runs == "_runs"
+    def test_protocol_check_with_local_store(self):
+        """Test that LocalStore implements IStoreLike protocol."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = LocalStore(name="test_store", path=tmpdir)
 
-    def test_create_model_with_custom_values(self):
-        """Test creating LocalStoreModel with custom values."""
-        model = LocalStoreModel(
-            name="custom_store",
-            path="/tmp/custom.duckdb",
-            table_bridges="my_bridges",
-            table_runs="my_runs",
-        )
-        assert model.name == "custom_store"
-        assert model.path == "/tmp/custom.duckdb"
-        assert model.table_bridges == "my_bridges"
-        assert model.table_runs == "my_runs"
+            assert isinstance(store, IStoreLike)
+            store.close()
 
+    def test_protocol_required_attributes(self):
+        """Test protocol required attributes are accessible."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = LocalStore(name="test_store", path=tmpdir)
 
-class TestLocalStoreInitialization:
-    """Test LocalStore initialization and setup."""
-
-    def test_create_store_basic(self, temp_db_path):
-        """Test creating a basic LocalStore."""
-        store = LocalStore(
-            name="test_store",
-            path=temp_db_path,
-        )
-        assert store.name == "test_store"
-        assert store.table_bridges == "_bridges"
-        assert store.table_runs == "_runs"
-        assert temp_db_path.exists()
-        store.close()
-
-    def test_create_store_with_custom_tables(self, temp_db_path):
-        """Test creating store with custom table names."""
-        store = LocalStore(
-            name="test_store",
-            path=temp_db_path,
-            table_bridges="custom_bridges",
-            table_runs="custom_runs",
-        )
-        assert store.table_bridges == "custom_bridges"
-        assert store.table_runs == "custom_runs"
-        store.close()
-
-    def test_create_store_with_path_string(self, tmp_path):
-        """Test creating store with path as string."""
-        db_path = str(tmp_path / "test.duckdb")
-        store = LocalStore(
-            name="test_store",
-            path=db_path,
-        )
-        assert Path(db_path).exists()
-        store.close()
-
-    def test_create_store_with_path_object(self, temp_db_path):
-        """Test creating store with path as Path object."""
-        store = LocalStore(
-            name="test_store",
-            path=temp_db_path,
-        )
-        assert temp_db_path.exists()
-        store.close()
-
-    def test_create_store_creates_parent_directories(self, tmp_path):
-        """Test that store creates parent directories if they don't exist."""
-        nested_path = tmp_path / "nested" / "dirs" / "store.duckdb"
-        store = LocalStore(
-            name="test_store",
-            path=nested_path,
-        )
-        assert nested_path.exists()
-        assert nested_path.parent.exists()
-        store.close()
-
-    def test_create_store_with_tilde_path(self, tmp_path):
-        """Test creating store with tilde in path."""
-        # Mock a path with tilde (actual expansion will happen)
-        store = LocalStore(
-            name="test_store",
-            path="~/test_store.duckdb",
-        )
-        # Just verify it doesn't crash
-        store.close()
-
-    def test_invalid_table_name_raises_error(self, temp_db_path):
-        """Test that invalid table names raise ValueError."""
-        with pytest.raises(ValueError, match="Table names must be valid SQL identifiers"):
-            LocalStore(
-                name="test_store",
-                path=temp_db_path,
-                table_bridges="invalid-name",
-            )
-
-    def test_invalid_table_name_with_special_chars(self, temp_db_path):
-        """Test that table names with special characters raise ValueError."""
-        with pytest.raises(ValueError, match="Table names must be valid SQL identifiers"):
-            LocalStore(
-                name="test_store",
-                path=temp_db_path,
-                table_runs="invalid name",
-            )
-
-    def test_tables_created_on_init(self, store_basic):
-        """Test that tables are created on initialization."""
-        # Query to check if tables exist
-        tables = store_basic._conn.execute(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema='main'"
-        ).fetchall()
-        table_names = [t[0] for t in tables]
-
-        assert "_bridges" in table_names
-        assert "_runs" in table_names
-
-    def test_index_created_on_init(self, store_basic):
-        """Test that index is created on initialization."""
-        indexes = store_basic._conn.execute("SELECT index_name FROM duckdb_indexes()").fetchall()
-        index_names = [idx[0] for idx in indexes]
-
-        assert "idx_runs_bridge" in index_names
-
-
-class TestLocalStoreContextManager:
-    """Test LocalStore context manager behavior."""
-
-    def test_context_manager_enter_exit(self, temp_db_path):
-        """Test using LocalStore as context manager."""
-        with LocalStore(name="test_store", path=temp_db_path) as store:
+            # Test protocol attributes
             assert store.name == "test_store"
-            assert store._conn is not None
+            assert isinstance(store.path, Path)
+            store.close()
 
-        # Connection should be closed after exit
-        with pytest.raises(duckdb.ConnectionException):
-            store._conn.execute("SELECT 1")
+    def test_protocol_required_methods(self):
+        """Test protocol required methods exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = LocalStore(name="test_store", path=tmpdir)
 
-    def test_context_manager_with_operations(self, temp_db_path, bridge_basic):
-        """Test context manager with actual operations."""
-        with LocalStore(name="test_store", path=temp_db_path) as store:
-            store.save_bridge(bridge_basic)
-            assert store.check_bridge_exists("test_bridge")
+            # Test protocol methods
+            assert hasattr(store, "init")
+            assert hasattr(store, "save_run")
+            assert hasattr(store, "get_run")
+            assert hasattr(store, "list_runs")
+            assert hasattr(store, "delete_run")
+            assert callable(store.init)
+            assert callable(store.save_run)
+            assert callable(store.get_run)
+            assert callable(store.list_runs)
+            assert callable(store.delete_run)
+            store.close()
 
+    def test_protocol_context_manager_methods(self):
+        """Test protocol context manager methods exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = LocalStore(name="test_store", path=tmpdir)
 
-class TestLocalStoreBridgeOperations:
-    """Test LocalStore bridge-related methods."""
-
-    def test_save_bridge(self, store_basic, bridge_basic):
-        """Test saving a bridge."""
-        store_basic.save_bridge(bridge_basic)
-        assert store_basic.check_bridge_exists("test_bridge")
-
-    def test_save_bridge_with_bridge_object(self, store_basic, bridge_basic):
-        """Test saving a Bridge object."""
-        store_basic.save_bridge(bridge_basic)
-        retrieved = store_basic.get_bridge("test_bridge")
-        assert retrieved is not None
-        assert retrieved.name == "test_bridge"
-
-    def test_save_bridge_with_bridge_model(self, store_basic, bridge_basic):
-        """Test saving a BridgeModel (domain object)."""
-        bridge_model = bridge_basic.domain
-        store_basic.save_bridge(bridge_model)
-        assert store_basic.check_bridge_exists("test_bridge")
-
-    def test_save_bridge_updates_existing(self, store_basic, bridge_basic):
-        """Test that saving a bridge with same name updates it."""
-        store_basic.save_bridge(bridge_basic)
-
-        # Modify and save again
-        bridge_basic.domain.description = "Updated description"
-        store_basic.save_bridge(bridge_basic)
-
-        retrieved = store_basic.get_bridge("test_bridge")
-        assert retrieved.description == "Updated description"
-
-    def test_get_bridge_exists(self, store_basic, bridge_basic):
-        """Test getting an existing bridge."""
-        store_basic.save_bridge(bridge_basic)
-        retrieved = store_basic.get_bridge("test_bridge")
-
-        assert retrieved is not None
-        assert retrieved.name == "test_bridge"
-        assert retrieved.description == "A test bridge"
-
-    def test_get_bridge_not_exists(self, store_basic):
-        """Test getting a non-existent bridge returns None."""
-        retrieved = store_basic.get_bridge("nonexistent")
-        assert retrieved is None
-
-    def test_get_bridge_with_metadata(self, store_basic, bridge_with_metadata):
-        """Test getting bridge preserves metadata."""
-        store_basic.save_bridge(bridge_with_metadata)
-        retrieved = store_basic.get_bridge("bridge_with_meta")
-
-        assert retrieved is not None
-        assert retrieved.metadata == {"version": "1.0", "author": "test"}
-        assert retrieved.tags == {"env": "test", "team": "data"}
-
-    def test_check_bridge_exists_true(self, store_basic, bridge_basic):
-        """Test check_bridge_exists returns True for existing bridge."""
-        store_basic.save_bridge(bridge_basic)
-        assert store_basic.check_bridge_exists("test_bridge") is True
-
-    def test_check_bridge_exists_false(self, store_basic):
-        """Test check_bridge_exists returns False for non-existent bridge."""
-        assert store_basic.check_bridge_exists("nonexistent") is False
-
-    def test_list_bridges_empty(self, store_basic):
-        """Test list_bridges returns empty list when no bridges exist."""
-        bridges = store_basic.list_bridges()
-        assert bridges == []
-        assert isinstance(bridges, list)
-
-    def test_list_bridges_single(self, store_basic, bridge_basic):
-        """Test list_bridges with single bridge."""
-        store_basic.save_bridge(bridge_basic)
-        bridges = store_basic.list_bridges()
-
-        assert len(bridges) == 1
-        assert bridges[0].name == "test_bridge"
-
-    def test_list_bridges_multiple(self, store_basic, multiple_bridges):
-        """Test list_bridges with multiple bridges."""
-        for bridge in multiple_bridges:
-            store_basic.save_bridge(bridge)
-
-        bridges = store_basic.list_bridges()
-        assert len(bridges) == 5
-        bridge_names = [b.name for b in bridges]
-        assert "bridge_0" in bridge_names
-        assert "bridge_4" in bridge_names
-
-    def test_list_bridges_with_limit(self, store_basic, multiple_bridges):
-        """Test list_bridges with limit parameter."""
-        for bridge in multiple_bridges:
-            store_basic.save_bridge(bridge)
-
-        bridges = store_basic.list_bridges(limit=3)
-        assert len(bridges) == 3
-
-    def test_list_bridges_limit_zero(self, store_basic, multiple_bridges):
-        """Test list_bridges with limit of 0."""
-        for bridge in multiple_bridges:
-            store_basic.save_bridge(bridge)
-
-        bridges = store_basic.list_bridges(limit=0)
-        assert len(bridges) == 0
+            # Test context manager protocol
+            assert hasattr(store, "__enter__")
+            assert hasattr(store, "__exit__")
+            assert callable(store.__enter__)
+            assert callable(store.__exit__)
+            store.close()
 
 
-class TestLocalStoreRunOperations:
-    """Test LocalStore run-related methods."""
+class TestLocalStoreCreation:
+    """Test LocalStore creation and initialization."""
 
-    def test_save_run(self, store_basic, run_basic):
-        """Test saving a run."""
-        store_basic.save_run(run_basic)
-        assert store_basic.check_run_exists(run_basic.id)
+    def test_create_with_name_only(self):
+        """Test creating store with name only creates default path."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Change to temp directory
+            import os
 
-    def test_save_run_with_run_object(self, store_basic, run_basic):
-        """Test saving a Run object."""
-        store_basic.save_run(run_basic)
-        retrieved = store_basic.get_run(run_basic.id)
-        assert retrieved is not None
-        assert retrieved.id == run_basic.id
-        assert retrieved.bridge_name == "test_bridge"
+            original_cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                store = LocalStore(name="test_store")
 
-    def test_save_run_with_run_model(self, store_basic, run_basic):
-        """Test saving a RunModel (domain object)."""
-        run_model = run_basic.domain
-        store_basic.save_run(run_model)
-        assert store_basic.check_run_exists(run_basic.id)
+                assert store.name == "test_store"
+                assert store.path.exists()
+                assert store.path.name == "test_store.db"
+                assert ".bastion" in str(store.path)
+                store.close()
+            finally:
+                os.chdir(original_cwd)
 
-    def test_save_run_updates_existing(self, store_basic, run_basic):
-        """Test that saving a run with same ID updates it."""
-        store_basic.save_run(run_basic)
+    def test_create_with_directory_path(self):
+        """Test creating store with directory path."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = LocalStore(name="test_store", path=tmpdir)
 
-        # Modify and save again
-        run_basic.start()
-        store_basic.save_run(run_basic)
+            assert store.name == "test_store"
+            assert store.path.exists()
+            assert store.path.parent == Path(tmpdir).resolve()
+            assert store.path.name == "test_store.db"
+            store.close()
 
-        retrieved = store_basic.get_run(run_basic.id)
-        assert retrieved.status == RunStatus.RUNNING
-        assert retrieved.started_at is not None
+    def test_create_with_file_path(self):
+        """Test creating store with explicit file path."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "custom.db"
+            store = LocalStore(name="test_store", path=db_path)
 
-    def test_get_run_exists(self, store_basic, run_basic):
+            assert store.name == "test_store"
+            assert store.path.exists()
+            assert store.path == db_path.resolve()
+            store.close()
+
+    def test_create_initializes_database(self):
+        """Test that creating store initializes the database tables."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = LocalStore(name="test_store", path=tmpdir)
+
+            # Query table existence
+            result = store._conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                [store._table_runs],
+            ).fetchone()
+
+            assert result is not None
+            assert result[0] == store._table_runs
+            store.close()
+
+    def test_context_manager_entry_returns_store(self):
+        """Test that context manager __enter__ returns the store."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                assert isinstance(store, LocalStore)
+                assert store.name == "test_store"
+
+    def test_context_manager_exit_closes_connection(self):
+        """Test that context manager __exit__ closes the connection."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                conn = store._conn
+
+            # Connection should be closed after exiting context
+            with pytest.raises(Exception):
+                conn.execute("SELECT 1")
+
+
+class TestLocalStoreSaveRun:
+    """Test LocalStore save_run functionality."""
+
+    def test_save_run_from_run_object(self):
+        """Test saving run from Run object."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run = Run(compute_name="test_compute", name="test_run")
+
+                store.save_run(run)
+
+                # Verify run was saved
+                result = store._conn.execute(
+                    f"SELECT id, compute_name FROM {store._table_runs} WHERE id = ?",
+                    [run.id],
+                ).fetchone()
+
+                assert result is not None
+                assert result[0] == run.id
+                assert result[1] == "test_compute"
+
+    def test_save_run_from_domain_model(self):
+        """Test saving run from RunModel domain object."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                domain = RunModel(
+                    compute_name="test_compute",
+                    name="test_run",
+                )
+
+                store.save_run(domain)
+
+                # Verify run was saved
+                result = store._conn.execute(
+                    f"SELECT id, compute_name FROM {store._table_runs} WHERE id = ?",
+                    [domain.id],
+                ).fetchone()
+
+                assert result is not None
+                assert result[0] == domain.id
+                assert result[1] == "test_compute"
+
+    def test_save_run_updates_existing_run(self):
+        """Test that saving existing run updates the record."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run = Run(compute_name="test_compute", name="test_run")
+                store.save_run(run)
+
+                # Modify run and save again
+                run.start()
+                store.save_run(run)
+
+                # Verify only one record exists
+                count = store._conn.execute(
+                    f"SELECT COUNT(*) FROM {store._table_runs} WHERE id = ?",
+                    [run.id],
+                ).fetchone()[0]
+
+                assert count == 1
+
+                # Verify run was updated
+                retrieved_run = store.get_run(run.id)
+                assert retrieved_run is not None
+                assert retrieved_run.status == RunStatus.RUNNING
+
+    def test_save_run_preserves_all_data(self):
+        """Test that save_run preserves all run data."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run = Run(compute_name="test_compute", name="test_run")
+                run.start()
+                run.event("Test event", metadata={"key": "value"})
+
+                store.save_run(run)
+                retrieved_run = store.get_run(run.id)
+
+                assert retrieved_run is not None
+                assert retrieved_run.id == run.id
+                assert retrieved_run.compute_name == run.compute_name
+                assert retrieved_run.name == run.name
+                assert retrieved_run.status == RunStatus.RUNNING
+                assert retrieved_run.started_at is not None
+                assert len(retrieved_run.events) == 1
+                assert retrieved_run.events[0].message == "Test event"
+
+
+class TestLocalStoreGetRun:
+    """Test LocalStore get_run functionality."""
+
+    def test_get_run_returns_existing_run(self):
         """Test getting an existing run."""
-        store_basic.save_run(run_basic)
-        retrieved = store_basic.get_run(run_basic.id)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run = Run(compute_name="test_compute", name="test_run")
+                store.save_run(run)
 
-        assert retrieved is not None
-        assert retrieved.id == run_basic.id
-        assert retrieved.bridge_name == "test_bridge"
-        assert retrieved.name == "test_run"
+                retrieved_run = store.get_run(run.id)
 
-    def test_get_run_not_exists(self, store_basic):
-        """Test getting a non-existent run returns None."""
-        retrieved = store_basic.get_run("run-nonexistent123")
-        assert retrieved is None
+                assert retrieved_run is not None
+                assert retrieved_run.id == run.id
+                assert retrieved_run.compute_name == "test_compute"
+                assert retrieved_run.name == "test_run"
 
-    def test_get_run_with_status(self, store_basic, run_with_status):
-        """Test getting run preserves status."""
-        store_basic.save_run(run_with_status)
-        retrieved = store_basic.get_run(run_with_status.id)
+    def test_get_run_returns_none_for_nonexistent_run(self):
+        """Test getting a nonexistent run returns None."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                retrieved_run = store.get_run("nonexistent-id")
 
-        assert retrieved is not None
-        assert retrieved.status == RunStatus.RUNNING
-        assert retrieved.started_at is not None
+                assert retrieved_run is None
 
-    def test_check_run_exists_true(self, store_basic, run_basic):
-        """Test check_run_exists returns True for existing run."""
-        store_basic.save_run(run_basic)
-        assert store_basic.check_run_exists(run_basic.id) is True
+    def test_get_run_returns_run_with_correct_type(self):
+        """Test that get_run returns a Run object."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run = Run(compute_name="test_compute", name="test_run")
+                store.save_run(run)
 
-    def test_check_run_exists_false(self, store_basic):
-        """Test check_run_exists returns False for non-existent run."""
-        assert store_basic.check_run_exists("run-nonexistent123") is False
+                retrieved_run = store.get_run(run.id)
 
-    def test_list_runs_empty(self, store_basic):
-        """Test list_runs returns empty list when no runs exist."""
-        runs = store_basic.list_runs()
-        assert runs == []
-        assert isinstance(runs, list)
-
-    def test_list_runs_single(self, store_basic, run_basic):
-        """Test list_runs with single run."""
-        store_basic.save_run(run_basic)
-        runs = store_basic.list_runs()
-
-        assert len(runs) == 1
-        assert runs[0].id == run_basic.id
-
-    def test_list_runs_multiple(self, store_basic, multiple_runs):
-        """Test list_runs with multiple runs."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
-
-        runs = store_basic.list_runs()
-        assert len(runs) == 5
-
-    def test_list_runs_ordered_by_created_at(self, store_basic, multiple_runs):
-        """Test list_runs returns runs ordered by created_at DESC."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
-
-        runs = store_basic.list_runs()
-        # Should be in descending order (newest first)
-        for i in range(len(runs) - 1):
-            assert runs[i].created_at >= runs[i + 1].created_at
-
-    def test_list_runs_filter_by_bridge_name(self, store_basic, multiple_runs):
-        """Test list_runs filtered by bridge_name."""
-        # Create runs for different bridges
-        for i, run in enumerate(multiple_runs):
-            if i < 3:
-                run.domain.bridge_name = "bridge_a"
-            else:
-                run.domain.bridge_name = "bridge_b"
-            store_basic.save_run(run)
-
-        runs_a = store_basic.list_runs(bridge_name="bridge_a")
-        runs_b = store_basic.list_runs(bridge_name="bridge_b")
-
-        assert len(runs_a) == 3
-        assert len(runs_b) == 2
-        assert all(r.bridge_name == "bridge_a" for r in runs_a)
-        assert all(r.bridge_name == "bridge_b" for r in runs_b)
-
-    def test_list_runs_with_limit(self, store_basic, multiple_runs):
-        """Test list_runs with limit parameter."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
-
-        runs = store_basic.list_runs(limit=3)
-        assert len(runs) == 3
-
-    def test_list_runs_with_bridge_name_and_limit(self, store_basic, multiple_runs):
-        """Test list_runs with both bridge_name and limit."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
-
-        runs = store_basic.list_runs(bridge_name="test_bridge", limit=2)
-        assert len(runs) == 2
-        assert all(r.bridge_name == "test_bridge" for r in runs)
-
-    def test_list_runs_nonexistent_bridge(self, store_basic, multiple_runs):
-        """Test list_runs with non-existent bridge_name returns empty list."""
-        for run in multiple_runs:
-            store_basic.save_run(run)
-
-        runs = store_basic.list_runs(bridge_name="nonexistent_bridge")
-        assert runs == []
+                assert isinstance(retrieved_run, Run)
 
 
-class TestLocalStoreExport:
-    """Test LocalStore export functionality."""
+class TestLocalStoreListRuns:
+    """Test LocalStore list_runs functionality."""
 
-    def test_export_empty_store(self, store_basic):
-        """Test export with empty store."""
-        exported = store_basic.export()
+    def test_list_runs_returns_all_runs(self):
+        """Test listing all runs without filters."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run1 = Run(compute_name="compute1", name="run1")
+                run2 = Run(compute_name="compute2", name="run2")
+                run3 = Run(compute_name="compute3", name="run3")
 
-        assert exported["name"] == "test_store"
-        assert exported["kind"] == StoreKind.LOCAL
-        assert "counts" in exported
-        assert exported["counts"]["bridges"] == 0
-        assert exported["counts"]["runs"] == 0
+                store.save_run(run1)
+                store.save_run(run2)
+                store.save_run(run3)
 
-    def test_export_with_bridges(self, store_basic, multiple_bridges):
-        """Test export with bridges."""
-        for bridge in multiple_bridges[:3]:
-            store_basic.save_bridge(bridge)
+                runs = store.list_runs()
 
-        exported = store_basic.export()
-        assert exported["counts"]["bridges"] == 3
-        assert exported["counts"]["runs"] == 0
+                assert len(runs) == 3
+                run_ids = [r.id for r in runs]
+                assert run1.id in run_ids
+                assert run2.id in run_ids
+                assert run3.id in run_ids
 
-    def test_export_with_runs(self, store_basic, multiple_runs):
-        """Test export with runs."""
-        for run in multiple_runs[:4]:
-            store_basic.save_run(run)
+    def test_list_runs_filters_by_compute_name(self):
+        """Test listing runs filtered by compute_name."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run1 = Run(compute_name="compute1", name="run1")
+                run2 = Run(compute_name="compute1", name="run2")
+                run3 = Run(compute_name="compute2", name="run3")
 
-        exported = store_basic.export()
-        assert exported["counts"]["bridges"] == 0
-        assert exported["counts"]["runs"] == 4
+                store.save_run(run1)
+                store.save_run(run2)
+                store.save_run(run3)
 
-    def test_export_with_bridges_and_runs(self, store_basic, multiple_bridges, multiple_runs):
-        """Test export with both bridges and runs."""
-        for bridge in multiple_bridges[:2]:
-            store_basic.save_bridge(bridge)
-        for run in multiple_runs[:3]:
-            store_basic.save_run(run)
+                runs = store.list_runs(compute_name="compute1")
 
-        exported = store_basic.export()
-        assert exported["counts"]["bridges"] == 2
-        assert exported["counts"]["runs"] == 3
+                assert len(runs) == 2
+                assert all(r.compute_name == "compute1" for r in runs)
+
+    def test_list_runs_filters_by_since(self):
+        """Test listing runs filtered by since timestamp."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                # Create runs with different timestamps
+                now = datetime.now(UTC)
+
+                # Create older run
+                old_domain = RunModel(
+                    compute_name="compute1",
+                    name="old_run",
+                )
+                old_domain.created_at = now - timedelta(hours=2)
+                store.save_run(old_domain)
+
+                # Create newer run
+                new_run = Run(compute_name="compute1", name="new_run")
+                store.save_run(new_run)
+
+                # Filter by timestamp
+                since_time = now - timedelta(hours=1)
+                runs = store.list_runs(since=since_time)
+
+                assert len(runs) == 1
+                assert runs[0].name == "new_run"
+
+    def test_list_runs_filters_by_until(self):
+        """Test listing runs filtered by until timestamp."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                # Create runs with different timestamps
+                now = datetime.now(UTC)
+
+                # Create older run
+                old_domain = RunModel(
+                    compute_name="compute1",
+                    name="old_run",
+                )
+                old_domain.created_at = now - timedelta(hours=2)
+                store.save_run(old_domain)
+
+                # Create newer run
+                new_run = Run(compute_name="compute1", name="new_run")
+                store.save_run(new_run)
+
+                # Filter by timestamp
+                until_time = now - timedelta(hours=1)
+                runs = store.list_runs(until=until_time)
+
+                assert len(runs) == 1
+                assert runs[0].name == "old_run"
+
+    def test_list_runs_filters_by_limit(self):
+        """Test listing runs with limit."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                # Create multiple runs
+                for i in range(5):
+                    run = Run(compute_name="compute1", name=f"run{i}")
+                    store.save_run(run)
+
+                runs = store.list_runs(limit=3)
+
+                assert len(runs) == 3
+
+    def test_list_runs_combines_multiple_filters(self):
+        """Test listing runs with multiple filters combined."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                now = datetime.now(UTC)
+
+                # Create runs with different compute names and timestamps
+                old_compute1 = RunModel(compute_name="compute1", name="old_c1")
+                old_compute1.created_at = now - timedelta(hours=2)
+                store.save_run(old_compute1)
+
+                new_compute1 = Run(compute_name="compute1", name="new_c1")
+                store.save_run(new_compute1)
+
+                new_compute2 = Run(compute_name="compute2", name="new_c2")
+                store.save_run(new_compute2)
+
+                # Filter by compute_name and since
+                since_time = now - timedelta(hours=1)
+                runs = store.list_runs(compute_name="compute1", since=since_time)
+
+                assert len(runs) == 1
+                assert runs[0].name == "new_c1"
+
+    def test_list_runs_returns_empty_list_when_no_matches(self):
+        """Test that list_runs returns empty list when no runs match."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run = Run(compute_name="compute1", name="run1")
+                store.save_run(run)
+
+                runs = store.list_runs(compute_name="nonexistent")
+
+                assert runs == []
 
 
-class TestLocalStoreCloseConnection:
-    """Test LocalStore connection management."""
+class TestLocalStoreDeleteRun:
+    """Test LocalStore delete_run functionality."""
 
-    def test_close_method(self, temp_db_path):
-        """Test close() method closes connection."""
-        store = LocalStore(name="test_store", path=temp_db_path)
-        store.close()
+    def test_delete_run_removes_run(self):
+        """Test that delete_run removes the run."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run = Run(compute_name="test_compute", name="test_run")
+                store.save_run(run)
 
-        with pytest.raises(duckdb.ConnectionException):
-            store._conn.execute("SELECT 1")
+                # Verify run exists
+                assert store.get_run(run.id) is not None
 
-    def test_operations_after_close_raise_error(self, store_basic, bridge_basic):
-        """Test that operations after close raise appropriate errors."""
-        store_basic.close()
+                # Delete run
+                store.delete_run(run.id)
 
-        with pytest.raises(duckdb.ConnectionException):
-            store_basic.save_bridge(bridge_basic)
+                # Verify run no longer exists
+                assert store.get_run(run.id) is None
+
+    def test_delete_run_does_not_affect_other_runs(self):
+        """Test that deleting one run doesn't affect others."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                run1 = Run(compute_name="compute1", name="run1")
+                run2 = Run(compute_name="compute2", name="run2")
+
+                store.save_run(run1)
+                store.save_run(run2)
+
+                # Delete run1
+                store.delete_run(run1.id)
+
+                # Verify run1 is deleted
+                assert store.get_run(run1.id) is None
+
+                # Verify run2 still exists
+                assert store.get_run(run2.id) is not None
+
+    def test_delete_nonexistent_run_does_not_raise(self):
+        """Test that deleting a nonexistent run doesn't raise an error."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                # Should not raise an exception
+                store.delete_run("nonexistent-id")
 
 
-class TestLocalStoreCustomTables:
-    """Test LocalStore with custom table names."""
+class TestLocalStoreIntegration:
+    """Integration tests for LocalStore operations."""
 
-    def test_custom_table_names_in_sql(self, store_custom_tables):
-        """Test that custom table names are used in SQL."""
-        # Check that custom tables exist
-        tables = store_custom_tables._conn.execute(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema='main'"
-        ).fetchall()
-        table_names = [t[0] for t in tables]
+    def test_full_run_lifecycle(self):
+        """Test a complete run lifecycle with the store."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with LocalStore(name="test_store", path=tmpdir) as store:
+                # Create and save a run
+                run = Run(compute_name="test_compute", name="test_run")
+                store.save_run(run)
 
-        assert "custom_bridges" in table_names
-        assert "custom_runs" in table_names
+                # Start the run
+                run.start()
+                store.save_run(run)
 
-    def test_operations_with_custom_tables(self, store_custom_tables, bridge_basic, run_basic):
-        """Test that operations work with custom table names."""
-        store_custom_tables.save_bridge(bridge_basic)
-        store_custom_tables.save_run(run_basic)
+                # Add events
+                run.event("Event 1")
+                run.event("Event 2", metadata={"step": 2})
+                store.save_run(run)
 
-        assert store_custom_tables.check_bridge_exists("test_bridge")
-        assert store_custom_tables.check_run_exists(run_basic.id)
+                # Complete the run
+                run.succeed()
+                store.save_run(run)
 
-        bridges = store_custom_tables.list_bridges()
-        runs = store_custom_tables.list_runs()
+                # Retrieve and verify
+                retrieved_run = store.get_run(run.id)
 
-        assert len(bridges) == 1
-        assert len(runs) == 1
+                assert retrieved_run is not None
+                assert retrieved_run.status == RunStatus.SUCCEEDED
+                assert retrieved_run.started_at is not None
+                assert retrieved_run.finished_at is not None
+                assert len(retrieved_run.events) == 2
+
+    def test_multiple_stores_with_different_names(self):
+        """Test using multiple stores with different names."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store1 = LocalStore(name="store1", path=tmpdir)
+            store2 = LocalStore(name="store2", path=tmpdir)
+
+            try:
+                run1 = Run(compute_name="compute1", name="run1")
+                run2 = Run(compute_name="compute2", name="run2")
+
+                store1.save_run(run1)
+                store2.save_run(run2)
+
+                # Each store should only see its own runs
+                assert store1.get_run(run1.id) is not None
+                assert store1.get_run(run2.id) is None
+
+                assert store2.get_run(run2.id) is not None
+                assert store2.get_run(run1.id) is None
+            finally:
+                store1.close()
+                store2.close()
+
+    def test_store_persistence_across_connections(self):
+        """Test that data persists across different store connections."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "persistent.db"
+
+            # Create store and save run
+            with LocalStore(name="test_store", path=db_path) as store:
+                run = Run(compute_name="test_compute", name="test_run")
+                store.save_run(run)
+                run_id = run.id
+
+            # Open new store connection
+            with LocalStore(name="test_store", path=db_path) as store:
+                retrieved_run = store.get_run(run_id)
+
+                assert retrieved_run is not None
+                assert retrieved_run.id == run_id
+                assert retrieved_run.compute_name == "test_compute"
+                assert retrieved_run.name == "test_run"
