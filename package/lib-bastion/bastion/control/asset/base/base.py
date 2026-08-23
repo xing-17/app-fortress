@@ -54,7 +54,7 @@ class IAssetRefLike(Protocol):
 
 
 @runtime_checkable
-class IAdaptorLike(Protocol):
+class IAssetAdaptorLike(Protocol):
     """
     Represents a storage adaptor that can read files.
 
@@ -103,7 +103,7 @@ class IAssetLike(Protocol):
     """
 
     domain: BaseAssetModel
-    
+
     name: str
     kind: AssetKind
     platform: Platform
@@ -132,7 +132,7 @@ class IAssetLike(Protocol):
         since: datetime | None = None,
         until: datetime | None = None,
         limit: int | None = None,
-        adaptor: IAdaptorLike = None,
+        adaptor: IAssetAdaptorLike = None,
     ) -> None: ...
 
     def export(self) -> dict[str, Any]: ...

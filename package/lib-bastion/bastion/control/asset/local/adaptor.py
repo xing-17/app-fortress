@@ -4,11 +4,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from bastion.control.asset.base.base import IAdaptorLike
+from bastion.control.asset.base.base import IAssetAdaptorLike
 
 
 @runtime_checkable
-class ILocalAdaptorLike(IAdaptorLike, Protocol):
+class ILocalAdaptorLike(IAssetAdaptorLike, Protocol):
     """
     Protocol an adaptor that can read files from local filesystem.
 

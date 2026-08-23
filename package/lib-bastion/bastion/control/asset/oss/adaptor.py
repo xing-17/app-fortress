@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 
-from bastion.control.asset.base.base import IAdaptorLike
+from bastion.control.asset.base.base import IAssetAdaptorLike
 
 
 @runtime_checkable
-class IOSSAdaptorLike(IAdaptorLike, Protocol):
+class IOSSAdaptorLike(IAssetAdaptorLike, Protocol):
     """
     Protocol an adaptor that can read files from OSS.
 

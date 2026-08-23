@@ -9,6 +9,13 @@ from bastion.control.asset import (
     oss,  # noqa: F401 - 副作用导入，触发装饰器
     s3,  # noqa: F401 - 副作用导入，触发装饰器
 )
+from bastion.control.asset.base.base import (
+    IAssetAdaptorLike,
+    IAssetLike,
+)
+from bastion.control.asset.base.factory import (
+    AssetFactory,
+)
 from bastion.control.asset.local import (
     ILocalAdaptorLike,
     LocalAdaptor,
@@ -47,4 +54,7 @@ __all__ = [
     "OSSAssetRef",
     "IOSSAdaptorLike",
     "OSSAdaptor",
+    "IAssetAdaptorLike",
+    "IAssetLike",
+    "AssetFactory",
 ]
