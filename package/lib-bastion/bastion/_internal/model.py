@@ -23,7 +23,7 @@ class IBastionModel(BaseModel):
         _id_length (ClassVar[int]): Length of the generated UUID portion.
 
     Methods:
-        from_any(dict | Self value): Create instance from dict or existing instance.
+        from_dict(dict | Self value): Create instance from dict or existing instance.
         clone(**updates): Create a deep copy with optional field updates.
         export(): Export the model instance to a JSON-serializable dictionary.
         describe(): Return a JSON string representation of the model.
@@ -43,7 +43,7 @@ class IBastionModel(BaseModel):
         print(obj.id)  # e.g., "my-a1b2c3d4e5f6"
 
         # Create from dict
-        obj2 = MyModel.from_any({"name": "test", "id": "my-123456"})
+        obj2 = MyModel.from_dict({"name": "test", "id": "my-123456"})
 
         # Clone with updates
         obj3 = obj.clone(name="updated")
@@ -68,7 +68,7 @@ class IBastionModel(BaseModel):
     )
 
     @classmethod
-    def from_any(
+    def from_dict(
         cls,
         value: dict | Self,
     ) -> Self:

@@ -85,7 +85,7 @@ class IBastionObject:
     ) -> IBastionModel | None:
         if cls._domain_class is None:
             return None
-        return cls._domain_class.from_any(value)
+        return cls._domain_class.from_dict(value)
 
     def __getattr__(
         self,
