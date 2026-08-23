@@ -103,6 +103,7 @@ class IAssetLike(Protocol):
     """
 
     domain: BaseAssetModel
+    
     name: str
     kind: AssetKind
     platform: Platform
