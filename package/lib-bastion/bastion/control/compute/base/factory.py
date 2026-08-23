@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from bastion.control.compute.base.base import IComputeLike
-from bastion.domain.compute.base import BaseComputeModel
+from bastion.domain.compute import BaseComputeModel
 
 
 class ComputeFactory:
@@ -13,66 +13,35 @@ class ComputeFactory:
     def register(
         cls,
         kind: str,
-        compute_cls: type[IComputeLike],
-    ) -> None:
-        cls._registry[kind] = compute_cls
+    ) -> Callable[[type[IComputeLike]], type[IComputeLike]]:
+        def decorator(klass: type[IComputeLike]):
+            if kind in cls._registry:
+                raise ValueError(f"'{kind}' compute already registered.")
+            cls._registry[kind] = klass
+            return klass
+
+        return decorator
 
     @classmethod
-    def load_from_dict(
+    def load(
         cls,
-        data: dict[str, Any],
+        data: dict[str, Any] | BaseComputeModel,
     ) -> IComputeLike:
-        kind = data.get("kind")
-        if kind is None:
+        if isinstance(data, BaseComputeModel):
+            kind = getattr(data, "kind", None)
+        else:
+            kind = data.get("kind", None)
+
+        if not kind:
             raise ValueError("Compute data missing required field: 'kind'")
 
-        compute_cls = cls._registry.get(kind)
-        if compute_cls is None:
+        # Look up the registered class for the kind
+        klass: type[IComputeLike] | None = cls._registry.get(kind)
+        if klass is None:
             raise ValueError(f"No compute class registered for kind: '{kind}'")
 
-        return compute_cls.from_dict(data)
-
-    @classmethod
-    def load_from_domain(
-        cls,
-        domain: Any,
-    ) -> IComputeLike:
-        kind = getattr(domain, "kind", None)
-        if kind is None:
-            raise ValueError("Domain object missing required attribute: 'kind'")
-
-        compute_cls = cls._registry.get(kind)
-        if compute_cls is None:
-            raise ValueError(f"No compute class registered for kind: '{kind}'")
-
-        return compute_cls.from_domain(domain)
-
-    @classmethod
-    def resolve(
-        cls,
-        value: IComputeLike | dict[str, Any] | None,
-    ) -> IComputeLike | None:
-        if value is None:
-            return None
-        elif isinstance(value, IComputeLike):
-            return value
-        elif isinstance(value, BaseComputeModel):
-            return cls.load_from_domain(value)
-        elif isinstance(value, dict):
-            return cls.load_from_dict(value)
+        # Determine whether to load from dict or domain model
+        if isinstance(data, BaseComputeModel):
+            return klass.from_domain(data)
         else:
-            raise ValueError(f"Invalid compute type: {type(value)}")
-
-
-def _register_defaults() -> None:
-
-    # Register PyEntrypointCompute for the "py_entrypoint" kind
-    from bastion.control.compute.pyentrypoint.pyentrypoint import PyEntrypointCompute
-
-    ComputeFactory.register(
-        kind="py_entrypoint",
-        compute_cls=PyEntrypointCompute,
-    )
-
-
-_register_defaults()
+            return klass.from_dict(data)

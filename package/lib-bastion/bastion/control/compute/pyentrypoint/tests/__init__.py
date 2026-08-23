@@ -1,3 +1,1 @@
-"""
-Tests for bastion.control.compute.pyentrypoint module.
-"""
+"""Tests for pyentrypoint compute."""

@@ -2,13 +2,28 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from bastion.domain.compute.base import BaseComputeModel, ComputeKind
+from bastion.domain.compute import BaseComputeModel, ComputeKind
 
 if TYPE_CHECKING:
-    from bastion.control.run import IRunLike
-    from bastion.control.store.base.base import IStoreLike
+    from bastion.control.run.run import IRunLike
+    from bastion.control.store.base import IStoreLike
 
-ComputeModel = BaseComputeModel
+
+@runtime_checkable
+class IComputeAdaptorLike(Protocol):
+    def load_historical_runs(
+        self,
+        name: str,
+        **kwargs: Any,
+    ) -> list[IRunLike]: ...
+
+    def start_compute(
+        self,
+        name: str,
+        params: dict[str, str] | None = None,
+        wait: bool = True,
+        **kwargs: Any,
+    ) -> IRunLike: ...
 
 
 @runtime_checkable
@@ -27,7 +42,7 @@ class IComputeLike(Protocol):
     @classmethod
     def from_domain(
         cls,
-        domain: ComputeModel,
+        domain: BaseComputeModel,
     ) -> IComputeLike: ...
 
     def execute(
@@ -35,15 +50,21 @@ class IComputeLike(Protocol):
         run: IRunLike,
         store: IStoreLike,
         params: dict[str, str] | None = None,
+        adaptor: IComputeAdaptorLike | None = None,
+    ) -> None: ...
+
+    def cancel(
+        self,
+        run: IRunLike,
+        store: IStoreLike | None = None,
+        adaptor: IComputeAdaptorLike | None = None,
     ) -> None: ...
 
     def _save_run(
         self,
         run: IRunLike,
         store: IStoreLike | None = None,
-    ) -> None:
-        if store is not None:
-            store.save_run(run.domain)
+    ) -> None: ...
 
     def export(self) -> dict[str, Any]: ...
 

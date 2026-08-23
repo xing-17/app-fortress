@@ -1,81 +1,186 @@
-"""Unit tests for ComputeFactory."""
+"""Unit tests for compute base factory."""
 
 from __future__ import annotations
 
 import pytest
 
 from bastion.control.compute.base.factory import ComputeFactory
-from bastion.control.compute.pyentrypoint.pyentrypoint import PyEntrypointCompute
+from bastion.control.compute.pyentrypoint import PyEntrypointCompute
+from bastion.domain.compute import ComputeKind
 
 
 class TestComputeFactory:
-    """Test ComputeFactory functionality."""
+    """Test ComputeFactory registration and loading."""
 
-    def test_load_py_entrypoint_compute(self):
-        """Test loading a py_entrypoint compute."""
+    def test_register_and_load_from_dict(self):
+        """Test registering compute kind and loading from dict."""
+        ComputeFactory._registry.clear()
+
+        @ComputeFactory.register("test_kind")
+        class TestCompute:
+            pass
+
+        assert "test_kind" in ComputeFactory._registry
+        assert ComputeFactory._registry["test_kind"] is TestCompute
+
+    def test_register_duplicate_kind_raises(self):
+        """Test duplicate kind registration raises ValueError."""
+        ComputeFactory._registry.clear()
+
+        @ComputeFactory.register("test_kind")
+        class FirstCompute:
+            pass
+
+        with pytest.raises(ValueError, match="already registered"):
+
+            @ComputeFactory.register("test_kind")
+            class SecondCompute:
+                pass
+
+    def test_load_from_dict(self):
+        """Test loading compute from dictionary."""
+        ComputeFactory._registry.clear()
+        ComputeFactory.register(ComputeKind.PY_ENTRYPOINT.value)(PyEntrypointCompute)
+
         data = {
             "name": "test_compute",
-            "kind": "py_entrypoint",
-            "module": "test_module",
-            "entrypoint": "main",
+            "kind": ComputeKind.PY_ENTRYPOINT.value,
+            "entrypoint": "module.function",
         }
 
-        compute = ComputeFactory.load_from_dict(data)
-
+        compute = ComputeFactory.load(data)
         assert isinstance(compute, PyEntrypointCompute)
         assert compute.name == "test_compute"
-        assert compute.kind == "py_entrypoint"
+        assert compute.kind == ComputeKind.PY_ENTRYPOINT
 
-    def test_load_missing_kind(self):
-        """Test error when kind field is missing."""
+    def test_load_from_domain_model(self):
+        """Test loading compute from domain model."""
+        from bastion.control.compute.pyentrypoint import PyEntrypointModel
+
+        ComputeFactory._registry.clear()
+        ComputeFactory.register(ComputeKind.PY_ENTRYPOINT.value)(PyEntrypointCompute)
+
+        domain = PyEntrypointModel(
+            name="test_compute",
+            entrypoint="module.function",
+        )
+
+        compute = ComputeFactory.load(domain)
+        assert isinstance(compute, PyEntrypointCompute)
+        assert compute.name == "test_compute"
+        assert compute.domain.entrypoint == "module.function"
+
+    def test_load_missing_kind_from_dict_raises(self):
+        """Test loading without kind field from dict raises ValueError."""
+        ComputeFactory._registry.clear()
+
+        with pytest.raises(ValueError, match="missing required field"):
+            ComputeFactory.load({"name": "test"})
+
+    def test_load_unregistered_kind_raises(self):
+        """Test loading unregistered kind raises ValueError."""
+        ComputeFactory._registry.clear()
+
         data = {
             "name": "test_compute",
-            "module": "test_module",
+            "kind": "nonexistent_kind",
+            "entrypoint": "module.function",
         }
 
-        with pytest.raises(ValueError, match="missing required field: 'kind'"):
-            ComputeFactory.load_from_dict(data)
+        with pytest.raises(ValueError, match="No compute class registered"):
+            ComputeFactory.load(data)
 
-    def test_load_unregistered_kind(self):
-        """Test error when kind is not registered."""
+    def test_register_decorator_returns_class(self):
+        """Test register decorator returns the original class."""
+        ComputeFactory._registry.clear()
+
+        @ComputeFactory.register("test_kind")
+        class TestCompute:
+            pass
+
+        # Verify the decorator returns the class itself
+        assert TestCompute.__name__ == "TestCompute"
+
+    def test_load_preserves_compute_attributes(self):
+        """Test that loading preserves all compute attributes."""
+        ComputeFactory._registry.clear()
+        ComputeFactory.register(ComputeKind.PY_ENTRYPOINT.value)(PyEntrypointCompute)
+
         data = {
             "name": "test_compute",
-            "kind": "unknown_kind",
-            "module": "test_module",
+            "kind": ComputeKind.PY_ENTRYPOINT.value,
+            "entrypoint": "bastion.module.function",
+            "tags": {"env": "test", "version": "1.0"},
         }
 
-        with pytest.raises(
-            ValueError, match="No compute class registered for kind: 'unknown_kind'"
-        ):
-            ComputeFactory.load_from_dict(data)
+        compute = ComputeFactory.load(data)
+        assert compute.name == "test_compute"
+        assert compute.kind == ComputeKind.PY_ENTRYPOINT
+        assert compute.domain.entrypoint == "bastion.module.function"
+        assert compute.tags == {"env": "test", "version": "1.0"}
 
-    def test_register_custom_compute(self):
-        """Test registering a custom compute class."""
+    def test_load_with_empty_kind_raises(self):
+        """Test loading with empty string kind raises ValueError."""
+        ComputeFactory._registry.clear()
 
-        # Create a mock compute class
-        class CustomCompute:
-            def __init__(self, name: str, kind: str):
-                self.name = name
-                self.kind = kind
+        data = {
+            "name": "test_compute",
+            "kind": "",
+            "entrypoint": "module.function",
+        }
+
+        with pytest.raises(ValueError, match="missing required field"):
+            ComputeFactory.load(data)
+
+    def test_load_with_none_kind_raises(self):
+        """Test loading with None kind raises ValueError."""
+        ComputeFactory._registry.clear()
+
+        data = {
+            "name": "test_compute",
+            "kind": None,
+            "entrypoint": "module.function",
+        }
+
+        with pytest.raises(ValueError, match="missing required field"):
+            ComputeFactory.load(data)
+
+    def test_registry_is_shared_across_instances(self):
+        """Test that registry is shared as class variable."""
+        ComputeFactory._registry.clear()
+
+        @ComputeFactory.register("shared_test")
+        class SharedCompute:
+            pass
+
+        # Verify registry is accessible from class
+        assert "shared_test" in ComputeFactory._registry
+        assert ComputeFactory._registry["shared_test"] is SharedCompute
+
+    def test_multiple_registrations(self):
+        """Test registering multiple different compute kinds."""
+        ComputeFactory._registry.clear()
+
+        @ComputeFactory.register("kind_a")
+        class ComputeA:
+            @classmethod
+            def from_dict(cls, data):
+                return cls()
 
             @classmethod
-            def from_dict(cls, data: dict):
-                return cls(
-                    name=data["name"],
-                    kind=data["kind"],
-                )
+            def from_domain(cls, domain):
+                return cls()
 
-        # Register the custom compute
-        ComputeFactory.register(kind="custom", compute_cls=CustomCompute)
+        @ComputeFactory.register("kind_b")
+        class ComputeB:
+            @classmethod
+            def from_dict(cls, data):
+                return cls()
 
-        # Load a compute with the custom kind
-        data = {
-            "name": "custom_compute",
-            "kind": "custom",
-        }
+            @classmethod
+            def from_domain(cls, domain):
+                return cls()
 
-        compute = ComputeFactory.load_from_dict(data)
-
-        assert isinstance(compute, CustomCompute)
-        assert compute.name == "custom_compute"
-        assert compute.kind == "custom"
+        assert len(ComputeFactory._registry) == 2
+        assert "kind_a" in ComputeFactory._registry
+        assert "kind_b" in ComputeFactory._registry
