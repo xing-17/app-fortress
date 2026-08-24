@@ -48,7 +48,7 @@ class IClock:
             return ZoneInfo(timezone) if timezone else _DEFAULT_TZ
         else:
             return _DEFAULT_TZ
-        
+
     @staticmethod
     def from_datetime(
         value: datetime,
