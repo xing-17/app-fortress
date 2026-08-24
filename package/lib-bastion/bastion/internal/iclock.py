@@ -48,6 +48,17 @@ class IClock:
             return ZoneInfo(timezone) if timezone else _DEFAULT_TZ
         else:
             return _DEFAULT_TZ
+        
+    @staticmethod
+    def from_datetime(
+        value: datetime,
+        timezone: ZoneInfo | str | None = None,
+    ) -> datetime:
+        _tz = IClock._resolve_tz(timezone)
+        if value.tzinfo:
+            return value.astimezone(_tz)
+        else:
+            return value.replace(tzinfo=_tz)
 
     @staticmethod
     def from_iso(
