@@ -14,25 +14,19 @@ class AbstractAccessDomain(IDomain, ABC):
     Abstract base class for access profiles.
 
     Attributes:
-        name (str): Name of the access profile.
-        platform (AccessPlatform): Platform of the access profile.
-        tags (dict[str, str]): Tags associated with the access profile.
-
-    Methods:
-        from_dict(value): Convert dict or instance to access model (inherited).
-        export(): Export the access model as a dictionary (inherited).
-        describe(): Export access as JSON string (inherited).
-        clone(**updates): Create a deep copy with updates (inherited).
+        name: Name of the access profile.
+        platform: Platform of the access profile.
+        tags: Tags associated with the access profile.
 
     """
 
     _id_enabled: ClassVar[bool] = False
     name: str = Field(
-        ...,
+        default="default",
         description="Access profile name",
     )
     platform: AccessPlatform = Field(
-        AccessPlatform.LOCAL,
+        default=AccessPlatform.LOCAL,
         description="Access platform of the profile",
     )
     tags: dict[str, str] = Field(
