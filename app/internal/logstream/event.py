@@ -76,7 +76,7 @@ class LogEvent(LogRecord):
         _msg: str = self.getMessage()
         _exc: dict[str, str] | None = None
         _exc_info = getattr(self, "exc_info", None)
-        if _exc_info is not None:
+        if _exc_info and _exc_info[0] is not None:
             _type, _value, _ = _exc_info
             _exc = {
                 "type": _type.__qualname__,
