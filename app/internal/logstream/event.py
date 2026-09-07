@@ -27,12 +27,12 @@ class LogEvent(LogRecord):
         ...     level=logging.INFO,
         ...     lineno=42,
         ...     pathname="/path/to/my_module.py",
-        ...     created_at=datetime(2024, 6, 1, 12, 0, 0),
+        ...     created_at=datetime(2024, 6, 1, 12, 0, 0, tzinfo=ZoneInfo("UTC")),
         ...     metadata={'user_id': 123, 'session_id': 'abc123'},
         ...     tags={'module': 'my_module', 'function': 'my_function'},
         ... )
         >>> event.created_at
-        datetime.datetime(2024, 6, 1, 12, 0, 0)
+        datetime.datetime(2024, 6, 1, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
         >>> event.metadata
         {'user_id': 123, 'session_id': 'abc123'}
         >>> event.tags
