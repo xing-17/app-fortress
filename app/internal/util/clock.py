@@ -52,7 +52,7 @@ class IClock(IAbstractUtility):
         timezone: ZoneInfo | str | None = None,
     ) -> datetime:
         _tz: ZoneInfo = ITimezone.resolve(timezone)
-        if hasattr(value, "tzinfo") and value.tzinfo is not None:
+        if value.tzinfo is not None:
             return value.astimezone(tz=_tz)
         else:
             return value.replace(tzinfo=_tz)

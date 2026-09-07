@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import zoneinfo
 from zoneinfo import ZoneInfo
 
 from app.internal.abstract.utility import IAbstractUtility
@@ -24,8 +25,10 @@ class ITimezone(IAbstractUtility):
         if isinstance(value, str):
             try:
                 return ZoneInfo(value)
-            except Exception:
+            except zoneinfo.ZoneInfoNotFoundError:
                 return ITimezone.default
+            except Exception:
+                raise TypeError(f"ITimezone: can not resolve: {type(value)}")
         if value is None:
             return ITimezone.default
-        raise TypeError(f"ITimezone: invalid type to resolve: {type(value)}")
+        raise TypeError(f"ITimezone: can not resolve: {type(value)}")
