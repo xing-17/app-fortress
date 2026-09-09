@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-import sys
 import logging
+import sys
 from pathlib import Path
+
 from app.internal.logstream.format import FileFormat, GlbFormatFactory
 
 
