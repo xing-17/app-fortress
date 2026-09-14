@@ -5,8 +5,8 @@ from typing import Literal
 from pydantic import Field
 
 from app.internal.abstract.setting import IAbstractSetting
-from app.setting.access import UnionAccessSetting
-from app.setting.log import LogSetting
+from app.setting._access import UnionAccessSetting
+from app.setting._log import LogSetting
 
 
 class SystemLogSetting(LogSetting):
