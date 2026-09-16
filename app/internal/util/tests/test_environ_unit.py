@@ -26,6 +26,10 @@ class TestIEnvironGetVariable:
         result = IEnviron.get_variable("FORTRESS_TEST_VAR", default="fallback")
         assert result == "hello"
 
+    def test_get_variable_with_none_name_returns_default(self):
+        result = IEnviron.get_variable(None, default="fallback")
+        assert result == "fallback"
+
 
 class TestIEnvironSetVariable:
     def test_set_variable_creates_new_variable(self, monkeypatch):
