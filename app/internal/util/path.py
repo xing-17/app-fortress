@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 from app.internal.abstract.utility import IAbstractUtility
 
 
@@ -33,7 +35,17 @@ class IPath(IAbstractUtility):
 
     @staticmethod
     def validate_exists(value: Path | str) -> Path:
-        path = IPath.resolve(value)
-        if not path.exists():
-            raise ValueError(f"IPath: path does not exist: {path}")
-        return path
+        _value = IPath.resolve(value)
+        if not _value.exists():
+            raise ValueError(f"IPath: path does not exist: {_value}")
+        return _value
+
+    @staticmethod
+    def validate_yaml(value: Path | str) -> Path:
+        _value = IPath.validate_exists(value)
+        try:
+            with open(_value, "r", encoding="utf-8") as f:
+                yaml.safe_load(f)
+        except Exception as e:
+            raise ValueError(f"IPath: {_value} is not valid YAML") from e
+        return _value
