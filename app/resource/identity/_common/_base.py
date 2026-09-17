@@ -6,6 +6,7 @@ from pydantic import Field
 
 from app.internal.abstract.domain import IAbstractDomain
 from app.internal.constant.platform import Platform
+from app.setting._identity import UnionIdentitySetting
 
 
 class BaseIdentity(
@@ -37,3 +38,9 @@ class BaseIdentity(
         default_factory=dict,
         description="Identity tags",
     )
+
+    @classmethod
+    def from_setting(
+        cls,
+        setting: UnionIdentitySetting,
+    ) -> BaseIdentity: ...

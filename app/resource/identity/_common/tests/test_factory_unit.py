@@ -7,6 +7,7 @@ from app.resource.identity._common._base import BaseIdentity
 from app.resource.identity._common._factory import IdentityFactory
 from app.resource.identity.aliyun.aliyun import AliyunIdentity
 from app.resource.identity.local.local import LocalIdentity
+from app.setting._identity import AliyunIdentitySetting, LocalIdentitySetting
 
 
 class TestIdentityFactoryGet:
@@ -45,3 +46,30 @@ class TestIdentityFactoryRegistryValidation:
         )
         with pytest.raises(TypeError):
             IdentityFactory.get("not_base_identity")
+
+
+class TestIdentityFactoryLoad:
+    def test_load_returns_local_identity_instance(self):
+        setting = LocalIdentitySetting(name="my_identity", tags={"env": "prod"})
+        identity = IdentityFactory.load(setting)
+        assert isinstance(identity, LocalIdentity)
+        assert identity.name == "my_identity"
+        assert identity.tags == {"env": "prod"}
+
+    def test_load_returns_aliyun_identity_instance(self):
+        setting = AliyunIdentitySetting(
+            name="my_identity",
+            access_key_id="ak_id",
+            access_key_secret="ak_secret",
+        )
+        identity = IdentityFactory.load(setting)
+        assert isinstance(identity, AliyunIdentity)
+        assert identity.name == "my_identity"
+        assert identity.access_key_id == "ak_id"
+        assert identity.access_key_secret == "ak_secret"
+
+    def test_load_raises_value_error_when_get_returns_none(self, monkeypatch):
+        monkeypatch.setattr(IdentityFactory, "get", classmethod(lambda cls, platform: None))
+        setting = LocalIdentitySetting(name="my_identity")
+        with pytest.raises(ValueError):
+            IdentityFactory.load(setting)

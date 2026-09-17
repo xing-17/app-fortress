@@ -67,20 +67,20 @@ class AliyunIdentity(BaseIdentity):
     @classmethod
     def from_setting(
         cls,
-        settings: AliyunIdentitySetting,
+        setting: AliyunIdentitySetting,
     ) -> AliyunIdentity:
         return cls(
-            name=getattr(settings, "name"),
-            type=getattr(settings, "type"),
+            name=getattr(setting, "name"),
+            type=getattr(setting, "type"),
             access_key_id=IEnviron.get_variable(
-                name=getattr(settings, "osenv_access_key_id"),
-                default=getattr(settings, "access_key_id"),
+                name=getattr(setting, "osenv_access_key_id"),
+                default=getattr(setting, "access_key_id"),
             ),
             access_key_secret=IEnviron.get_variable(
-                name=getattr(settings, "osenv_access_key_secret"),
-                default=getattr(settings, "access_key_secret"),
+                name=getattr(setting, "osenv_access_key_secret"),
+                default=getattr(setting, "access_key_secret"),
             ),
-            tags=getattr(settings, "tags"),
+            tags=getattr(setting, "tags"),
         )
 
     def _mask_attr(

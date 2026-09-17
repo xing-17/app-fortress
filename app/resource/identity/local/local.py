@@ -41,9 +41,9 @@ class LocalIdentity(BaseIdentity):
     @classmethod
     def from_setting(
         cls,
-        settings: LocalIdentitySetting,
+        setting: LocalIdentitySetting,
     ) -> LocalIdentity:
         return cls(
-            name=getattr(settings, "name"),
-            tags=getattr(settings, "tags"),
+            name=getattr(setting, "name"),
+            tags=getattr(setting, "tags"),
         )

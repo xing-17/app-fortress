@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from app.internal.constant.platform import Platform
 from app.resource.identity._common._base import BaseIdentity
+from app.setting._identity import LocalIdentitySetting
 
 
 class TestBaseIdentityInit:
@@ -79,3 +80,11 @@ class TestBaseIdentityFromDict:
         identity = BaseIdentity(name="my_identity")
         result = BaseIdentity.from_dict(identity)
         assert result is identity
+
+
+class TestBaseIdentityFromSetting:
+    def test_from_setting_is_a_placeholder_returning_none(self):
+        # BaseIdentity.from_setting is meant to be overridden by subclasses;
+        # on the base class itself it is a no-op stub.
+        settings = LocalIdentitySetting(name="my_identity")
+        assert BaseIdentity.from_setting(settings) is None

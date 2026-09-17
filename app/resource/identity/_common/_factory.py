@@ -5,6 +5,7 @@ from types import ModuleType
 
 from app.internal.constant.platform import Platform
 from app.resource.identity._common._base import BaseIdentity
+from app.setting._identity import UnionIdentitySetting
 
 
 class IdentityFactory:
@@ -49,3 +50,13 @@ class IdentityFactory:
         if not issubclass(_klass, BaseIdentity):
             raise TypeError(f"Expecting subclass of BaseIdentity, got {_klass!r}.")
         return _klass
+
+    @classmethod
+    def load(
+        cls,
+        setting: UnionIdentitySetting,
+    ) -> BaseIdentity:
+        klass: type[BaseIdentity] | None = cls.get(setting.platform)
+        if not klass:
+            raise ValueError(f"Identity class for platform '{setting.platform}' not found.")
+        return klass.from_setting(setting)
