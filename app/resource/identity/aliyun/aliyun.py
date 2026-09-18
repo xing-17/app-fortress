@@ -30,6 +30,8 @@ class AliyunIdentity(BaseIdentity):
             [Optional] 阿里云Access Key ID(默认None)
         access_key_secret (str | None):
             [Optional] 阿里云Access Key Secret(默认None)
+        region (str | None):
+            [Optional] Aliyun region(默认None)
         tags (dict[str, str]):
             [Optional] Access标签(默认空字典)
 
@@ -70,6 +72,10 @@ class AliyunIdentity(BaseIdentity):
         default=None,
         description="Aliyun access key secret",
     )
+    region: str | None = Field(
+        default=None,
+        description="Aliyun region",
+    )
 
     @classmethod
     def from_setting(
@@ -87,6 +93,10 @@ class AliyunIdentity(BaseIdentity):
                 name=getattr(setting, "osenv_access_key_secret"),
                 default=getattr(setting, "access_key_secret"),
             ),
+            region=IEnviron.get_variable(
+                name=getattr(setting, "osenv_region"),
+                default=getattr(setting, "region"),
+            ),
             tags=getattr(setting, "tags"),
         )
 
@@ -97,6 +107,7 @@ class AliyunIdentity(BaseIdentity):
             type=AliyunIdentityType.CHAIN,
             access_key_id=None,
             access_key_secret=None,
+            region=None,
             tags={
                 "platform": "aliyun",
                 "type": "chain",
@@ -104,27 +115,26 @@ class AliyunIdentity(BaseIdentity):
                 "source": "auto_generated",
             },
         )
-
-    def get_credential(self) -> CredentialModel:
+        
+    def get_client(self) -> CredentialClient:
         if self.type == AliyunIdentityType.CHAIN:
-            _client: CredentialClient = CredentialClient()
-            _cred: CredentialModel = _client.get_credential()
-            return _cred
+            return CredentialClient()
         elif self.type == AliyunIdentityType.AK:
             if not self.access_key_id or not self.access_key_secret:
                 raise ValueError("Access key ID and Secret must be provided for AK identity")
-            # AK type/keys must go through Config;
-            # get_credential() itself takes no arguments.
             _config = CredentialConfig(
                 type="access_key",
                 access_key_id=self.access_key_id,
                 access_key_secret=self.access_key_secret,
             )
-            _client = CredentialClient(_config)
-            _cred: CredentialModel = _client.get_credential()
-            return _cred
+            return CredentialClient(_config)
         else:
             raise ValueError(f"Unsupported Aliyun identity type: {self.type}")
+
+    def get_credential(self) -> CredentialModel:
+        _client: CredentialClient = self.get_client()
+        _cred: CredentialModel = _client.get_credential()
+        return _cred
 
     def _mask_attr(
         self,
