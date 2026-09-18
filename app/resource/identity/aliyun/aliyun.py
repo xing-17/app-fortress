@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
+from alibabacloud_credentials.client import Client as CredentialClient
+from alibabacloud_credentials.client import CredentialModel
+from alibabacloud_credentials.models import Config as CredentialConfig
 from pydantic import Field
 
 from app.internal.constant.aliyunidentitytype import AliyunIdentityType
@@ -15,6 +18,8 @@ from app.setting._identity import AliyunIdentitySetting
 class AliyunIdentity(BaseIdentity):
     """
     Aliyun Identity Connection
+
+        ref: https://help.aliyun.com/en/sdk/developer-reference/v2-manage-python-access-credentials
 
     Args:
         name (str):
@@ -31,6 +36,8 @@ class AliyunIdentity(BaseIdentity):
     Methods:
         from_setting(cls, settings: AliyunIdentitySetting) -> AliyunIdentity:
             从AliyunIdentitySetting创建AliyunIdentity实例。
+        get_credential() -> CredentialModel:
+            获取Aliyun身份的凭证信息。
         describe() -> str:
             返回Access的描述信息，敏感信息会被掩码。
 
@@ -82,6 +89,27 @@ class AliyunIdentity(BaseIdentity):
             ),
             tags=getattr(setting, "tags"),
         )
+
+    def get_credential(self) -> CredentialModel:
+        if self.type == AliyunIdentityType.CHAIN:
+            _client: CredentialClient = CredentialClient()
+            _cred: CredentialModel = _client.get_credential()
+            return _cred
+        elif self.type == AliyunIdentityType.AK:
+            if not self.access_key_id or not self.access_key_secret:
+                raise ValueError("Access key ID and Secret must be provided for AK identity")
+            # AK type/keys must go through Config;
+            # get_credential() itself takes no arguments.
+            _config = CredentialConfig(
+                type="access_key",
+                access_key_id=self.access_key_id,
+                access_key_secret=self.access_key_secret,
+            )
+            _client = CredentialClient(_config)
+            _cred: CredentialModel = _client.get_credential()
+            return _cred
+        else:
+            raise ValueError(f"Unsupported Aliyun identity type: {self.type}")
 
     def _mask_attr(
         self,
