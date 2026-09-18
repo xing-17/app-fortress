@@ -44,3 +44,6 @@ class BaseIdentity(
         cls,
         setting: UnionIdentitySetting,
     ) -> BaseIdentity: ...
+
+    @classmethod
+    def default(cls) -> BaseIdentity: ...

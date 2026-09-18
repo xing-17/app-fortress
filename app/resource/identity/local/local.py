@@ -47,3 +47,15 @@ class LocalIdentity(BaseIdentity):
             name=getattr(setting, "name"),
             tags=getattr(setting, "tags"),
         )
+
+    @classmethod
+    def default(cls) -> LocalIdentity:
+        return cls(
+            name="local_default_identity",
+            tags={
+                "platform": "local",
+                "type": "local",
+                "name": "local_default_identity",
+                "source": "auto_generated",
+            },
+        )

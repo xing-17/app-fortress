@@ -90,6 +90,21 @@ class AliyunIdentity(BaseIdentity):
             tags=getattr(setting, "tags"),
         )
 
+    @classmethod
+    def default(cls) -> AliyunIdentity:
+        return cls(
+            name="aliyun_default_identity",
+            type=AliyunIdentityType.CHAIN,
+            access_key_id=None,
+            access_key_secret=None,
+            tags={
+                "platform": "aliyun",
+                "type": "chain",
+                "name": "aliyun_default_identity",
+                "source": "auto_generated",
+            },
+        )
+
     def get_credential(self) -> CredentialModel:
         if self.type == AliyunIdentityType.CHAIN:
             _client: CredentialClient = CredentialClient()

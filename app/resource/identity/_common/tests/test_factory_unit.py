@@ -48,6 +48,15 @@ class TestIdentityFactoryRegistryValidation:
             IdentityFactory.get("not_base_identity")
 
 
+class TestIdentityFactoryDefault:
+    @pytest.mark.parametrize("platform", [Platform.LOCAL, Platform.ALIYUN])
+    def test_get_klass_default_returns_matching_identity_instance(self, platform):
+        klass = IdentityFactory.get(platform)
+        identity = klass.default()
+        assert isinstance(identity, klass)
+        assert identity.platform == platform
+
+
 class TestIdentityFactoryLoad:
     def test_load_returns_local_identity_instance(self):
         setting = LocalIdentitySetting(name="my_identity", tags={"env": "prod"})

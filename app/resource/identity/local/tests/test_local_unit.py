@@ -41,6 +41,38 @@ class TestLocalIdentityFromSetting:
         assert isinstance(identity, LocalIdentity)
 
 
+class TestLocalIdentityDefault:
+    def test_default_returns_local_identity_instance(self):
+        identity = LocalIdentity.default()
+        assert isinstance(identity, LocalIdentity)
+
+    def test_default_name_and_tags(self):
+        identity = LocalIdentity.default()
+        assert identity.name == "local_default_identity"
+        assert identity.tags == {
+            "platform": "local",
+            "type": "local",
+            "name": "local_default_identity",
+            "source": "auto_generated",
+        }
+
+    def test_default_platform_is_local(self):
+        identity = LocalIdentity.default()
+        assert identity.platform == Platform.LOCAL
+
+    def test_default_returns_new_instance_each_call(self):
+        first = LocalIdentity.default()
+        second = LocalIdentity.default()
+        assert first is not second
+        first.tags["env"] = "prod"
+        assert second.tags == {
+            "platform": "local",
+            "type": "local",
+            "name": "local_default_identity",
+            "source": "auto_generated",
+        }
+
+
 class TestLocalIdentityDescribe:
     def test_describe_is_valid_json(self):
         identity = LocalIdentity(name="my_local_identity", tags={"env": "production"})

@@ -88,3 +88,10 @@ class TestBaseIdentityFromSetting:
         # on the base class itself it is a no-op stub.
         settings = LocalIdentitySetting(name="my_identity")
         assert BaseIdentity.from_setting(settings) is None
+
+
+class TestBaseIdentityDefault:
+    def test_default_is_a_placeholder_returning_none(self):
+        # BaseIdentity.default is meant to be overridden by subclasses;
+        # on the base class itself it is a no-op stub.
+        assert BaseIdentity.default() is None

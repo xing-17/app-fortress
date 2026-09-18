@@ -83,6 +83,44 @@ class TestAliyunIdentityFromSetting:
         assert isinstance(identity, AliyunIdentity)
 
 
+class TestAliyunIdentityDefault:
+    def test_default_returns_aliyun_identity_instance(self):
+        identity = AliyunIdentity.default()
+        assert isinstance(identity, AliyunIdentity)
+
+    def test_default_uses_chain_type_and_no_keys(self):
+        identity = AliyunIdentity.default()
+        assert identity.type == AliyunIdentityType.CHAIN
+        assert identity.access_key_id is None
+        assert identity.access_key_secret is None
+
+    def test_default_name_and_tags(self):
+        identity = AliyunIdentity.default()
+        assert identity.name == "aliyun_default_identity"
+        assert identity.tags == {
+            "platform": "aliyun",
+            "type": "chain",
+            "name": "aliyun_default_identity",
+            "source": "auto_generated",
+        }
+
+    def test_default_platform_is_aliyun(self):
+        identity = AliyunIdentity.default()
+        assert identity.platform == Platform.ALIYUN
+
+    def test_default_returns_new_instance_each_call(self):
+        first = AliyunIdentity.default()
+        second = AliyunIdentity.default()
+        assert first is not second
+        first.tags["env"] = "prod"
+        assert second.tags == {
+            "platform": "aliyun",
+            "type": "chain",
+            "name": "aliyun_default_identity",
+            "source": "auto_generated",
+        }
+
+
 class TestAliyunIdentityDescribe:
     def test_describe_masks_long_secret_keeping_last_four_chars(self):
         identity = AliyunIdentity(
