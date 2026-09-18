@@ -1,0 +1,84 @@
+from __future__ import annotations
+
+import threading
+
+from app.internal.constant.platform import Platform
+from app.resource._global.setting import GlobalSetting
+from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._factory import IdentityFactory
+from app.setting._identity import UnionIdentitySetting
+from app.setting.system import SystemSetting
+
+
+class GlobalIdentities:
+    identities: dict[str, BaseIdentity] | None = None
+    _lock: threading.RLock = threading.RLock()
+
+    @classmethod
+    def load(cls) -> None:
+        _identities: dict[str, BaseIdentity] = {}
+        _sys_setting: SystemSetting = GlobalSetting.get_system()
+        _idt_settings: list[UnionIdentitySetting] = _sys_setting.identities
+        for _idt_setting in _idt_settings:
+            _name: str = _idt_setting.name
+            if _name in _identities:
+                raise ValueError(f"Duplicate identity entry '{_name}'")
+            try:
+                _identities[_name] = IdentityFactory.load(_idt_setting)
+            except Exception as e:
+                raise ValueError(f"Failed to load identity '{_name}': {e}") from e
+        with cls._lock:
+            cls.identities = _identities
+
+    @classmethod
+    def _ensure_loaded(cls) -> None:
+        if cls.identities is not None:
+            return
+        with cls._lock:
+            if cls.identities is None:
+                cls.load()
+
+    @classmethod
+    def get_identity(
+        cls,
+        name: str,
+        strict: bool = False,
+    ) -> BaseIdentity | None:
+        with cls._lock:
+            cls._ensure_loaded()
+            if strict and name not in cls.identities:
+                raise ValueError(f"Identity '{name}' not found")
+            return cls.identities.get(name)
+
+    @classmethod
+    def list_identity_names(
+        cls,
+        platform: Platform | None = None,
+    ) -> list[str]:
+        with cls._lock:
+            cls._ensure_loaded()
+            _snapshot = dict(cls.identities)
+        _result: list[str] = []
+        for n, i in _snapshot.items():
+            if platform is None or i.platform == platform:
+                _result.append(n)
+        return _result
+
+    @classmethod
+    def list_identities(
+        cls,
+        platform: Platform | None = None,
+    ) -> list[BaseIdentity]:
+        with cls._lock:
+            cls._ensure_loaded()
+            _snapshot = list(cls.identities.values())
+        _result: list[BaseIdentity] = []
+        for i in _snapshot:
+            if platform is None or i.platform == platform:
+                _result.append(i)
+        return _result
+
+    @classmethod
+    def reset(cls) -> None:
+        with cls._lock:
+            cls.identities = None
