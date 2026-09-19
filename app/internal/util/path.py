@@ -14,6 +14,10 @@ class IPath(IAbstractUtility):
     Methods:
         resolve(value: Path | str) -> Path:
             Resolve the given value to a Path object.
+        validate_exists(value: Path | str) -> Path:
+            Validate that the given path exists.
+        validate_yaml(value: Path | str) -> Path:
+            Validate that the given path is a valid YAML file.
 
     """
 
@@ -22,6 +26,7 @@ class IPath(IAbstractUtility):
         value: Path | str,
         default: Path | None = None,
         validate: bool = False,
+        ensure: bool = False,
     ) -> Path:
         if not value:
             if default is None:
@@ -29,6 +34,8 @@ class IPath(IAbstractUtility):
             else:
                 value = default
         _result = Path(value).expanduser().resolve()
+        if ensure:
+            _result.mkdir(parents=True, exist_ok=True)
         if validate and not _result.exists():
             raise ValueError(f"IPath: path does not exist: {_result}")
         return _result

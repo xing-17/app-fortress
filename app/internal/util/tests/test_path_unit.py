@@ -60,3 +60,28 @@ class TestIPathValidateExists:
     def test_validate_exists_accepts_string_input(self, tmp_path):
         result = IPath.validate_exists(str(tmp_path))
         assert result == tmp_path.expanduser().resolve()
+
+
+class TestIPathValidateYaml:
+    def test_validate_yaml_returns_resolved_path_for_valid_yaml(self, tmp_path):
+        yaml_file = tmp_path / "config.yaml"
+        yaml_file.write_text("key: value\n", encoding="utf-8")
+        result = IPath.validate_yaml(yaml_file)
+        assert result == yaml_file.expanduser().resolve()
+
+    def test_validate_yaml_accepts_string_input(self, tmp_path):
+        yaml_file = tmp_path / "config.yaml"
+        yaml_file.write_text("key: value\n", encoding="utf-8")
+        result = IPath.validate_yaml(str(yaml_file))
+        assert result == yaml_file.expanduser().resolve()
+
+    def test_validate_yaml_missing_path_raises_value_error(self, tmp_path):
+        missing = tmp_path / "missing.yaml"
+        with pytest.raises(ValueError):
+            IPath.validate_yaml(missing)
+
+    def test_validate_yaml_invalid_yaml_raises_value_error(self, tmp_path):
+        yaml_file = tmp_path / "invalid.yaml"
+        yaml_file.write_text("key: [unclosed\n", encoding="utf-8")
+        with pytest.raises(ValueError):
+            IPath.validate_yaml(yaml_file)
