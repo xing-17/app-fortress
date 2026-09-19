@@ -106,17 +106,17 @@ class OtsStore(BaseStore):
         cls,
         setting: AliyunStoreSetting,
     ) -> "OtsStore":
-        _idnt: AliyunIdentity | None = GlobalIdentities.get_identity(
-            name=getattr(setting, "identity", None),
-            strict=False,
-        )
         return cls(
             name=setting.name,
             instance=setting.instance,
             region=setting.region,
             in_vpc=setting.in_vpc,
             endpoint=setting.endpoint,
-            identity=_idnt,
+            identity=GlobalIdentities.get_identity(
+                name=getattr(setting, "identity", None),
+                strict=False,
+            )
+            or AliyunIdentity.default(),
             tags=setting.tags,
         )
 
