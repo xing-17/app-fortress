@@ -57,11 +57,11 @@ class GlobalIdentities:
     ) -> list[str]:
         with cls._lock:
             cls._ensure_loaded()
-            _snapshot = dict(cls.identities)
+            _snapshot: list[BaseIdentity] = list(cls.identities.values())
         _result: list[str] = []
-        for n, i in _snapshot.items():
+        for i in _snapshot:
             if platform is None or i.platform == platform:
-                _result.append(n)
+                _result.append(i.name)
         return _result
 
     @classmethod
