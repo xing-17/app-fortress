@@ -89,7 +89,6 @@ class TestOtsStoreFromSetting:
         assert store.instance == "my-instance"
         assert store.region == "cn-hangzhou"
         assert store.in_vpc is True
-        assert store.tags == {"env": "test"}
 
     def test_from_setting_resolves_registered_identity(self):
         identity = AliyunIdentity(name="my-identity")

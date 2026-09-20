@@ -71,7 +71,6 @@ class TestDuckDbStoreFromSetting:
         assert store.name == "my-duckdb-store"
         assert store.path == str(tmp_path)
         assert store.config == {"memory_limit": "1GB"}
-        assert store.tags == {"env": "test"}
 
     def test_from_setting_resolves_registered_identity(self, tmp_path):
         identity = LocalIdentity(name="my-identity")

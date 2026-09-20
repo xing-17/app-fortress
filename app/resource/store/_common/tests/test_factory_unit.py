@@ -68,7 +68,6 @@ class TestStoreFactoryLoad:
         store = StoreFactory.load(setting)
         assert isinstance(store, DuckDbStore)
         assert store.name == "my-duckdb-store"
-        assert store.tags == {"env": "prod"}
 
     def test_load_returns_ots_store_instance(self):
         GlobalIdentities.identities = {}

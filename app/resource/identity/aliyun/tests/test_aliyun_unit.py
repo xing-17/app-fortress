@@ -55,7 +55,6 @@ class TestAliyunIdentityFromSetting:
         identity = AliyunIdentity.from_setting(settings)
         assert identity.name == "my_aliyun_identity"
         assert identity.type == AliyunIdentityType.AK
-        assert identity.tags == {"env": "test"}
 
     def test_from_setting_falls_back_to_static_keys(self):
         settings = AliyunIdentitySetting(

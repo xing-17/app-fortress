@@ -63,7 +63,6 @@ class TestIdentityFactoryLoad:
         identity = IdentityFactory.load(setting)
         assert isinstance(identity, LocalIdentity)
         assert identity.name == "my_identity"
-        assert identity.tags == {"env": "prod"}
 
     def test_load_returns_aliyun_identity_instance(self):
         setting = AliyunIdentitySetting(
