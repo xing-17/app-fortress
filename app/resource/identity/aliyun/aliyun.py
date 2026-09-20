@@ -115,7 +115,7 @@ class AliyunIdentity(BaseIdentity):
                 "source": "auto_generated",
             },
         )
-        
+
     def get_client(self) -> CredentialClient:
         if self.type == AliyunIdentityType.CHAIN:
             return CredentialClient()
