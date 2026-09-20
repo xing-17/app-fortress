@@ -9,8 +9,7 @@ from app.setting.system import SystemSetting
 
 class GlobalSetting:
     """
-
-    全局设置管理
+    全局设置资源管理
 
     Attributes:
         setting_path (Path | None):

@@ -11,6 +11,34 @@ from app.setting.system import SystemSetting
 
 
 class GlobalStores:
+    """
+    全局Store类资源管理
+
+    Attributes:
+        stores (dict[str, BaseStore] | None):
+            全局Store字典，键为Store名称，值为Store实例
+        _lock (threading.RLock):
+            线程锁，用于保证线程安全
+
+    Methods:
+        load() -> None:
+            加载全局Store
+        get_store(name: str) -> BaseStore:
+            获取指定名称的Store
+        list_store_names(platform: Platform | None = None) -> list[str]:
+            列出所有Store的名称
+        list_stores(platform: Platform | None = None) -> list[BaseStore]:
+            列出所有Store实例
+        reset() -> None:
+            重置全局Store管理器
+
+    Examples:
+        >>> from app.resource._global.stores import GlobalStores
+        >>> all_store_names = GlobalStores.list_store_names()
+        >>> all_stores = GlobalStores.list_stores()
+
+    """
+
     stores: dict[str, BaseStore] | None = None
     _lock: threading.RLock = threading.RLock()
 

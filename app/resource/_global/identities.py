@@ -11,6 +11,34 @@ from app.setting.system import SystemSetting
 
 
 class GlobalIdentities:
+    """
+    全局Identity类资源管理
+
+    Attributes:
+        identities (dict[str, BaseIdentity] | None):
+            全局Identity字典，键为Identity名称，值为Identity实例
+        _lock (threading.RLock):
+            线程锁，用于保证线程安全
+
+    Methods:
+        load() -> None:
+            加载全局Identity
+        get_identity(name: str, strict: bool = False) -> BaseIdentity | None:
+            获取指定名称的Identity
+        list_identity_names(platform: Platform | None = None) -> list[str]:
+            列出所有Identity的名称
+        list_identities(platform: Platform | None = None) -> list[BaseIdentity]:
+            列出所有Identity实例
+        reset() -> None:
+            重置全局Identity管理器
+
+    Examples:
+        >>> from app.resource._global.identities import GlobalIdentities
+        >>> all_identity_names = GlobalIdentities.list_identity_names()
+        >>> all_identities = GlobalIdentities.list_identities()
+
+    """
+
     identities: dict[str, BaseIdentity] | None = None
     _lock: threading.RLock = threading.RLock()
 
