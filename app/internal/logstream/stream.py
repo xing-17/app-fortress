@@ -10,6 +10,7 @@ from app.internal.logstream.event import LogEvent
 from app.internal.logstream.group import ConsoleGroup, FileGroup
 from app.internal.util.clock import IClock
 from app.internal.util.timezone import ITimezone
+from app.setting._log import LogSetting
 
 
 class LogStream(logging.Logger):
@@ -49,6 +50,23 @@ class LogStream(logging.Logger):
 
     _default_name: str = "default"
     _default_level: str = "INFO"
+
+    @classmethod
+    def from_setting(
+        cls,
+        setting: LogSetting,
+    ) -> LogStream:
+        return cls(
+            name=setting.name,
+            level=setting.level,
+            timezone=setting.timezone,
+            metadata=setting.metadata,
+            tags=setting.tags,
+            console_verbose=setting.console_verbose,
+            console_format=setting.console_format,
+            file_path=setting.file_path,
+            file_max_items=setting.file_max_items,
+        )
 
     def __init__(
         self,

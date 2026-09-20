@@ -6,6 +6,8 @@ import pytest
 
 from app.internal.logstream.group import ConsoleGroup, FileGroup
 from app.internal.logstream.stream import LogStream
+from app.internal.util.timezone import ITimezone
+from app.setting._log import LogSetting
 
 
 class _RecordCollector(logging.Handler):
@@ -27,6 +29,40 @@ def _collect(stream: LogStream) -> _RecordCollector:
     collector = _RecordCollector()
     stream.addHandler(collector)
     return collector
+
+
+class TestLogStreamFromSetting:
+    def test_maps_setting_fields_onto_stream(self, tmp_path):
+        setting = LogSetting(
+            name="svc",
+            level="DEBUG",
+            timezone="UTC",
+            metadata={"app": "x"},
+            tags={"env": "prod"},
+            console_verbose=False,
+            console_format="TEXT",
+            file_path=str(tmp_path),
+            file_max_items=10,
+        )
+        stream = LogStream.from_setting(setting)
+        assert stream.name == "svc"
+        assert stream.level == logging.DEBUG
+        assert stream._timezone == ITimezone.resolve("UTC")
+        assert stream._metadata == {"app": "x"}
+        assert stream._tags == setting.tags
+        assert stream._console_format == "TEXT"
+        assert stream._file_max_items == 10
+        assert isinstance(stream._file, FileGroup)
+
+    def test_uses_setting_defaults_when_not_customized(self):
+        stream = LogStream.from_setting(LogSetting())
+        assert stream.name == "default"
+        assert stream.level == logging.INFO
+        assert isinstance(stream._console, ConsoleGroup)
+
+    def test_respects_console_verbose_false(self):
+        stream = LogStream.from_setting(LogSetting(console_verbose=False))
+        assert stream._console is None
 
 
 class TestLogStreamResolveName:
