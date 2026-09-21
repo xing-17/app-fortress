@@ -1,32 +1,26 @@
 from __future__ import annotations
 
-from app.internal.abstract.setting import IAbstractSetting
-from app.internal.constant.logleveloption import LogLevelOption
-from app.internal.constant.logformatoption import LogFormatOption
 from pydantic import Field
 
+from app.internal.abstract.setting import IAbstractTaggedSetting
+from app.internal.constant.logformatoption import LogFormatOption
+from app.internal.constant.logleveloption import LogLevelOption
 
-class LogSetting(IAbstractSetting):
+
+class LogSetting(IAbstractTaggedSetting):
     """
     Log configuration settings.
 
     Attributes:
-        name: str
-            日志名称
-        level: LogLevelOption | str | None = LogLevelOption.INFO
-            LOG日志级别
-        timezone: str | None = None
-            Log日志时区
-        metadata: dict[str, str] | None = None
-            Log日志元数据
-        tags: dict[str, str] | None = None
-            Log日志标签
-        console_format: LogFormatOption | str | None = LogFormatOption.TEXT
-            Console日志格式
-        file_path: str | None = None
-            File日志文件路径, eg: ./log/app.log
-        file_max_items: int | None = None
-            File日志文件最大条目数
+        name (str): 日志名称
+        level (LogLevelOption | str | None): LOG日志级别
+        timezone (str | None): Log日志时区
+        metadata (dict[str, str] | None): Log日志元数据
+        tags (dict[str, str] | None): Log日志标签
+        console_verbose (bool): Console日志是否打印
+        console_format (LogFormatOption | str | None): Console日志格式
+        file_path (str | None): File日志文件路径, eg: ./.log
+        file_max_items (int | None): File日志文件最大条目数
 
     """
 
@@ -66,9 +60,18 @@ class LogSetting(IAbstractSetting):
 
     file_path: str | None = Field(
         default=None,
-        description="File日志文件路径, eg: ./log",
+        description="File日志文件路径, eg: ./.log",
     )
     file_max_items: int | None = Field(
         default=None,
         description="File日志文件最大条目数",
     )
+
+    def _frn(self) -> str:
+        return f"log:{self.name}"
+
+    def _tag_base(self) -> dict[str, str]:
+        return {
+            "timezone": self.timezone,
+            "frn": self._frn(),
+        }
