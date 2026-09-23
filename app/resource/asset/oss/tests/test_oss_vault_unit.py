@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
+from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
@@ -104,10 +105,49 @@ class TestOSSVaultFromSetting:
 class TestOSSVaultUri:
     def test_uri_returns_s3_scheme_with_bucket_and_prefix(self):
         vault = OSSVault(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
-        assert vault.uri == "s3://my-bucket/my/prefix"
+        assert vault.uri == "oss://my-bucket/my/prefix"
 
 
 class TestOSSVaultFrn:
     def test_frn_returns_oss_vault_identifier(self):
         vault = OSSVault(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
         assert vault.frn == f"vault:{Platform.ALIYUN}:my-bucket/my/prefix"
+
+
+class TestOSSVaultAsset:
+    def test_asset_prefix_joins_vault_prefix_and_rel(self):
+        vault = OSSVault(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
+        asset = vault.asset("sub/dir")
+        assert asset.prefix == "my/prefix/sub/dir"
+
+    def test_asset_prefix_without_vault_prefix(self):
+        vault = OSSVault(bucket="my-bucket", region="cn-hangzhou")
+        asset = vault.asset("sub/dir")
+        assert asset.prefix == "sub/dir"
+
+    def test_leading_slash_in_rel_does_not_override_vault_prefix(self):
+        vault = OSSVault(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
+        asset = vault.asset("/etc/passwd")
+        assert asset.prefix == "my/prefix/etc/passwd"
+
+    def test_asset_inherits_vault_bucket_and_region(self):
+        vault = OSSVault(bucket="my-bucket", region="cn-hangzhou")
+        asset = vault.asset("sub")
+        assert asset.bucket == "my-bucket"
+        assert asset.region == "cn-hangzhou"
+
+    def test_asset_inherits_vault_identity(self):
+        vault = OSSVault(bucket="my-bucket", region="cn-hangzhou")
+        asset = vault.asset("sub")
+        assert asset.identity is vault.identity
+
+    def test_asset_inherits_vault_tags(self):
+        vault = OSSVault(bucket="my-bucket", region="cn-hangzhou", tags={"env": "prod"})
+        asset = vault.asset("sub")
+        assert asset.tags["env"] == "prod"
+
+    def test_asset_passes_through_filekind_and_partitions(self):
+        vault = OSSVault(bucket="my-bucket", region="cn-hangzhou")
+        asset = vault.asset("sub", filekind=AssetFileKind.PARQUET, partitions=["year=2024"])
+        assert asset.filekind == AssetFileKind.PARQUET
+        assert asset.partitions == ["year=2024"]

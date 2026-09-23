@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
@@ -108,3 +109,42 @@ class TestLocalVaultFrn:
     def test_frn_returns_local_vault_identifier(self, tmp_path):
         vault = LocalVault(path=str(tmp_path))
         assert vault.frn == f"vault:{Platform.LOCAL}:{tmp_path}"
+
+
+class TestLocalVaultAsset:
+    def test_asset_path_is_subdirectory_of_vault_path(self, tmp_path):
+        vault = LocalVault(path=str(tmp_path))
+        asset = vault.asset("sub/dir")
+        assert asset.path == tmp_path / "sub" / "dir"
+        assert asset.path.is_dir()
+
+    def test_asset_inherits_vault_identity(self, tmp_path):
+        vault = LocalVault(path=str(tmp_path))
+        asset = vault.asset("sub")
+        assert asset.identity is vault.identity
+
+    def test_asset_inherits_vault_tags(self, tmp_path):
+        vault = LocalVault(path=str(tmp_path), tags={"env": "prod"})
+        asset = vault.asset("sub")
+        assert asset.tags["env"] == "prod"
+
+    def test_asset_default_filekind_is_object(self, tmp_path):
+        vault = LocalVault(path=str(tmp_path))
+        asset = vault.asset("sub")
+        assert asset.filekind == AssetFileKind.OBJECT
+
+    def test_asset_passes_through_filekind_and_partitions(self, tmp_path):
+        vault = LocalVault(path=str(tmp_path))
+        asset = vault.asset("sub", filekind=AssetFileKind.PARQUET, partitions=["year=2024"])
+        assert asset.filekind == AssetFileKind.PARQUET
+        assert asset.partitions == ["year=2024"]
+
+    def test_dot_dot_rel_raises_value_error(self, tmp_path):
+        vault = LocalVault(path=str(tmp_path))
+        with pytest.raises(ValueError):
+            vault.asset("../escape")
+
+    def test_absolute_rel_raises_value_error(self, tmp_path):
+        vault = LocalVault(path=str(tmp_path))
+        with pytest.raises(ValueError):
+            vault.asset("/etc/passwd")

@@ -5,15 +5,17 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.resource.asset._common._asset import BaseAsset
 from app.resource.asset._common._vault import BaseVault
 from app.resource.identity.local.local import LocalIdentity
 from app.setting._vault import LocalVaultSetting
 
 
 class _ConcreteVault(BaseVault):
-    # BaseVault is abstract (uri/frn); a trivial subclass lets us exercise its shared logic.
+    # BaseVault is abstract (uri/frn/asset); a trivial subclass lets us exercise its shared logic.
     @property
     def uri(self) -> str:
         return "concrete://uri"
@@ -21,6 +23,14 @@ class _ConcreteVault(BaseVault):
     @property
     def frn(self) -> str:
         return "concrete:frn"
+
+    def asset(
+        self,
+        rel: str,
+        filekind: AssetFileKind | None = None,
+        partitions: list[str] | None = None,
+    ) -> BaseAsset:
+        raise NotImplementedError
 
 
 class TestBaseVaultInit:

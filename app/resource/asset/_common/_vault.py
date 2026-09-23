@@ -6,8 +6,10 @@ from typing import Any
 from pydantic import Field
 
 from app.internal.abstract.domain import IAbstractTaggedDomain
+from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.resource.asset._common._asset import BaseAsset
 from app.resource.identity._common._base import BaseIdentity
 from app.setting._vault import UnionVaultSetting
 
@@ -67,6 +69,14 @@ class BaseVault(
     @property
     @abstractmethod
     def frn(self) -> str: ...
+
+    @abstractmethod
+    def asset(
+        self,
+        rel: str,
+        filekind: AssetFileKind | None = None,
+        partitions: list[str] | None = None,
+    ) -> "BaseAsset": ...
 
     def _non_override_tags(self) -> dict[str, str]:
         return {

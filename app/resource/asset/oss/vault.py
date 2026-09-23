@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import posixpath
 from typing import Literal
 
 from pydantic import Field, model_validator
 
+from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._vault import BaseVault
-from app.resource.identity.aliyun import AliyunIdentity
+from app.resource.asset.oss.asset import OSSAsset
+from app.resource.identity.aliyun.aliyun import AliyunIdentity
 from app.setting._vault import OSSVaultSetting
 
 
@@ -80,8 +83,26 @@ class OSSVault(BaseVault):
 
     @property
     def uri(self) -> str:
-        return f"s3://{self.bucket}/{self.prefix}"
+        return f"oss://{self.bucket}/{self.prefix}"
 
     @property
     def frn(self) -> str:
         return f"vault:{self.platform}:{self.bucket}/{self.prefix}"
+
+    def asset(
+        self,
+        rel: str,
+        filekind: AssetFileKind | None = None,
+        partitions: list[str] | None = None,
+    ) -> "OSSAsset":
+        _seg: str = rel.strip("/")
+        _key: str = posixpath.join(self.prefix, _seg)
+        return OSSAsset(
+            bucket=self.bucket,
+            region=self.region,
+            prefix=_key,
+            filekind=filekind,
+            partitions=partitions,
+            identity=self.identity,
+            tags=self.tags,
+        )

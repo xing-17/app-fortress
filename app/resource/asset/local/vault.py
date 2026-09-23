@@ -5,11 +5,13 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.internal.util.path import IPath
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._vault import BaseVault
+from app.resource.asset.local.asset import LocalAsset
 from app.resource.identity.local import LocalIdentity
 from app.setting._vault import LocalVaultSetting
 
@@ -58,9 +60,7 @@ class LocalVault(BaseVault):
 
     @model_validator(mode="after")
     def _derive_path(self) -> "LocalVault":
-        _path: Path = IPath.resolve(self.path)
-        if not _path.exists():
-            _path.mkdir(parents=True, exist_ok=True)
+        _path: Path = IPath.resolve(self.path, ensure=True)
         if not _path.is_dir():
             raise ValueError(f"Path {self.path} must be a directory")
         object.__setattr__(self, "path", _path)
@@ -90,3 +90,23 @@ class LocalVault(BaseVault):
     @property
     def frn(self) -> str:
         return f"vault:{self.platform}:{self.path}"
+
+    def asset(
+        self,
+        rel: str,
+        filekind: AssetFileKind | None = None,
+        partitions: list[str] | None = None,
+    ) -> LocalAsset:
+        # asset object has to be the subdirectory of the vault path
+        _resolved = (self.path / rel).expanduser().resolve()
+        if not _resolved.is_relative_to(self.path):
+            raise ValueError(f"Rel '{rel}' escapes vault {self.path}")
+
+        # create and return the LocalAsset instance
+        return LocalAsset(
+            path=_resolved,
+            filekind=filekind,
+            partitions=partitions,
+            identity=self.identity,
+            tags=self.tags,
+        )
