@@ -12,10 +12,8 @@ class LocalIdentity(BaseIdentity):
     Local access connection (for granularity only)
 
     Args:
-        name (str):
-            [Required] Access name (default "default")
-        tags (dict[str, str]):
-            [Optional] Access tags (default empty dictionary)
+        name (str): Access name
+        tags (dict[str, str]): Access tags
 
     Methods:
         from_setting(cls, settings: LocalIdentitySetting) -> LocalIdentity:
@@ -50,12 +48,8 @@ class LocalIdentity(BaseIdentity):
 
     @classmethod
     def default(cls) -> LocalIdentity:
-        return cls(
-            name="local_default_identity",
-            tags={
-                "platform": "local",
-                "type": "local",
-                "name": "local_default_identity",
-                "source": "auto_generated",
-            },
-        )
+        return cls(name="local_default_identity")
+
+    @property
+    def frn(self) -> str:
+        return f"identity:local:{self.name}"

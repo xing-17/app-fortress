@@ -22,18 +22,12 @@ class AliyunIdentity(BaseIdentity):
         ref: https://help.aliyun.com/en/sdk/developer-reference/v2-manage-python-access-credentials
 
     Args:
-        name (str):
-            [Required] Access名称(默认"default")
-        type (AliyunIdentityType):
-            [Optional] Identity类型(默认CHAIN)
-        access_key_id (str | None):
-            [Optional] 阿里云Access Key ID(默认None)
-        access_key_secret (str | None):
-            [Optional] 阿里云Access Key Secret(默认None)
-        region (str | None):
-            [Optional] Aliyun region(默认None)
-        tags (dict[str, str]):
-            [Optional] Access标签(默认空字典)
+        name (str): Access名称
+        type (AliyunIdentityType): Identity类型(默认'chain')
+        access_key_id (str | None): 阿里云Access Key ID(默认None)
+        access_key_secret (str | None): 阿里云Access Key Secret(默认None)
+        region (str | None): Aliyun region(默认None)
+        tags (dict[str, str]): Access标签(默认空字典)
 
     Methods:
         from_setting(cls, settings: AliyunIdentitySetting) -> AliyunIdentity:
@@ -108,13 +102,11 @@ class AliyunIdentity(BaseIdentity):
             access_key_id=None,
             access_key_secret=None,
             region=None,
-            tags={
-                "platform": "aliyun",
-                "type": "chain",
-                "name": "aliyun_default_identity",
-                "source": "auto_generated",
-            },
         )
+
+    @property
+    def frn(self) -> str:
+        return f"identity:aliyun:{self.name}"
 
     def get_client(self) -> CredentialClient:
         if self.type == AliyunIdentityType.CHAIN:

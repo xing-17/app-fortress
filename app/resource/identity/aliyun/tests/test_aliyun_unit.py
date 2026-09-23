@@ -96,12 +96,7 @@ class TestAliyunIdentityDefault:
     def test_default_name_and_tags(self):
         identity = AliyunIdentity.default()
         assert identity.name == "aliyun_default_identity"
-        assert identity.tags == {
-            "platform": "aliyun",
-            "type": "chain",
-            "name": "aliyun_default_identity",
-            "source": "auto_generated",
-        }
+        assert identity.tags == {"platform": "aliyun"}
 
     def test_default_platform_is_aliyun(self):
         identity = AliyunIdentity.default()
@@ -112,12 +107,7 @@ class TestAliyunIdentityDefault:
         second = AliyunIdentity.default()
         assert first is not second
         first.tags["env"] = "prod"
-        assert second.tags == {
-            "platform": "aliyun",
-            "type": "chain",
-            "name": "aliyun_default_identity",
-            "source": "auto_generated",
-        }
+        assert second.tags == {"platform": "aliyun"}
 
 
 class TestAliyunIdentityDescribe:

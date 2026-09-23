@@ -40,12 +40,7 @@ class TestLocalIdentityDefault:
     def test_default_name_and_tags(self):
         identity = LocalIdentity.default()
         assert identity.name == "local_default_identity"
-        assert identity.tags == {
-            "platform": "local",
-            "type": "local",
-            "name": "local_default_identity",
-            "source": "auto_generated",
-        }
+        assert identity.tags == {"platform": "local"}
 
     def test_default_platform_is_local(self):
         identity = LocalIdentity.default()
@@ -56,12 +51,7 @@ class TestLocalIdentityDefault:
         second = LocalIdentity.default()
         assert first is not second
         first.tags["env"] = "prod"
-        assert second.tags == {
-            "platform": "local",
-            "type": "local",
-            "name": "local_default_identity",
-            "source": "auto_generated",
-        }
+        assert second.tags == {"platform": "local"}
 
 
 class TestLocalIdentityDescribe:
@@ -69,5 +59,5 @@ class TestLocalIdentityDescribe:
         identity = LocalIdentity(name="my_local_identity", tags={"env": "production"})
         result = json.loads(identity.describe())
         assert result["name"] == "my_local_identity"
-        assert result["tags"] == {"env": "production"}
+        assert result["tags"] == {"env": "production", "platform": Platform.LOCAL.value}
         assert result["platform"] == Platform.LOCAL

@@ -10,10 +10,10 @@ from app.setting._identity import UnionIdentitySetting
 
 class IdentityFactory:
     """
-    Factory class for creating identity instances based on the platform.
+    Factory class for identity instances based instances by platform type.
 
     Attributes:
-        _registry (dict[str, str]):
+        _registry (dict[Platform, str]):
             A mapping of platform names to their corresponding module and class paths.
 
     Example:
@@ -25,7 +25,7 @@ class IdentityFactory:
     """
 
     # Registry mapping platform name to corresponding module and class paths.
-    _registry: dict[str, type[BaseIdentity]] = {
+    _registry: dict[Platform, str] = {
         Platform.ALIYUN: "app.resource.identity.aliyun.aliyun:AliyunIdentity",
         Platform.LOCAL: "app.resource.identity.local.local:LocalIdentity",
     }
@@ -39,12 +39,12 @@ class IdentityFactory:
         if not _target:
             raise ValueError(f"'{platform}' identity not found.")
 
-        # Dynamically import the module
+        # Dynamically import the module and callable class
         _module_path, _klass_name = _target.split(":")
         _module: ModuleType = import_module(_module_path)
         _klass: type[BaseIdentity] = getattr(_module, _klass_name)
 
-        # Ensure imported class is subclass of BaseIdentity
+        # Ensure imported class is a subclass of BaseIdentity
         if not isinstance(_klass, type):
             raise TypeError(f"Expecting class, got {_klass!r}.")
         if not issubclass(_klass, BaseIdentity):
@@ -58,5 +58,5 @@ class IdentityFactory:
     ) -> BaseIdentity:
         klass: type[BaseIdentity] | None = cls.get(setting.platform)
         if not klass:
-            raise ValueError(f"Identity class for platform '{setting.platform}' not found.")
+            raise ValueError(f"Identity class '{setting.platform}' not found.")
         return klass.from_setting(setting)
