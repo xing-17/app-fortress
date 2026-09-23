@@ -79,6 +79,27 @@ class GlobalIdentities:
             return cls.identities.get(name)
 
     @classmethod
+    def resolve(
+        cls,
+        value: BaseIdentity | str | None,
+        platform: Platform,
+        default: BaseIdentity,
+    ) -> BaseIdentity | None:
+        if isinstance(value, BaseIdentity):
+            _res: BaseIdentity = value
+        elif value is None:
+            _res: BaseIdentity = default
+        elif isinstance(value, str):
+            _res: BaseIdentity = cls.get_identity(value, strict=True)
+        else:
+            raise ValueError(f"Unsupported type: {type(value)}")
+
+        if _res.platform != platform:
+            raise ValueError(f"Identity '{_res.name}' does not match platform '{platform}'")
+
+        return _res
+
+    @classmethod
     def list_identity_names(
         cls,
         platform: Platform | None = None,
