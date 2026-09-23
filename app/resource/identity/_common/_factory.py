@@ -22,6 +22,7 @@ class IdentityFactory:
         ...     name="my_identity",
         ...     platform=Platform.ALIYUN,
         ... )
+
     """
 
     # Registry mapping platform name to corresponding module and class paths.

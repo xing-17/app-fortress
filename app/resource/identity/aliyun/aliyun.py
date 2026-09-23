@@ -17,7 +17,7 @@ from app.setting._identity import AliyunIdentitySetting
 
 class AliyunIdentity(BaseIdentity):
     """
-    Aliyun Identity Connection
+    Aliyun Identity 身份认证
 
         ref: https://help.aliyun.com/en/sdk/developer-reference/v2-manage-python-access-credentials
 
