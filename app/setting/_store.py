@@ -15,30 +15,31 @@ class AbstractStoreSetting(IAbstractTaggedSetting):
     Attributes:
         name (str): Store name
         platform (Platform): Store platform
-        tags (dict[str, str] | None): Store tags
+        tags (dict[str, str]): Store tags
 
     """
 
     name: str = Field(
         ...,
-        description="Store name",
+        description="[Required] Store name",
     )
     platform: Platform = Field(
         ...,
-        description="Store platform",
+        description="[discriminator] Store platform",
     )
-    tags: dict[str, str] | None = Field(
+    tags: dict[str, str] = Field(
         default_factory=dict,
-        description="Store tags",
+        description="[Optional] Store tags",
     )
 
-    def _frn(self) -> str:
-        return f"store:{self.platform}:{self.name}"
+    @property
+    def frn(self) -> str:
+        return f"setting:store:platform={self.platform}:name={self.name}"
 
-    def _tag_base(self) -> dict[str, str]:
+    def _non_override_tags(self) -> dict[str, str]:
         return {
             "platform": self.platform,
-            "frn": self._frn(),
+            "name": self.name,
         }
 
 
@@ -52,7 +53,7 @@ class LocalStoreSetting(AbstractStoreSetting):
         identity (str | None): Local store identity
         path (str | None): Local store path
         config (dict[str, Any] | None): Local store configuration
-        tags (dict[str, str] | None): Store tags
+        tags (dict[str, str]): Store tags
 
     """
 
@@ -61,33 +62,33 @@ class LocalStoreSetting(AbstractStoreSetting):
     # -- platform: Platform
     # -- tags: dict[str, str]
     platform: Literal[Platform.LOCAL] = Platform.LOCAL
-    identity: str | None = Field(
-        None,
-        description="Local store identity",
-    )
     path: str | None = Field(
-        None,
-        description="Local store path",
+        default=None,
+        description="[Optional] Local store path",
     )
     config: dict[str, Any] | None = Field(
         default=None,
-        description="Local store configuration",
+        description="[Optional] Local store configuration",
+    )
+    identity: str | None = Field(
+        default=None,
+        description="[Optional] Local store identity",
     )
 
 
 class AliyunStoreSetting(AbstractStoreSetting):
     """
-    Aliyun store setting
+    阿里云存储设置
 
     Attributes:
-        name (str): Name of Aliyun store database
-        platform (Platform): Store platform
-        instance (str): Instance name of the Aliyun OTS store
-        region (str): Aliyun region
-        in_vpc (bool): Whether the Aliyun store is within a VPC
-        endpoint (str | None): Endpoint URL for this Aliyun store
-        identity (str | None): Aliyun store identity
-        tags (dict[str, str] | None): Store tags
+        name (str): 阿里云存储数据库名称
+        platform (Platform): 存储平台
+        instance (str): 阿里云OTS实例名称
+        region (str): 阿里云region
+        in_vpc (bool): 存储是否处于VPC内
+        endpoint (str | None): 存储的Endpoint地址
+        identity (str | None): 存储所使用的Identity名称
+        tags (dict[str, str]): 存储标签
 
     """
 
@@ -95,29 +96,25 @@ class AliyunStoreSetting(AbstractStoreSetting):
     # -- name: str
     # -- tags: dict[str, str]
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
-    name: str = Field(
-        ...,
-        description="Name of Aliyun store database",
-    )
     instance: str = Field(
         ...,
-        description="Instance name of the Aliyun OTS store",
+        description="[Required] 阿里云OTS实例名称",
     )
     region: str = Field(
         ...,
-        description="Aliyun region",
+        description="[Required] 阿里云region",
     )
     in_vpc: bool = Field(
-        False,
-        description="Whether the Aliyun store is within a VPC",
+        default=False,
+        description="[Optional] 存储是否处于VPC内",
     )
     endpoint: str | None = Field(
         default=None,
-        description="Endpoint URL for this Aliyun store",
+        description="[Optional] 存储的Endpoint地址",
     )
     identity: str | None = Field(
-        None,
-        description="Aliyun store identity",
+        default=None,
+        description="[Optional] 存储所使用的Identity名称",
     )
 
 
