@@ -88,7 +88,8 @@ class OtsStore(BaseStore):
 
     @model_validator(mode="after")
     def _derive_endpoint(self) -> "OtsStore":
-        if self.endpoint is None:
+        if self.endpoint in (None, ""):
+            # Derive the endpoint URL if it is not explicitly provided.
             _svc: str = "ots-internal" if self.in_vpc else "ots"
             _ep = f"https://{self.instance}.{self.region}.{_svc}.aliyuncs.com"
             object.__setattr__(self, "endpoint", _ep)
