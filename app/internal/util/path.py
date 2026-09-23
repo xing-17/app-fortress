@@ -35,6 +35,9 @@ class IPath(IAbstractUtility):
                 value = default
         _result = Path(value).expanduser().resolve()
         if ensure:
+            # mkdir(exist_ok=True) still raises FileExistsError when the target is an existing file.
+            if _result.exists() and not _result.is_dir():
+                raise ValueError(f"IPath: path exists and not a directory: {_result}")
             _result.mkdir(parents=True, exist_ok=True)
         if validate and not _result.exists():
             raise ValueError(f"IPath: path does not exist: {_result}")
