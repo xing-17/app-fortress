@@ -24,20 +24,14 @@ class DuckDbStore(BaseStore):
     Local DuckDB store resource.
 
     Args:
-        name (str):
-            Name of the DuckDB store.
-        path (str | None):
-            Path to the DuckDB database file.
-        config (dict[str, Any]):
-            Configuration for the DuckDB connection.
-        identity (LocalIdentity):
-            Local identity associated with the DuckDB store.
-        tags (dict[str, Any] | None):
-            Tags associated with the store.
+        name (str): Name of the DuckDB store.
+        path (str | None): Path to the DuckDB database file.
+        config (dict[str, Any]): Configuration for the DuckDB connection.
+        identity (LocalIdentity): Local identity associated with the DuckDB store.
+        tags (dict[str, Any] | None): Tags associated with the store.
 
     Attributes:
-        conn (duckdb.DuckDBPyConnection):
-            Cached DuckDB connection instance.
+        conn (duckdb.DuckDBPyConnection): Cached DuckDB connection instance.
 
     Methods:
         from_setting(setting: LocalStoreSetting) -> "DuckDbStore":
@@ -106,13 +100,17 @@ class DuckDbStore(BaseStore):
             platform=setting.platform,
             path=setting.path,
             config=setting.config,
-            identity=GlobalIdentities.get_identity(
-                name=getattr(setting, "identity", None),
-                strict=False,
-            )
-            or LocalIdentity.default(),
+            identity=GlobalIdentities.resolve(
+                value=getattr(setting, "identity", None),
+                platform=Platform.LOCAL,
+                default=LocalIdentity.default(),
+            ),
             tags=setting.tags,
         )
+
+    @property
+    def frn(self) -> str:
+        return f"store:local:{self.name}"
 
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:
@@ -138,8 +136,3 @@ class DuckDbStore(BaseStore):
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
-
-    def export(self) -> dict[str, Any]:
-        _res: dict[str, Any] = super().export()
-        _res["identity"] = self.identity.name
-        return _res

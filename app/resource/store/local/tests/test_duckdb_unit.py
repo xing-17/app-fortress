@@ -35,9 +35,9 @@ class TestDuckDbStoreInit:
         store = DuckDbStore(name="my-duckdb-store", path=str(tmp_path))
         assert store.identity.name == LocalIdentity.default().name
 
-    def test_default_tags_is_empty_dict(self, tmp_path):
+    def test_default_tags_contain_only_platform(self, tmp_path):
         store = DuckDbStore(name="my-duckdb-store", path=str(tmp_path))
-        assert store.tags == {}
+        assert store.tags == {"platform": Platform.LOCAL}
 
 
 class TestDuckDbStoreDerivePath:
@@ -84,7 +84,7 @@ class TestDuckDbStoreFromSetting:
         store = DuckDbStore.from_setting(setting)
         assert store.identity is identity
 
-    def test_from_setting_falls_back_to_default_identity_when_not_registered(self, tmp_path):
+    def test_from_setting_raises_when_identity_not_registered(self, tmp_path):
         GlobalIdentities.identities = {}
         setting = LocalStoreSetting(
             name="my-duckdb-store",
@@ -92,8 +92,8 @@ class TestDuckDbStoreFromSetting:
             identity="missing-identity",
             tags={},
         )
-        store = DuckDbStore.from_setting(setting)
-        assert store.identity.name == LocalIdentity.default().name
+        with pytest.raises(ValueError):
+            DuckDbStore.from_setting(setting)
 
     def test_from_setting_returns_duckdb_store_instance(self, tmp_path):
         setting = LocalStoreSetting(

@@ -9,7 +9,24 @@ from app.setting._store import UnionStoreSetting
 
 
 class StoreFactory:
-    _registry: dict[Platform, type[BaseStore]] = {
+    """
+    Factory class for store instances by platform type.
+
+    Attributes:
+        _registry (dict[Platform, str]):
+            a mapping of platform names to their corresponding store class paths.
+
+    Example:
+        >>> klass = StoreFactory.get(Platform.LOCAL)
+        >>> instance = klass(
+        ...     name="local_store",
+        ...     tags={"env": "production"},
+        ... )
+
+    """
+
+    # Registry mapping platform name to corresponding store class paths.
+    _registry: dict[Platform, str] = {
         Platform.LOCAL: "app.resource.store.local.duckdb:DuckDbStore",
         Platform.ALIYUN: "app.resource.store.aliyun.ots:OtsStore",
     }
@@ -23,12 +40,12 @@ class StoreFactory:
         if not _target:
             raise ValueError(f"No store registered for platform {platform}")
 
-        # Dynamically import the module and get the store class
+        # Dynamically import the module and callable class
         _module_path, _klass_name = _target.split(":")
         _module: ModuleType = import_module(_module_path)
         _klass: type[BaseStore] = getattr(_module, _klass_name)
 
-        # Ensure the class is a subclass of BaseStore
+        # Ensure imported class is a subclass of BaseStore
         if not isinstance(_klass, type):
             raise TypeError(f"Expecting class, got {_klass!r}.")
         if not issubclass(_klass, BaseStore):

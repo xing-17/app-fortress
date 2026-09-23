@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Literal
+from typing import Literal
 
 logging.getLogger("tablestore").setLevel(logging.ERROR)
 
@@ -23,34 +23,26 @@ class OtsStore(BaseStore):
     Aliyun OTS store resource.
 
     Args:
-        name (str):
-            Name of the Aliyun OTS store.
-        instance (str):
-            Instance name of the Aliyun OTS store.
-        region (str):
-            Region of the Aliyun OTS store.
-        in_vpc (bool):
-            Whether the store is within a VPC.
-        endpoint (str | None):
-            Endpoint URL for the store.
-        identity (AliyunIdentity):
-            Identity used for the store.
-        tags (dict[str, Any] | None):
-            Tags associated with the store.
+        name (str): 自定义名称,
+        instance (str): OTS实例名称
+        region (str): OTS实例所在的地域
+        in_vpc (bool): 是否在VPC内。
+        endpoint (str | None): 访问该OTS实例的Endpoint URL。
+        identity (AliyunIdentity): 用于访问该OTS实例的身份信息。
+        tags (dict[str, Any] | None): 与该OTS实例相关的标签。
 
     Attributes:
-        client (OTSClient):
-            Cached OTS client instance.
+        client (OTSClient): 缓存的OTS客户端实例。
 
     Methods:
         from_setting(setting: AliyunStoreSetting) -> "OtsStore":
-            Creates an OtsStore instance from the given AliyunStoreSetting.
+            从给定的AliyunStoreSetting创建一个OtsStore实例。
         instance_exists() -> bool:
-            Checks if the Aliyun OTS instance exists.
+            检查Aliyun OTS实例是否存在。
         describe() -> str:
-            Returns a JSON-formatted string describing the store.
+            返回描述该存储的JSON格式字符串。
         export() -> dict[str, Any]:
-            Returns a dictionary containing the store's details.
+            返回包含该存储详细信息的字典。
 
     Examples:
         >>> store = OtsStore(
@@ -71,23 +63,23 @@ class OtsStore(BaseStore):
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
     instance: str = Field(
         ...,
-        description="Instance name of the Aliyun OTS store",
+        description="[Required] Instance name of the Aliyun OTS store",
     )
     region: str = Field(
         ...,
-        description="Region of this Aliyun store",
+        description="[Required] Region of this Aliyun store",
     )
     in_vpc: bool = Field(
         False,
-        description="Whether the Aliyun store is within a VPC",
+        description="[Optional] Whether the Aliyun store is within a VPC",
     )
     endpoint: str | None = Field(
         default=None,
-        description="Endpoint URL for this Aliyun store",
+        description="[Optional] Endpoint URL for this Aliyun store",
     )
     identity: AliyunIdentity = Field(
         default_factory=AliyunIdentity.default,
-        description="Identity used for this Aliyun store",
+        description="[Optional] Identity used for this Aliyun store",
     )
 
     # Cached private attributes
@@ -98,7 +90,8 @@ class OtsStore(BaseStore):
     def _derive_endpoint(self) -> "OtsStore":
         if self.endpoint is None:
             _svc: str = "ots-internal" if self.in_vpc else "ots"
-            self.endpoint = f"https://{self.instance}.{self.region}.{_svc}.aliyuncs.com"
+            _ep = f"https://{self.instance}.{self.region}.{_svc}.aliyuncs.com"
+            object.__setattr__(self, "endpoint", _ep)
         return self
 
     @classmethod
@@ -112,11 +105,11 @@ class OtsStore(BaseStore):
             region=setting.region,
             in_vpc=setting.in_vpc,
             endpoint=setting.endpoint,
-            identity=GlobalIdentities.get_identity(
-                name=getattr(setting, "identity", None),
-                strict=False,
-            )
-            or AliyunIdentity.default(),
+            identity=GlobalIdentities.resolve(
+                value=getattr(setting, "identity", None),
+                platform=Platform.ALIYUN,
+                default=AliyunIdentity.default(),
+            ),
             tags=setting.tags,
         )
 
@@ -135,14 +128,13 @@ class OtsStore(BaseStore):
                     )
         return self._client
 
+    @property
+    def frn(self) -> str:
+        return f"store:aliyun:{self.name}"
+
     def instance_exists(self) -> bool:
         try:
             self.client.list_table()
         except (MaxRetryError, NameResolutionError):
             return False
         return True
-
-    def export(self) -> dict[str, Any]:
-        _res: dict[str, Any] = super().export()
-        _res["identity"] = self.identity.name
-        return _res

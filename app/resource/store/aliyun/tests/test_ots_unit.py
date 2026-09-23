@@ -41,9 +41,9 @@ class TestOtsStoreInit:
         store = OtsStore(name="my-ots-store", instance="my-instance", region="cn-hangzhou")
         assert store.identity.name == AliyunIdentity.default().name
 
-    def test_default_tags_is_empty_dict(self):
+    def test_default_tags_contain_only_platform(self):
         store = OtsStore(name="my-ots-store", instance="my-instance", region="cn-hangzhou")
-        assert store.tags == {}
+        assert store.tags == {"platform": Platform.ALIYUN}
 
 
 class TestOtsStoreDeriveEndpoint:
@@ -103,7 +103,7 @@ class TestOtsStoreFromSetting:
         store = OtsStore.from_setting(setting)
         assert store.identity is identity
 
-    def test_from_setting_falls_back_to_default_identity_when_not_registered(self):
+    def test_from_setting_raises_when_identity_not_registered(self):
         GlobalIdentities.identities = {}
         setting = AliyunStoreSetting(
             name="my-ots-store",
@@ -112,8 +112,8 @@ class TestOtsStoreFromSetting:
             identity="missing-identity",
             tags={},
         )
-        store = OtsStore.from_setting(setting)
-        assert store.identity.name == AliyunIdentity.default().name
+        with pytest.raises(ValueError):
+            OtsStore.from_setting(setting)
 
     def test_from_setting_returns_ots_store_instance(self):
         setting = AliyunStoreSetting(
