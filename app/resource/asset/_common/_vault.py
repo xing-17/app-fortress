@@ -25,7 +25,7 @@ class BaseVault(
         name (str | None): Asset vault name
         identity (BaseIdentity | str | None): Asset vault identity
         description (str): Asset vault description information
-        tags (dict[str, str] | None): Asset vault tags
+        tags (dict[str, str]): Asset vault tags
 
     """
 

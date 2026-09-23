@@ -13,7 +13,7 @@ class VaultFactory:
     Factory class for asset vault instances by filesystem type.
 
     Attributes:
-        _registry (dict[AssetFilesystem, type[BaseVault]]):
+        _registry (dict[AssetFilesystem, str]):
             A mapping of filesystem types to their corresponding module and class paths.
 
     Example:

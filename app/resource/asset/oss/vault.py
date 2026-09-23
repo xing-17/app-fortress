@@ -20,12 +20,12 @@ class OSSVault(BaseVault):
         bucket (str): OSS bucket名称
         region (str): OSS bucket所在区域
         name (str | None): Vault名称
-        prefix (str | None): OSS bucket前缀(默认空字符串)
+        prefix (str): OSS bucket前缀(默认空字符串)
         identity (AliyunIdentity): Aliyun身份(默认AliyunIdentity.default())
         filesystem (Literal[AssetFilesystem.OSS]): 文件系统类型(固定为AssetFilesystem.OSS)
         platform (Literal[Platform.ALIYUN]): 平台类型(固定为Platform.ALIYUN)
-        description (str | None): Vault描述信息
-        tags (dict[str, str] | None): Vault标签
+        description (str): Vault描述信息
+        tags (dict[str, str]): Vault标签
 
     """
 

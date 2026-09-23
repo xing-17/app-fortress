@@ -58,7 +58,6 @@ class LocalVault(BaseVault):
 
     @model_validator(mode="after")
     def _derive_path(self) -> "LocalVault":
-        # if not isinstance(self.path, Path):
         _path: Path = IPath.resolve(self.path)
         if not _path.exists():
             _path.mkdir(parents=True, exist_ok=True)
