@@ -7,8 +7,8 @@ class TestIPrefixResolve:
     def test_resolve_strips_trailing_slash(self):
         assert IPrefix.resolve("my/prefix/") == "my/prefix"
 
-    def test_resolve_leaves_leading_slash(self):
-        assert IPrefix.resolve("/my/prefix") == "/my/prefix"
+    def test_resolve_strips_leading_slash(self):
+        assert IPrefix.resolve("/my/prefix") == "my/prefix"
 
     def test_resolve_none_returns_empty_string(self):
         assert IPrefix.resolve(None) == ""
@@ -18,3 +18,9 @@ class TestIPrefixResolve:
 
     def test_resolve_without_trailing_slash_is_unchanged(self):
         assert IPrefix.resolve("my/prefix") == "my/prefix"
+
+
+class TestIPrefixValidateKey:
+    def test_validate_key_allows_valid_key(self):
+        IPrefix.validate_key("valid_key")
+        # No error raises means the key is valid

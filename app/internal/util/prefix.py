@@ -7,4 +7,11 @@ class IPrefix(IAbstractUtility):
     @staticmethod
     def resolve(value: str | None) -> str:
         _value = value or ""
-        return _value.rstrip("/")
+        return _value.strip("/")
+
+    @staticmethod
+    def validate_key(value: str) -> None:
+        if not value:
+            raise ValueError("Key cannot be empty.")
+        if value.endswith("/"):
+            raise ValueError("Key cannot end with a slash.")

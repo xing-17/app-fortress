@@ -18,15 +18,19 @@ from .logstream import (
 from .util import (
     IClock,
     IEnviron,
+    IPartition,
     IPath,
+    IPrefix,
     ITimezone,
 )
 
 __all__ = [
     "IClock",
     "IEnviron",
+    "IPartition",
     "ITimezone",
     "IPath",
+    "IPrefix",
     "LogStream",
     "AliyunIdentityType",
     "AssetFileKind",
