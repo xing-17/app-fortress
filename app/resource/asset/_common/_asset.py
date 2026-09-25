@@ -25,6 +25,7 @@ class BaseAsset(
         filesystem (AssetFilesystem): Asset filesystem type
         platform (Platform): Asset operating platform
         filekind (AssetFileKind): Asset file kind, default is AssetFileKind.OBJECT
+        partitions (list[str]): Partition keys for the asset
         identity (BaseIdentity | str | None): Asset identity
         tags (dict[str, str]): Asset tags
 

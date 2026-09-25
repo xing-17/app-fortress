@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, model_validator
 
@@ -10,6 +11,8 @@ from app.internal.constant.platform import Platform
 from app.internal.util.path import IPath
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._asset import BaseAsset
+from app.resource.asset.local._client import LocalObjectClient
+from app.resource.asset.local.assetfile import LocalAssetfile
 from app.resource.identity.local.local import LocalIdentity
 
 
@@ -23,6 +26,11 @@ class LocalAsset(BaseAsset):
         filesystem (Literal[AssetFilesystem.LOCAL]): Asset filesystem type, fixed as LOCAL
         platform (Literal[Platform.LOCAL]): Asset platform type, fixed as LOCAL
         tags (dict[str, str]): Local asset tags
+
+    Methods:
+        list_assetfiles(since=None, until=None, limit=None) -> list[LocalAssetfile]:
+            List assetfiles under the asset directory, optionally filtered by modified time and limit.
+
     """
 
     # Inherited from BaseAsset
@@ -65,3 +73,36 @@ class LocalAsset(BaseAsset):
     @property
     def frn(self) -> str:
         return f"asset:{self.platform}:{self.path}"
+
+    @property
+    def name(self) -> str:
+        return self.path.name
+
+    def list_assetfiles(
+        self,
+        since: datetime | float | None = None,
+        until: datetime | float | None = None,
+        limit: int | None = None,
+    ) -> list[LocalAssetfile]:
+        _files: list[LocalAssetfile] = []
+        if not self.path.exists() or not self.path.is_dir():
+            return _files
+        _targets: list[dict[str, Any]] = LocalObjectClient.list_objects(
+            path=self.path,
+            since=since,
+            until=until,
+            limit=limit,
+        )
+        for _meta in _targets:
+            _meta_path: Path = _meta["path"]
+            _meta_stat: dict[str, Any] = _meta.get("stat", {})
+            _assetfile: LocalAssetfile = LocalAssetfile(
+                path=_meta_path,
+                identity=self.identity,
+                metadata=_meta_stat,
+                modified_at=_meta_stat.get("st_mtime"),
+                size=_meta_stat.get("st_size"),
+                tags=self.tags,
+            )
+            _files.append(_assetfile)
+        return _files

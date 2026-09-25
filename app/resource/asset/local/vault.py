@@ -18,7 +18,7 @@ from app.setting._vault import LocalVaultSetting
 
 class LocalVault(BaseVault):
     """
-    Local vault contains a collection of local assets and associated assetfile.
+    Local vault contains a collection of local assets and associated assetfiles.
 
     Args:
         name (str | None): Local vault name
@@ -32,6 +32,8 @@ class LocalVault(BaseVault):
     Methods:
         from_setting(cls, setting: LocalVaultSetting) -> LocalVault:
             Create a LocalVault instance from a LocalVaultSetting object.
+        asset(rel: str, filekind=None, partitions=None) -> LocalAsset:
+            Create a LocalAsset scoped to a path relative to the vault, rejecting paths that escape it.
 
     Example:
         >>> from app.resource.asset.local.vault import LocalVault

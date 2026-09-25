@@ -123,3 +123,57 @@ class TestLocalAssetfileExport:
     def test_export_includes_identity_name(self, tmp_path):
         assetfile = LocalAssetfile(path=str(tmp_path / "report.csv"))
         assert assetfile.export()["identity"] == LocalIdentity.default().name
+
+
+class TestLocalAssetfileWriteAndReadBytes:
+    def test_write_bytes_creates_file_with_content(self, tmp_path):
+        _target = tmp_path / "report.csv"
+        assetfile = LocalAssetfile(path=str(_target))
+        assetfile.write_bytes(b"a,b,c")
+        assert _target.read_bytes() == b"a,b,c"
+
+    def test_write_bytes_creates_missing_parent_directories(self, tmp_path):
+        _target = tmp_path / "nested" / "report.csv"
+        assetfile = LocalAssetfile(path=str(_target))
+        assetfile.write_bytes(b"data")
+        assert _target.exists()
+
+    def test_read_bytes_returns_written_content(self, tmp_path):
+        _target = tmp_path / "report.csv"
+        _target.write_bytes(b"payload")
+        assetfile = LocalAssetfile(path=str(_target))
+        assert assetfile.read_bytes() == b"payload"
+
+    def test_read_bytes_missing_file_raises_file_not_found_error(self, tmp_path):
+        assetfile = LocalAssetfile(path=str(tmp_path / "missing.csv"))
+        with pytest.raises(FileNotFoundError):
+            assetfile.read_bytes()
+
+
+class TestLocalAssetfileLoad:
+    def test_load_populates_size_from_disk(self, tmp_path):
+        _target = tmp_path / "report.csv"
+        _target.write_bytes(b"hello")
+        assetfile = LocalAssetfile(path=str(_target))
+        assetfile.load()
+        assert assetfile.size == len(b"hello")
+
+    def test_load_populates_modified_at_from_disk(self, tmp_path):
+        _target = tmp_path / "report.csv"
+        _target.write_bytes(b"hello")
+        assetfile = LocalAssetfile(path=str(_target))
+        assetfile.load()
+        assert assetfile.modified_at == _target.stat().st_mtime
+
+    def test_load_merges_stat_fields_into_metadata(self, tmp_path):
+        _target = tmp_path / "report.csv"
+        _target.write_bytes(b"hello")
+        assetfile = LocalAssetfile(path=str(_target), metadata={"custom": "value"})
+        assetfile.load()
+        assert assetfile.metadata["custom"] == "value"
+        assert "st_size" in assetfile.metadata
+
+    def test_load_missing_file_raises_file_not_found_error(self, tmp_path):
+        assetfile = LocalAssetfile(path=str(tmp_path / "missing.csv"))
+        with pytest.raises(FileNotFoundError):
+            assetfile.load()

@@ -90,6 +90,75 @@ class TestLocalAssetFrn:
         assert asset.frn == f"asset:{Platform.LOCAL}:{tmp_path}"
 
 
+class TestLocalAssetName:
+    def test_name_returns_directory_basename(self, tmp_path):
+        _target = tmp_path / "my_dataset"
+        asset = LocalAsset(path=str(_target))
+        assert asset.name == "my_dataset"
+
+
+class TestLocalAssetListAssetfiles:
+    def test_missing_path_returns_empty_list(self, tmp_path):
+        asset = LocalAsset(path=str(tmp_path))
+        # simulate the directory disappearing after construction
+        tmp_path.rmdir()
+        assert asset.list_assetfiles() == []
+
+    def test_empty_directory_returns_empty_list(self, tmp_path):
+        asset = LocalAsset(path=str(tmp_path))
+        assert asset.list_assetfiles() == []
+
+    def test_returns_assetfile_for_each_file(self, tmp_path):
+        (tmp_path / "a.csv").write_bytes(b"a")
+        (tmp_path / "b.csv").write_bytes(b"b")
+        asset = LocalAsset(path=str(tmp_path))
+        _files = asset.list_assetfiles()
+        assert {f.path for f in _files} == {tmp_path / "a.csv", tmp_path / "b.csv"}
+
+    def test_recurses_into_subdirectories(self, tmp_path):
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "sub" / "c.csv").write_bytes(b"c")
+        asset = LocalAsset(path=str(tmp_path))
+        _files = asset.list_assetfiles()
+        assert tmp_path / "sub" / "c.csv" in {f.path for f in _files}
+
+    def test_assetfile_inherits_asset_identity_and_tags(self, tmp_path):
+        (tmp_path / "a.csv").write_bytes(b"a")
+        asset = LocalAsset(path=str(tmp_path), tags={"env": "prod"})
+        _assetfile = asset.list_assetfiles()[0]
+        assert _assetfile.identity is asset.identity
+        assert _assetfile.tags["env"] == "prod"
+
+    def test_assetfile_size_and_modified_at_come_from_stat(self, tmp_path):
+        _target = tmp_path / "a.csv"
+        _target.write_bytes(b"hello")
+        asset = LocalAsset(path=str(tmp_path))
+        _assetfile = asset.list_assetfiles()[0]
+        assert _assetfile.size == len(b"hello")
+        assert _assetfile.modified_at == _target.stat().st_mtime
+
+    def test_assetfile_metadata_contains_stat_fields(self, tmp_path):
+        (tmp_path / "a.csv").write_bytes(b"a")
+        asset = LocalAsset(path=str(tmp_path))
+        _assetfile = asset.list_assetfiles()[0]
+        assert "st_size" in _assetfile.metadata
+
+    def test_limit_truncates_results(self, tmp_path):
+        (tmp_path / "a.csv").write_bytes(b"a")
+        (tmp_path / "b.csv").write_bytes(b"b")
+        asset = LocalAsset(path=str(tmp_path))
+        assert len(asset.list_assetfiles(limit=1)) == 1
+
+    def test_since_excludes_files_older_than_cutoff(self, tmp_path):
+        import os
+
+        _old = tmp_path / "old.csv"
+        _old.write_bytes(b"old")
+        os.utime(_old, (1_000_000, 1_000_000))
+        asset = LocalAsset(path=str(tmp_path))
+        assert asset.list_assetfiles(since=2_000_000) == []
+
+
 class TestLocalAssetTags:
     def test_tags_always_include_platform_filesystem_filekind(self, tmp_path):
         asset = LocalAsset(path=str(tmp_path), tags={"env": "prod"})
