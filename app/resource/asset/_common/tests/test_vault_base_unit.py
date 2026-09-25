@@ -15,7 +15,14 @@ from app.setting._vault import LocalVaultSetting
 
 
 class _ConcreteVault(BaseVault):
-    # BaseVault is abstract (uri/frn/asset); a trivial subclass lets us exercise its shared logic.
+    # BaseVault is abstract (uri/frn/asset/from_setting); a trivial subclass lets us exercise its shared logic.
+    @classmethod
+    def from_setting(
+        cls,
+        setting: LocalVaultSetting,
+    ) -> "_ConcreteVault":
+        raise NotImplementedError
+
     @property
     def uri(self) -> str:
         return "concrete://uri"

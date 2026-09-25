@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 import pytest
 from pydantic import ValidationError
@@ -9,11 +10,12 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource.asset._common._asset import BaseAsset
+from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.identity.local.local import LocalIdentity
 
 
 class _ConcreteAsset(BaseAsset):
-    # BaseAsset is abstract (uri/frn); a trivial subclass lets us exercise its shared logic.
+    # BaseAsset is abstract (uri/frn/name/list_assetfiles); a trivial subclass lets us exercise its shared logic.
     @property
     def uri(self) -> str:
         return "concrete://uri"
@@ -21,6 +23,18 @@ class _ConcreteAsset(BaseAsset):
     @property
     def frn(self) -> str:
         return "concrete:frn"
+
+    @property
+    def name(self) -> str:
+        return "concrete"
+
+    def list_assetfiles(
+        self,
+        since: datetime | float | None = None,
+        until: datetime | float | None = None,
+        limit: int | None = None,
+    ) -> list[BaseAssetfile]:
+        raise NotImplementedError
 
 
 class TestBaseAssetInit:

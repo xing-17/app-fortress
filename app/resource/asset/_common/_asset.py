@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any
 
 from pydantic import Field
@@ -9,6 +10,7 @@ from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.identity._common._base import BaseIdentity
 
 
@@ -60,6 +62,18 @@ class BaseAsset(
     @property
     @abstractmethod
     def frn(self) -> str: ...
+
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
+
+    @abstractmethod
+    def list_assetfiles(
+        self,
+        since: datetime | float | None = None,
+        until: datetime | float | None = None,
+        limit: int | None = None,
+    ) -> list[BaseAssetfile]: ...
 
     def _non_override_tags(self) -> dict[str, str]:
         return {

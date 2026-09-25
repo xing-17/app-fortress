@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import datetime
 from typing import Any
 
 from pydantic import Field
@@ -26,7 +25,7 @@ class BaseAssetfile(
         filekind (AssetFileKind): Asset file kind
         partitions (dict[str, str]): Asset partitions
         size (int | None): Asset size in bytes
-        modified_at (datetime | None): Asset last modified timestamp
+        modified_at (float | None): Asset last modified timestamp
         identity (BaseIdentity | str | None): Asset identity
         metadata (dict[str, Any]): Asset metadata
         tags (dict[str, Any]): Asset tags
@@ -53,7 +52,7 @@ class BaseAssetfile(
         default=None,
         description="[Optional] Asset size in bytes",
     )
-    modified_at: datetime | None = Field(
+    modified_at: float | None = Field(
         default=None,
         description="[Optional] Asset last modified timestamp",
     )
@@ -84,11 +83,23 @@ class BaseAssetfile(
 
     @property
     @abstractmethod
-    def name(self) -> str: ...
+    def frn(self) -> str: ...
 
     @property
     @abstractmethod
-    def frn(self) -> str: ...
+    def name(self) -> str: ...
+
+    @abstractmethod
+    def read_bytes(self) -> bytes: ...
+
+    @abstractmethod
+    def write_bytes(
+        self,
+        data: bytes,
+    ) -> None: ...
+
+    @abstractmethod
+    def load(self) -> None: ...
 
     def _non_override_tags(self) -> dict[str, str]:
         return {

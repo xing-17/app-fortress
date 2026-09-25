@@ -57,6 +57,7 @@ class BaseVault(
     )
 
     @classmethod
+    @abstractmethod
     def from_setting(
         cls,
         setting: UnionVaultSetting,
