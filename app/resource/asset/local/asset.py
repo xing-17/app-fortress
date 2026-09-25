@@ -50,9 +50,8 @@ class LocalAsset(BaseAsset):
 
     @model_validator(mode="after")
     def _derive_identity(self) -> "LocalAsset":
-        _value: LocalIdentity | str | None = self.identity
         _identity: LocalIdentity = GlobalIdentities.resolve(
-            value=_value,
+            value=self.identity,
             platform=Platform.LOCAL,
             default=LocalIdentity.default(),
         )

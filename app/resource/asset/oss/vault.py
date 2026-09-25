@@ -8,6 +8,7 @@ from pydantic import Field, model_validator
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.internal.util.prefix import IPrefix
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._vault import BaseVault
 from app.resource.asset.oss.asset import OSSAsset
@@ -57,8 +58,7 @@ class OSSVault(BaseVault):
 
     @model_validator(mode="after")
     def _derive_prefix(self) -> "OSSVault":
-        _p = self.prefix or ""
-        _p = _p.rstrip("/")
+        _p = IPrefix.resolve(self.prefix)
         object.__setattr__(self, "prefix", _p)
         return self
 
