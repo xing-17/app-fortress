@@ -16,3 +16,16 @@ class IPartition(IAbstractUtility):
             if _k and _v:
                 _parts[_k] = _v
         return _parts
+
+    @staticmethod
+    def to_string(
+        partitions: dict[str, str],
+        connector: str = "/",
+    ) -> str:
+        if not partitions:
+            return ""
+        if not connector:
+            connector = "/"
+        _segments: list[str] = [f"{k}={v}" for k, v in partitions.items()]
+        _result: str = connector.join(_segments)
+        return _result
