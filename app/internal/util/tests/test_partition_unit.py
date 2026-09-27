@@ -40,3 +40,17 @@ class TestIPartitionToString:
 
     def test_to_string_falls_back_to_slash_when_connector_empty(self):
         assert IPartition.to_string({"year": "2024"}, connector="") == "year=2024"
+
+
+class TestIPartitionToPattern:
+    def test_to_pattern_joins_keys_with_default_connector(self):
+        assert IPartition.to_pattern(["year", "month"]) == "year=*/month=*"
+
+    def test_to_pattern_joins_keys_with_custom_connector(self):
+        assert IPartition.to_pattern(["year", "month"], connector=",") == "year=*,month=*"
+
+    def test_to_pattern_empty_list_returns_wildcard(self):
+        assert IPartition.to_pattern([]) == "*"
+
+    def test_to_pattern_falls_back_to_slash_when_connector_empty(self):
+        assert IPartition.to_pattern(["year"], connector="") == "year=*"
