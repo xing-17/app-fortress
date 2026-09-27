@@ -190,10 +190,13 @@ class OSSClient:
                     continue
                 if until is not None and _lmts is not None and _lmts > until:
                     continue
+                _lmetag: str | None = _content.etag
+                if _lmetag:
+                    _lmetag = _lmetag.strip('"')
                 _om: dict[str, Any] = {
                     "bucket": self.bucket,
                     "key": _key,
-                    "etag": _content.etag,
+                    "etag": _lmetag,
                     "last_modified": _lmts,
                     "size": _content.size,
                     "storage_class": _content.storage_class,
@@ -254,10 +257,13 @@ class OSSClient:
             raise
         _lmdt: datetime | None = _response.last_modified
         _lmts: float | None = _lmdt.timestamp() if isinstance(_lmdt, datetime) else None
+        _lmetag: str | None = _response.etag
+        if _lmetag:
+            _lmetag = _lmetag.strip('"')
         return {
             "bucket": self.bucket,
             "key": key,
-            "etag": _response.etag,
+            "etag": _lmetag,
             "last_modified": _lmts,
             "size": _response.content_length,
             "storage_class": _response.storage_class,

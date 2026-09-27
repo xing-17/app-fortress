@@ -1,10 +1,10 @@
 from __future__ import annotations
-
+import threading
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 
 from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.assetfilekind import AssetFileKind
@@ -56,6 +56,16 @@ class BaseAsset(
         default_factory=dict,
         description="[Optional] Asset tags",
     )
+    
+    _assetfiles: list[BaseAssetfile] | None = PrivateAttr(default=None)
+
+    @property
+    def assetfiles(self) -> list[BaseAssetfile] | None:
+        if not self._assetfiles:
+            with self._assetfiles_lock:
+                if not self._assetfiles:
+                    self._assetfiles = self.list_assetfiles()
+        return self._assetfiles
 
     @property
     @abstractmethod
@@ -99,7 +109,7 @@ class BaseAsset(
         since: datetime | float | None = None,
         until: datetime | float | None = None,
     ) -> list[BaseAssetfile]: ...
-
+ 
     def _non_override_tags(self) -> dict[str, str]:
         return {
             "platform": self.platform,
