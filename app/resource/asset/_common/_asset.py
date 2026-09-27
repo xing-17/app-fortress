@@ -1,5 +1,5 @@
 from __future__ import annotations
-import threading
+
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
@@ -56,15 +56,12 @@ class BaseAsset(
         default_factory=dict,
         description="[Optional] Asset tags",
     )
-    
+
     _assetfiles: list[BaseAssetfile] | None = PrivateAttr(default=None)
 
     @property
-    def assetfiles(self) -> list[BaseAssetfile] | None:
-        if not self._assetfiles:
-            with self._assetfiles_lock:
-                if not self._assetfiles:
-                    self._assetfiles = self.list_assetfiles()
+    def assetfiles(self) -> list[BaseAssetfile]:
+        self.load_assetfiles()
         return self._assetfiles
 
     @property
@@ -95,6 +92,22 @@ class BaseAsset(
     @abstractmethod
     def full_pattern(self) -> str: ...
 
+    def load_assetfiles(
+        self,
+        since: datetime | float | None = None,
+        until: datetime | float | None = None,
+        force: bool = False,
+    ) -> list[BaseAssetfile]:
+        if force or self._assetfiles is None:
+            self._assetfiles = self.list_assetfiles(
+                since=since,
+                until=until,
+            )
+        return self._assetfiles
+
+    def reset_assetfiles(self) -> None:
+        self._assetfiles = None
+
     @abstractmethod
     def list_assetfiles(
         self,
@@ -109,7 +122,7 @@ class BaseAsset(
         since: datetime | float | None = None,
         until: datetime | float | None = None,
     ) -> list[BaseAssetfile]: ...
- 
+
     def _non_override_tags(self) -> dict[str, str]:
         return {
             "platform": self.platform,

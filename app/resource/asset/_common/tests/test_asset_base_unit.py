@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from unittest.mock import MagicMock
 
 import pytest
 from pydantic import ValidationError
@@ -178,3 +179,79 @@ class TestBaseAssetPartitionPattern:
             partitions=["year", "month"],
         )
         assert asset.partition_pattern == "year=*/month=*"
+
+
+class TestBaseAssetAssetfilesProperty:
+    def test_first_access_calls_list_assetfiles(self, monkeypatch):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        monkeypatch.setattr(_ConcreteAsset, "list_assetfiles", MagicMock(return_value=["file-a"]))
+        assert asset.assetfiles == ["file-a"]
+        asset.list_assetfiles.assert_called_once()
+
+    def test_second_access_is_served_from_cache(self, monkeypatch):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        monkeypatch.setattr(_ConcreteAsset, "list_assetfiles", MagicMock(return_value=["file-a"]))
+        first = asset.assetfiles
+        second = asset.assetfiles
+        assert first is second
+        asset.list_assetfiles.assert_called_once()
+
+    def test_empty_result_is_still_cached(self, monkeypatch):
+        # regression: `not self._assetfiles` would treat [] as "unset" and refetch every access
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        monkeypatch.setattr(_ConcreteAsset, "list_assetfiles", MagicMock(return_value=[]))
+        assert asset.assetfiles == []
+        assert asset.assetfiles == []
+        asset.list_assetfiles.assert_called_once()
+
+
+class TestBaseAssetLoadAssetfiles:
+    def test_populates_cache_and_returns_result(self, monkeypatch):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        monkeypatch.setattr(_ConcreteAsset, "list_assetfiles", MagicMock(return_value=["file-a"]))
+        result = asset.load_assetfiles()
+        assert result == ["file-a"]
+        assert asset._assetfiles == ["file-a"]
+
+    def test_without_force_does_not_refetch_when_cached(self, monkeypatch):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        monkeypatch.setattr(_ConcreteAsset, "list_assetfiles", MagicMock(return_value=["file-a"]))
+        asset.load_assetfiles()
+        asset.load_assetfiles()
+        asset.list_assetfiles.assert_called_once()
+
+    def test_force_true_always_refetches(self, monkeypatch):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        monkeypatch.setattr(_ConcreteAsset, "list_assetfiles", MagicMock(side_effect=[["file-a"], ["file-b"]]))
+        first = asset.load_assetfiles()
+        second = asset.load_assetfiles(force=True)
+        assert first == ["file-a"]
+        assert second == ["file-b"]
+        assert asset._assetfiles == ["file-b"]
+        assert asset.list_assetfiles.call_count == 2
+
+    def test_forwards_since_and_until_to_list_assetfiles(self, monkeypatch):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        monkeypatch.setattr(_ConcreteAsset, "list_assetfiles", MagicMock(return_value=[]))
+        _since = datetime(2026, 1, 1)
+        _until = datetime(2026, 2, 1)
+        asset.load_assetfiles(since=_since, until=_until)
+        asset.list_assetfiles.assert_called_once_with(since=_since, until=_until)
+
+
+class TestBaseAssetResetAssetfiles:
+    def test_clears_cached_assetfiles(self, monkeypatch):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        monkeypatch.setattr(_ConcreteAsset, "list_assetfiles", MagicMock(return_value=["file-a"]))
+        asset.load_assetfiles()
+        asset.reset_assetfiles()
+        assert asset._assetfiles is None
+
+    def test_next_access_refetches_after_reset(self, monkeypatch):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        monkeypatch.setattr(_ConcreteAsset, "list_assetfiles", MagicMock(side_effect=[["file-a"], ["file-b"]]))
+        asset.load_assetfiles()
+        asset.reset_assetfiles()
+        result = asset.load_assetfiles()
+        assert result == ["file-b"]
+        assert asset.list_assetfiles.call_count == 2
