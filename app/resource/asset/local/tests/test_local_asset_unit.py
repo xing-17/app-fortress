@@ -143,12 +143,6 @@ class TestLocalAssetListAssetfiles:
         _assetfile = asset.list_assetfiles()[0]
         assert "st_size" in _assetfile.metadata
 
-    def test_limit_truncates_results(self, tmp_path):
-        (tmp_path / "a.csv").write_bytes(b"a")
-        (tmp_path / "b.csv").write_bytes(b"b")
-        asset = LocalAsset(path=str(tmp_path))
-        assert len(asset.list_assetfiles(limit=1)) == 1
-
     def test_since_excludes_files_older_than_cutoff(self, tmp_path):
         import os
 
@@ -157,6 +151,40 @@ class TestLocalAssetListAssetfiles:
         os.utime(_old, (1_000_000, 1_000_000))
         asset = LocalAsset(path=str(tmp_path))
         assert asset.list_assetfiles(since=2_000_000) == []
+
+    def test_filters_by_filekind_extension(self, tmp_path):
+        (tmp_path / "a.parquet").write_bytes(b"a")
+        (tmp_path / "b.txt").write_bytes(b"b")
+        asset = LocalAsset(path=str(tmp_path), filekind=AssetFileKind.PARQUET)
+        _files = asset.list_assetfiles()
+        assert {f.path for f in _files} == {tmp_path / "a.parquet"}
+
+    def test_partitions_match_files_under_partition_directories(self, tmp_path):
+        _partitioned = tmp_path / "year=2024" / "month=01" / "a.csv"
+        _partitioned.parent.mkdir(parents=True)
+        _partitioned.write_bytes(b"a")
+        asset = LocalAsset(path=str(tmp_path), partitions=["year", "month"])
+        _files = asset.list_assetfiles()
+        assert {f.path for f in _files} == {_partitioned}
+
+    def test_partitions_exclude_files_without_partition_directories(self, tmp_path):
+        (tmp_path / "flat.csv").write_bytes(b"a")
+        asset = LocalAsset(path=str(tmp_path), partitions=["year"])
+        assert asset.list_assetfiles() == []
+
+
+class TestLocalAssetFullPattern:
+    def test_without_partitions_has_no_partition_segment(self, tmp_path):
+        asset = LocalAsset(path=str(tmp_path))
+        assert asset.full_pattern == f"*{tmp_path}/*"
+
+    def test_with_partitions_includes_partition_segment(self, tmp_path):
+        asset = LocalAsset(path=str(tmp_path), partitions=["year", "month"])
+        assert asset.full_pattern == f"*{tmp_path}/year=*/month=*/*"
+
+    def test_with_filekind_restricts_object_segment(self, tmp_path):
+        asset = LocalAsset(path=str(tmp_path), filekind=AssetFileKind.PARQUET)
+        assert asset.full_pattern == f"*{tmp_path}/*.parquet"
 
 
 class TestLocalAssetTags:

@@ -25,11 +25,18 @@ class OSSVault(BaseVault):
         region (str): OSS bucket所在区域
         name (str | None): Vault名称
         prefix (str): OSS bucket前缀(默认空字符串)
+        in_vpc (bool): 是否在VPC内访问OSS (默认False)
         identity (AliyunIdentity): Aliyun身份(默认AliyunIdentity.default())
         filesystem (Literal[AssetFilesystem.OSS]): 文件系统类型(固定为AssetFilesystem.OSS)
         platform (Literal[Platform.ALIYUN]): 平台类型(固定为Platform.ALIYUN)
         description (str): Vault描述信息
         tags (dict[str, str]): Vault标签
+
+    Methods:
+        from_setting(cls, setting: OSSVaultSetting) -> OSSVault:
+            Create an OSSVault instance from an OSSVaultSetting object.
+        asset(rel, filekind=None, partitions=None) -> OSSAsset:
+            Create an OSSAsset scoped to a key joined from the vault prefix and rel.
 
     """
 
@@ -50,6 +57,10 @@ class OSSVault(BaseVault):
     prefix: str = Field(
         default="",
         description="[Optional] OSS bucket前缀",
+    )
+    in_vpc: bool = Field(
+        default=False,
+        description="[Optional] 是否在VPC内访问OSS",
     )
     identity: AliyunIdentity = Field(
         default_factory=AliyunIdentity.default,
@@ -72,6 +83,7 @@ class OSSVault(BaseVault):
             bucket=setting.bucket,
             region=setting.region,
             prefix=setting.prefix,
+            in_vpc=setting.in_vpc,
             identity=GlobalIdentities.resolve(
                 value=getattr(setting, "identity", None),
                 platform=Platform.ALIYUN,
@@ -102,6 +114,7 @@ class OSSVault(BaseVault):
             region=self.region,
             prefix=_key,
             filekind=filekind,
+            in_vpc=self.in_vpc,
             partitions=partitions,
             identity=self.identity,
             tags=self.tags,

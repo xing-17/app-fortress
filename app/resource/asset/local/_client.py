@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from fnmatch import fnmatchcase
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
+
+from app.internal.util.clock import IClock
 
 
 class LocalObjectClient:
@@ -15,8 +18,11 @@ class LocalObjectClient:
             Write raw bytes to path, creating parent directories as needed.
         read_bytes(path: Path) -> bytes:
             Read raw bytes from path.
-        list_objects(path, since=None, until=None, limit=None) -> list[dict[str, Any]]:
-            List files under path (directories are excluded), optionally filtered by modified time and limit.
+        list_objects(path, pattern=None, since=None, until=None, recursive=True) -> list[dict[str, Any]]:
+            List files under path (directories are excluded), optionally filtered by pattern/modified time.
+            When recursive is False, only direct children of path are listed.
+        list_folders(path, pattern=None, recursive=True) -> list[dict[str, Any]]:
+            List subdirectories under path. When recursive is False, only direct children of path are listed.
         get_object(path: Path) -> dict[str, Any]:
             Return path and stat metadata for a single filesystem entry.
 
@@ -38,22 +44,42 @@ class LocalObjectClient:
         return path.read_bytes()
 
     @staticmethod
+    def _get_glob_iter(
+        path: Path,
+        recursive: bool = True,
+    ) -> Iterator[Path]:
+        if recursive:
+            return path.rglob("*")
+        else:
+            return path.glob("*")
+
+    @staticmethod
     def list_objects(
         path: Path,
+        pattern: str | None = None,
         since: datetime | float | None = None,
         until: datetime | float | None = None,
-        limit: int | None = None,
+        recursive: bool = True,
     ) -> list[dict[str, Any]]:
         _om_list: list[dict[str, Any]] = []
         if not path.is_dir():
             return []
         if since is not None and isinstance(since, datetime):
-            since = since.timestamp()
+            _dt: datetime = IClock.from_datetime(since, timezone="UTC")
+            since = _dt.timestamp()
         if until is not None and isinstance(until, datetime):
-            until = until.timestamp()
-        for _path in path.rglob("*"):
+            _dt: datetime = IClock.from_datetime(until, timezone="UTC")
+            until = _dt.timestamp()
+        _iter = LocalObjectClient._get_glob_iter(
+            path=path,
+            recursive=recursive,
+        )
+        for _path in _iter:
             if _path.is_file():
-                _meta: dict[str, Any] = LocalObjectClient.get_object(_path)
+                _res: Path = _path.resolve()
+                if pattern and not fnmatchcase(str(_res), pattern):
+                    continue
+                _meta: dict[str, Any] = LocalObjectClient.get_object(_res)
                 _m_stat: dict[str, Any] = _meta.get("stat", {})
                 _st_mtime: float | None = _m_stat.get("st_mtime", None)
                 if since is not None and _st_mtime is not None and _st_mtime < since:
@@ -65,9 +91,33 @@ class LocalObjectClient:
             _om_list,
             key=lambda x: x["path"],
         )
-        if limit and limit <= len(_om_list):
-            _om_list = _om_list[:limit]
         return _om_list
+
+    @staticmethod
+    def list_folders(
+        path: Path,
+        pattern: str | None = None,
+        recursive: bool = True,
+    ) -> list[dict[str, Any]]:
+        _folders: list[dict[str, Any]] = []
+        if not path.is_dir():
+            return []
+        _iter = LocalObjectClient._get_glob_iter(
+            path=path,
+            recursive=recursive,
+        )
+        for _path in _iter:
+            if _path.is_dir():
+                _res: Path = _path.resolve()
+                if pattern and not fnmatchcase(str(_res), pattern):
+                    continue
+                _meta: dict[str, Any] = LocalObjectClient.get_object(_res)
+                _folders.append(_meta)
+        _folders = sorted(
+            _folders,
+            key=lambda x: x["path"],
+        )
+        return _folders
 
     @staticmethod
     def get_object(path: Path) -> dict[str, Any]:

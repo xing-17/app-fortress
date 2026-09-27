@@ -28,8 +28,10 @@ class LocalAsset(BaseAsset):
         tags (dict[str, str]): Local asset tags
 
     Methods:
-        list_assetfiles(since=None, until=None, limit=None) -> list[LocalAssetfile]:
-            List assetfiles under the asset directory, optionally filtered by modified time and limit.
+        list_assetfiles(since=None, until=None) -> list[LocalAssetfile]:
+            List assetfiles under the asset directory matching full_pattern, optionally filtered by modified time.
+        list_objects(pattern=None, since=None, until=None) -> list[LocalAssetfile]:
+            List assetfiles under the asset directory matching pattern, optionally filtered by modified time.
 
     """
 
@@ -78,24 +80,55 @@ class LocalAsset(BaseAsset):
     def name(self) -> str:
         return self.path.name
 
+    # @property: object_pattern from BaseAsset
+
+    # @property: partition_pattern from BaseAsset
+
+    @property
+    def full_pattern(self) -> str:
+        _obj_expr: str = self.object_pattern
+        _base_expr: str = f"{self.path}"
+        if not self.partitions:
+            # skip the partition segment so files directly under path (no subdirectory) still match
+            return f"*{_base_expr}/{_obj_expr}"
+        else:
+            return f"*{_base_expr}/{self.partition_pattern}/{_obj_expr}"
+
     def list_assetfiles(
         self,
         since: datetime | float | None = None,
         until: datetime | float | None = None,
-        limit: int | None = None,
+        recursive: bool = True,
+    ) -> list[LocalAssetfile]:
+        return self.list_objects(
+            pattern=self.full_pattern,
+            since=since,
+            until=until,
+            recursive=recursive,
+        )
+
+    def list_objects(
+        self,
+        pattern: str | None = None,
+        since: datetime | float | None = None,
+        until: datetime | float | None = None,
+        recursive: bool = True,
     ) -> list[LocalAssetfile]:
         _files: list[LocalAssetfile] = []
         if not self.path.exists() or not self.path.is_dir():
             return _files
+
         _targets: list[dict[str, Any]] = LocalObjectClient.list_objects(
             path=self.path,
+            pattern=pattern,
             since=since,
             until=until,
-            limit=limit,
+            recursive=recursive,
         )
         for _meta in _targets:
             _meta_path: Path = _meta["path"]
             _meta_stat: dict[str, Any] = _meta.get("stat", {})
+            _meta_stat = {k: v for k, v in _meta_stat.items() if v is not None}
             _assetfile: LocalAssetfile = LocalAssetfile(
                 path=_meta_path,
                 identity=self.identity,

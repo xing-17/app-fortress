@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 from pydantic import ValidationError
 
@@ -7,7 +9,9 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
+from app.resource.asset.oss._client import OSSClient
 from app.resource.asset.oss.asset import OSSAsset
+from app.resource.asset.oss.assetfile import OSSAssetfile
 from app.resource.identity.aliyun.aliyun import AliyunIdentity
 from app.resource.identity.local.local import LocalIdentity
 
@@ -102,3 +106,153 @@ class TestOSSAssetExport:
     def test_export_includes_identity_name(self):
         asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou")
         assert asset.export()["identity"] == AliyunIdentity.default().name
+
+
+class TestOSSAssetFullPattern:
+    def test_without_partitions_has_no_partition_segment(self):
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
+        assert asset.full_pattern == "*my/prefix/*"
+
+    def test_with_partitions_includes_partition_segment(self):
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix", partitions=["year", "month"])
+        assert asset.full_pattern == "*my/prefix/year=*/month=*/*"
+
+    def test_with_filekind_restricts_object_segment(self):
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix", filekind=AssetFileKind.PARQUET)
+        assert asset.full_pattern == "*my/prefix/*.parquet"
+
+
+class TestOSSAssetClient:
+    def test_client_property_resolves_via_oss_client_get_client(self, monkeypatch):
+        _captured = {}
+
+        def _fake_get_client(**kwargs):
+            _captured.update(kwargs)
+            return "fake-client"
+
+        monkeypatch.setattr(OSSClient, "get_client", _fake_get_client)
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", in_vpc=True)
+        assert asset.client == "fake-client"
+        assert _captured == {
+            "bucket": "my-bucket",
+            "region": "cn-hangzhou",
+            "identity": asset.identity,
+            "in_vpc": True,
+        }
+
+
+class TestOSSAssetListObjects:
+    def test_builds_assetfile_for_each_target(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.list_objects.return_value = [
+            {
+                "bucket": "my-bucket",
+                "key": "my/prefix/a.csv",
+                "etag": "etag-a",
+                "last_modified": 1_700_000_000.0,
+                "size": 10,
+                "storage_class": "Standard",
+            },
+        ]
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
+        _files = asset.list_objects()
+
+        assert len(_files) == 1
+        _file = _files[0]
+        assert isinstance(_file, OSSAssetfile)
+        assert _file.key == "my/prefix/a.csv"
+        assert _file.size == 10
+        assert _file.modified_at == 1_700_000_000.0
+        assert _file.metadata == {
+            "etag": "etag-a",
+            "last_modified": 1_700_000_000.0,
+            "size": 10,
+            "storage_class": "Standard",
+        }
+
+    def test_metadata_omits_none_values(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.list_objects.return_value = [
+            {
+                "bucket": "my-bucket",
+                "key": "a.csv",
+                "etag": None,
+                "last_modified": None,
+                "size": None,
+                "storage_class": None,
+            },
+        ]
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou")
+        _file = asset.list_objects()[0]
+        assert _file.metadata == {}
+
+    def test_forwards_pattern_since_until_recursive_to_client(self, monkeypatch):
+        _captured = {}
+
+        def _fake_list_objects(**kwargs):
+            _captured.update(kwargs)
+            return []
+
+        _fake_client = MagicMock()
+        _fake_client.list_objects.side_effect = _fake_list_objects
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
+        asset.list_objects(pattern="*.csv", since=1.0, until=2.0, recursive=False)
+        assert _captured == {
+            "prefix": "my/prefix",
+            "pattern": "*.csv",
+            "since": 1.0,
+            "until": 2.0,
+            "recursive": False,
+        }
+
+    def test_assetfile_inherits_asset_identity_tags_and_in_vpc(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.list_objects.return_value = [
+            {
+                "bucket": "my-bucket",
+                "key": "a.csv",
+                "etag": "e",
+                "last_modified": 1.0,
+                "size": 1,
+                "storage_class": "Standard",
+            },
+        ]
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", tags={"env": "prod"}, in_vpc=True)
+        _file = asset.list_objects()[0]
+        assert _file.identity is asset.identity
+        assert _file.tags["env"] == "prod"
+        assert _file.in_vpc is True
+
+    def test_no_targets_returns_empty_list(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.list_objects.return_value = []
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou")
+        assert asset.list_objects() == []
+
+
+class TestOSSAssetListAssetfiles:
+    def test_uses_full_pattern_and_forwards_recursive(self, monkeypatch):
+        _captured = {}
+
+        def _fake_list_objects(**kwargs):
+            _captured.update(kwargs)
+            return []
+
+        _fake_client = MagicMock()
+        _fake_client.list_objects.side_effect = _fake_list_objects
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
+        asset.list_assetfiles(recursive=False)
+        assert _captured["pattern"] == asset.full_pattern
+        assert _captured["recursive"] is False

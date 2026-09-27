@@ -149,3 +149,32 @@ class TestBaseAssetClone:
         cloned = asset.clone(partitions=["year=2027"])
         assert cloned.partitions == ["year=2027"]
         assert asset.partitions == ["year=2026"]
+
+
+class TestBaseAssetObjectPattern:
+    def test_object_kind_returns_wildcard(self):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        assert asset.object_pattern == "*"
+
+    def test_non_object_kind_returns_extension_pattern(self):
+        asset = _ConcreteAsset(
+            filesystem=AssetFilesystem.LOCAL,
+            platform=Platform.LOCAL,
+            filekind=AssetFileKind.PARQUET,
+        )
+        assert asset.object_pattern == "*.parquet"
+
+
+class TestBaseAssetPartitionPattern:
+    def test_no_partitions_returns_wildcard(self):
+        asset = _ConcreteAsset(filesystem=AssetFilesystem.LOCAL, platform=Platform.LOCAL)
+        assert asset.partition_pattern == "*"
+
+    def test_partitions_are_rendered_as_key_wildcard_pairs(self):
+        # regression: partitions is list[str], IPartition.to_pattern must accept keys not a dict
+        asset = _ConcreteAsset(
+            filesystem=AssetFilesystem.LOCAL,
+            platform=Platform.LOCAL,
+            partitions=["year", "month"],
+        )
+        assert asset.partition_pattern == "year=*/month=*"

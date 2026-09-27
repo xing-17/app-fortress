@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, model_validator
 
@@ -12,6 +12,7 @@ from app.internal.util.partition import IPartition
 from app.internal.util.prefix import IPrefix
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._assetfile import BaseAssetfile
+from app.resource.asset.oss._client import OSSClient
 from app.resource.identity.aliyun.aliyun import AliyunIdentity
 
 
@@ -28,9 +29,20 @@ class OSSAssetfile(BaseAssetfile):
         platform (Literal[Platform.ALIYUN]): 固定为Platform.ALIYUN
         partitions (dict[str, str]): 从key解析出的分区键值对
         size (int | None): 文件大小(字节)
-        modified_at (datetime | None): 最后修改时间
+        modified_at (float | None): 最后修改时间
         metadata (dict[str, Any]): 元数据
         tags (dict[str, Any]): 标签
+
+    Attributes:
+        client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
+
+    Methods:
+        read_bytes() -> bytes:
+            Read the assetfile content from OSS; raises FileNotFoundError if the key does not exist.
+        write_bytes(data: bytes) -> None:
+            Write bytes to the assetfile's OSS key.
+        load() -> None:
+            Refresh size/modified_at/metadata from the OSS object's HEAD metadata.
 
     """
 
@@ -38,7 +50,7 @@ class OSSAssetfile(BaseAssetfile):
     # - filekind: AssetFileKind
     # - partitions: dict[str, str]
     # - size: int | None
-    # - modified_at: datetime | None
+    # - modified_at: float | None
     # - metadata: dict[str, Any]
     # - tags: dict[str, Any]
     bucket: str = Field(
@@ -52,6 +64,10 @@ class OSSAssetfile(BaseAssetfile):
     key: str = Field(
         ...,
         description="[Required] OSS bucket key非空路径",
+    )
+    in_vpc: bool = Field(
+        default=False,
+        description="[Optional] 是否在VPC内访问OSS",
     )
     identity: AliyunIdentity | str | None = Field(
         default_factory=AliyunIdentity.default,
@@ -100,6 +116,15 @@ class OSSAssetfile(BaseAssetfile):
         return self
 
     @property
+    def client(self) -> OSSClient:
+        return OSSClient.get_client(
+            bucket=self.bucket,
+            region=self.region,
+            identity=self.identity,
+            in_vpc=self.in_vpc,
+        )
+
+    @property
     def uri(self) -> str:
         return f"oss://{self.bucket}/{self.key}"
 
@@ -118,3 +143,34 @@ class OSSAssetfile(BaseAssetfile):
     @property
     def name(self) -> str:
         return PurePosixPath(self.key).name
+
+    def read_bytes(self) -> bytes:
+        return self.client.read_bytes(self.key)
+
+    def write_bytes(
+        self,
+        data: bytes,
+    ) -> None:
+        self.client.write_bytes(
+            key=self.key,
+            data=data,
+        )
+
+    def load(self) -> None:
+        _meta: dict[str, Any] = self.client.get_object(self.key)
+        if _meta:
+            _origin: dict[str, Any] = dict(self.metadata)
+            _update: dict = {
+                "etag": _meta.get("etag"),
+                "last_modified": _meta.get("last_modified"),
+                "size": _meta.get("size"),
+                "storage_class": _meta.get("storage_class"),
+            }
+            _origin.update(_update)
+            object.__setattr__(self, "metadata", _origin)
+        _last_modified: float | None = _meta.get("last_modified")
+        if _last_modified:
+            object.__setattr__(self, "modified_at", _last_modified)
+        _size: int | None = _meta.get("size")
+        if _size:
+            object.__setattr__(self, "size", _size)

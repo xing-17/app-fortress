@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 from pydantic import ValidationError
 
@@ -7,6 +9,7 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
+from app.resource.asset.oss._client import OSSClient
 from app.resource.asset.oss.assetfile import OSSAssetfile
 from app.resource.identity.aliyun.aliyun import AliyunIdentity
 from app.resource.identity.local.local import LocalIdentity
@@ -128,3 +131,107 @@ class TestOSSAssetfileExport:
     def test_export_includes_identity_name(self):
         assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="report.csv")
         assert assetfile.export()["identity"] == AliyunIdentity.default().name
+
+
+class TestOSSAssetfileClient:
+    def test_client_property_resolves_via_oss_client_get_client(self, monkeypatch):
+        _captured = {}
+
+        def _fake_get_client(**kwargs):
+            _captured.update(kwargs)
+            return "fake-client"
+
+        monkeypatch.setattr(OSSClient, "get_client", _fake_get_client)
+        assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="report.csv", in_vpc=True)
+        assert assetfile.client == "fake-client"
+        assert _captured == {
+            "bucket": "my-bucket",
+            "region": "cn-hangzhou",
+            "identity": assetfile.identity,
+            "in_vpc": True,
+        }
+
+
+class TestOSSAssetfileReadWriteBytes:
+    def test_read_bytes_delegates_to_client_with_key(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.read_bytes.return_value = b"payload"
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="report.csv")
+        assert assetfile.read_bytes() == b"payload"
+        _fake_client.read_bytes.assert_called_once_with("report.csv")
+
+    def test_read_bytes_missing_key_raises_file_not_found_error(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.read_bytes.side_effect = FileNotFoundError("report.csv")
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="report.csv")
+        with pytest.raises(FileNotFoundError):
+            assetfile.read_bytes()
+
+    def test_write_bytes_delegates_to_client_with_key_and_data(self, monkeypatch):
+        _fake_client = MagicMock()
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="report.csv")
+        assetfile.write_bytes(b"a,b,c")
+        _fake_client.write_bytes.assert_called_once_with(key="report.csv", data=b"a,b,c")
+
+
+class TestOSSAssetfileLoad:
+    def test_load_populates_size_and_modified_at(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.get_object.return_value = {
+            "etag": "etag-a",
+            "last_modified": 1_700_000_000.0,
+            "size": 123,
+            "storage_class": "Standard",
+        }
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="report.csv")
+        assetfile.load()
+        assert assetfile.size == 123
+        assert assetfile.modified_at == 1_700_000_000.0
+
+    def test_load_merges_fetched_fields_into_metadata(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.get_object.return_value = {
+            "etag": "etag-a",
+            "last_modified": 1_700_000_000.0,
+            "size": 123,
+            "storage_class": "Standard",
+        }
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        assetfile = OSSAssetfile(
+            bucket="my-bucket", region="cn-hangzhou", key="report.csv", metadata={"custom": "value"}
+        )
+        assetfile.load()
+        assert assetfile.metadata["custom"] == "value"
+        assert assetfile.metadata["etag"] == "etag-a"
+
+    def test_load_calls_get_object_with_key(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.get_object.return_value = {
+            "etag": "e",
+            "last_modified": 1.0,
+            "size": 1,
+            "storage_class": "Standard",
+        }
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="report.csv")
+        assetfile.load()
+        _fake_client.get_object.assert_called_once_with("report.csv")
+
+    def test_load_missing_key_raises_file_not_found_error(self, monkeypatch):
+        _fake_client = MagicMock()
+        _fake_client.get_object.side_effect = FileNotFoundError("report.csv")
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+
+        assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="report.csv")
+        with pytest.raises(FileNotFoundError):
+            assetfile.load()

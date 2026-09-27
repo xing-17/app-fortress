@@ -198,29 +198,83 @@ class TestListObjectsSinceUntilFilters:
         assert _files["mid"] in {m["path"] for m in _result}
 
 
-class TestListObjectsLimit:
-    def test_limit_truncates_sorted_results(self, tmp_path):
-        (tmp_path / "a.txt").write_bytes(b"a")
-        (tmp_path / "b.txt").write_bytes(b"b")
-        (tmp_path / "c.txt").write_bytes(b"c")
-        _result = LocalObjectClient.list_objects(tmp_path, limit=2)
-        assert [m["path"] for m in _result] == [tmp_path / "a.txt", tmp_path / "b.txt"]
+class TestListObjectsRecursive:
+    def _make_nested_files(self, tmp_path) -> None:
+        (tmp_path / "top.txt").write_bytes(b"top")
+        _nested = tmp_path / "sub"
+        _nested.mkdir()
+        (_nested / "nested.txt").write_bytes(b"nested")
 
-    def test_limit_larger_than_result_count_returns_all(self, tmp_path):
-        (tmp_path / "a.txt").write_bytes(b"a")
-        _result = LocalObjectClient.list_objects(tmp_path, limit=10)
-        assert len(_result) == 1
+    def test_recursive_true_includes_nested_files(self, tmp_path):
+        self._make_nested_files(tmp_path)
+        _result = LocalObjectClient.list_objects(tmp_path, recursive=True)
+        assert {m["path"] for m in _result} == {
+            tmp_path / "top.txt",
+            tmp_path / "sub" / "nested.txt",
+        }
 
-    def test_limit_none_returns_all(self, tmp_path):
-        (tmp_path / "a.txt").write_bytes(b"a")
-        (tmp_path / "b.txt").write_bytes(b"b")
-        _result = LocalObjectClient.list_objects(tmp_path, limit=None)
-        assert len(_result) == 2
+    def test_recursive_false_excludes_nested_files(self, tmp_path):
+        self._make_nested_files(tmp_path)
+        _result = LocalObjectClient.list_objects(tmp_path, recursive=False)
+        assert {m["path"] for m in _result} == {tmp_path / "top.txt"}
 
-    def test_limit_zero_is_treated_as_no_limit(self, tmp_path):
-        # `limit=0` is falsy, so `if limit and ...` never truncates; treated as "unset".
-        # Callers are not expected to pass limit=0, so this is documented, not fixed.
+    def test_recursive_defaults_to_true(self, tmp_path):
+        self._make_nested_files(tmp_path)
+        _result = LocalObjectClient.list_objects(tmp_path)
+        assert tmp_path / "sub" / "nested.txt" in {m["path"] for m in _result}
+
+
+class TestListFolders:
+    def test_missing_directory_returns_empty_list(self, tmp_path):
+        assert LocalObjectClient.list_folders(tmp_path / "missing") == []
+
+    def test_file_path_instead_of_directory_returns_empty_list(self, tmp_path):
+        _target = tmp_path / "a.txt"
+        _target.write_bytes(b"x")
+        assert LocalObjectClient.list_folders(_target) == []
+
+    def test_empty_directory_returns_empty_list(self, tmp_path):
+        assert LocalObjectClient.list_folders(tmp_path) == []
+
+    def test_lists_top_level_folders(self, tmp_path):
+        (tmp_path / "sub1").mkdir()
+        (tmp_path / "sub2").mkdir()
+        _result = LocalObjectClient.list_folders(tmp_path)
+        assert {m["path"] for m in _result} == {tmp_path / "sub1", tmp_path / "sub2"}
+
+    def test_files_are_excluded_from_results(self, tmp_path):
+        (tmp_path / "sub").mkdir()
         (tmp_path / "a.txt").write_bytes(b"a")
-        (tmp_path / "b.txt").write_bytes(b"b")
-        _result = LocalObjectClient.list_objects(tmp_path, limit=0)
-        assert len(_result) == 2
+        _result = LocalObjectClient.list_folders(tmp_path)
+        assert all(p["path"].is_dir() for p in _result)
+        assert (tmp_path / "a.txt") not in {m["path"] for m in _result}
+
+    def test_results_are_sorted_by_path(self, tmp_path):
+        (tmp_path / "b").mkdir()
+        (tmp_path / "a").mkdir()
+        (tmp_path / "c").mkdir()
+        _paths = [m["path"] for m in LocalObjectClient.list_folders(tmp_path)]
+        assert _paths == sorted(_paths)
+
+    def test_recursive_true_includes_nested_folders(self, tmp_path):
+        _nested = tmp_path / "sub" / "deeper"
+        _nested.mkdir(parents=True)
+        _result = LocalObjectClient.list_folders(tmp_path, recursive=True)
+        assert {m["path"] for m in _result} == {tmp_path / "sub", _nested}
+
+    def test_recursive_false_excludes_nested_folders(self, tmp_path):
+        _nested = tmp_path / "sub" / "deeper"
+        _nested.mkdir(parents=True)
+        _result = LocalObjectClient.list_folders(tmp_path, recursive=False)
+        assert {m["path"] for m in _result} == {tmp_path / "sub"}
+
+    def test_recursive_defaults_to_true(self, tmp_path):
+        _nested = tmp_path / "sub" / "deeper"
+        _nested.mkdir(parents=True)
+        _result = LocalObjectClient.list_folders(tmp_path)
+        assert _nested in {m["path"] for m in _result}
+
+    def test_each_entry_matches_get_object_shape(self, tmp_path):
+        (tmp_path / "sub").mkdir()
+        _result = LocalObjectClient.list_folders(tmp_path)
+        assert _result[0].keys() == {"path", "stat"}
