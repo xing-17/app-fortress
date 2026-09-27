@@ -37,6 +37,7 @@ class SystemSetting(IAbstractSetting):
         log (SystemLogSetting): 系统日志配置
         identities (list[UnionIdentitySetting]): 系统身份配置
         stores (list[UnionStoreSetting]): 系统元数据存储配置
+        vaults (list[UnionVaultSetting]): 系统资产库配置
         sources (list[UnionSourceSetting]): 系统数据源配置
 
     """
@@ -72,6 +73,10 @@ class SystemSetting(IAbstractSetting):
         default_factory=list,
         description="[Optional] 系统元数据存储配置",
     )
+    # vaults: list[UnionVaultSetting] = Field(
+    #     default_factory=list,
+    #     description="[Optional] 系统资产库配置",
+    # )
     sources: list[UnionSourceSetting] = Field(
         default_factory=list,
         description="[Optional] 系统数据源配置",

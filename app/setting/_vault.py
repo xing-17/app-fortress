@@ -97,6 +97,7 @@ class OSSVaultSetting(AbstractVaultSetting):
         bucket (str): OSS桶名称
         region (str): 资产所在的OSS区域
         prefix (str): 资产的OSS前缀
+        in_vpc (bool): 是否在VPC内访问OSS (默认False)
         identity (str | None): 资产访问所使用的OSS Identity
         platform (Literal[Platform.ALIYUN]): 资产平台类型，固定为ALIYUN
         filesystem (Literal[AssetFilesystem.OSS]): 资产文件系统类型，固定为OSS
@@ -122,6 +123,10 @@ class OSSVaultSetting(AbstractVaultSetting):
     prefix: str = Field(
         default="",
         description="[Optional] 资产的OSS前缀",
+    )
+    in_vpc: bool = Field(
+        default=False,
+        description="[Optional] 是否在VPC内访问OSS",
     )
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
     filesystem: Literal[AssetFilesystem.OSS] = AssetFilesystem.OSS

@@ -6,15 +6,15 @@ from typing import Literal
 
 logging.getLogger("tablestore").setLevel(logging.ERROR)
 
-from alibabacloud_credentials.models import CredentialModel
 from pydantic import Field, PrivateAttr, model_validator
-from tablestore import OTSClient
+from tablestore import OTSClient as OTSTeaClient
 from urllib3.exceptions import MaxRetryError, NameResolutionError
 
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
 from app.resource.identity.aliyun import AliyunIdentity
 from app.resource.store._common._base import BaseStore
+from app.resource.store.aliyun._client import OTSClient
 from app.setting._store import AliyunStoreSetting
 
 
@@ -115,19 +115,17 @@ class OtsStore(BaseStore):
         )
 
     @property
-    def client(self) -> OTSClient:
+    def client(self) -> OTSTeaClient:
         if self._client is None:
             with self._client_lock:
                 if self._client is None:
-                    _cred: CredentialModel = self.identity.get_credential()
                     self._client = OTSClient(
-                        end_point=self.endpoint,
-                        access_key_id=_cred.access_key_id,
-                        access_key_secret=_cred.access_key_secret,
+                        endpoint=self.endpoint,
                         region=self.region,
-                        instance_name=self.instance,
+                        instance=self.instance,
+                        identity=self.identity,
                     )
-        return self._client
+        return self._client.client
 
     @property
     def frn(self) -> str:

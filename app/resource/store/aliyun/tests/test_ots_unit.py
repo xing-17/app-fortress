@@ -4,7 +4,6 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-from alibabacloud_credentials.models import CredentialModel
 from pydantic import ValidationError
 from urllib3.exceptions import MaxRetryError, NameResolutionError
 
@@ -127,13 +126,11 @@ class TestOtsStoreFromSetting:
 
 
 class TestOtsStoreClient:
-    def test_client_is_built_from_identity_credential(self, monkeypatch):
-        _cred = CredentialModel(access_key_id="AKIDEXAMPLE", access_key_secret="secretvalue")
+    def test_client_property_resolves_via_ots_client_wrapper(self, monkeypatch):
         _mock_client_cls = MagicMock()
         monkeypatch.setattr(ots_module, "OTSClient", _mock_client_cls)
 
         identity = AliyunIdentity(name="my-identity")
-        monkeypatch.setattr(AliyunIdentity, "get_credential", MagicMock(return_value=_cred))
         store = OtsStore(
             name="my-ots-store",
             instance="my-instance",
@@ -144,21 +141,18 @@ class TestOtsStoreClient:
         result = store.client
 
         _mock_client_cls.assert_called_once_with(
-            end_point=store.endpoint,
-            access_key_id="AKIDEXAMPLE",
-            access_key_secret="secretvalue",
+            endpoint=store.endpoint,
             region="cn-hangzhou",
-            instance_name="my-instance",
+            instance="my-instance",
+            identity=identity,
         )
-        assert result is _mock_client_cls.return_value
+        assert result is _mock_client_cls.return_value.client
 
     def test_client_is_cached_across_calls(self, monkeypatch):
-        _cred = CredentialModel(access_key_id="AKIDEXAMPLE", access_key_secret="secretvalue")
         _mock_client_cls = MagicMock()
         monkeypatch.setattr(ots_module, "OTSClient", _mock_client_cls)
 
         identity = AliyunIdentity(name="my-identity")
-        monkeypatch.setattr(AliyunIdentity, "get_credential", MagicMock(return_value=_cred))
         store = OtsStore(name="my-ots-store", instance="my-instance", region="cn-hangzhou", identity=identity)
 
         first = store.client
@@ -171,18 +165,20 @@ class TestOtsStoreClient:
 class TestOtsStoreInstanceExists:
     def test_returns_true_when_list_table_succeeds(self):
         store = OtsStore(name="my-ots-store", instance="my-instance", region="cn-hangzhou")
-        store._client = MagicMock(list_table=MagicMock(return_value=None))
+        store._client = MagicMock(client=MagicMock(list_table=MagicMock(return_value=None)))
         assert store.instance_exists() is True
 
     def test_returns_false_on_max_retry_error(self):
         store = OtsStore(name="my-ots-store", instance="my-instance", region="cn-hangzhou")
-        store._client = MagicMock(list_table=MagicMock(side_effect=MaxRetryError(pool=None, url="/")))
+        store._client = MagicMock(client=MagicMock(list_table=MagicMock(side_effect=MaxRetryError(pool=None, url="/"))))
         assert store.instance_exists() is False
 
     def test_returns_false_on_name_resolution_error(self):
         store = OtsStore(name="my-ots-store", instance="my-instance", region="cn-hangzhou")
         store._client = MagicMock(
-            list_table=MagicMock(side_effect=NameResolutionError(host="my-instance", conn=None, reason=None))
+            client=MagicMock(
+                list_table=MagicMock(side_effect=NameResolutionError(host="my-instance", conn=None, reason=None))
+            )
         )
         assert store.instance_exists() is False
 
