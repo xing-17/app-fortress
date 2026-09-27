@@ -15,7 +15,7 @@ from app.resource.identity.local.local import LocalIdentity
 
 
 class _ConcreteAsset(BaseAsset):
-    # BaseAsset is abstract (uri/frn/name/list_assetfiles); a trivial subclass lets us exercise its shared logic.
+    # BaseAsset is abstract (uri/frn/name/full_pattern/list_assetfiles/list_objects); a trivial subclass lets us exercise its shared logic.
     @property
     def uri(self) -> str:
         return "concrete://uri"
@@ -28,11 +28,23 @@ class _ConcreteAsset(BaseAsset):
     def name(self) -> str:
         return "concrete"
 
+    @property
+    def full_pattern(self) -> str:
+        return "concrete/*"
+
     def list_assetfiles(
         self,
         since: datetime | float | None = None,
         until: datetime | float | None = None,
         limit: int | None = None,
+    ) -> list[BaseAssetfile]:
+        raise NotImplementedError
+
+    def list_objects(
+        self,
+        pattern: str | None = None,
+        since: datetime | float | None = None,
+        until: datetime | float | None = None,
     ) -> list[BaseAssetfile]:
         raise NotImplementedError
 

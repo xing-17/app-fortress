@@ -10,6 +10,7 @@ from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.internal.util.partition import IPartition
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.identity._common._base import BaseIdentity
 
@@ -68,12 +69,35 @@ class BaseAsset(
     @abstractmethod
     def name(self) -> str: ...
 
+    @property
+    def object_pattern(self) -> str:
+        if self.filekind == AssetFileKind.OBJECT:
+            return "*"
+        return f"*.{self.filekind.value}"
+
+    @property
+    def partition_pattern(self) -> str:
+        if not self.partitions:
+            return "*"
+        return IPartition.to_pattern(self.partitions)
+
+    @property
+    @abstractmethod
+    def full_pattern(self) -> str: ...
+
     @abstractmethod
     def list_assetfiles(
         self,
         since: datetime | float | None = None,
         until: datetime | float | None = None,
-        limit: int | None = None,
+    ) -> list[BaseAssetfile]: ...
+
+    @abstractmethod
+    def list_objects(
+        self,
+        pattern: str | None = None,
+        since: datetime | float | None = None,
+        until: datetime | float | None = None,
     ) -> list[BaseAssetfile]: ...
 
     def _non_override_tags(self) -> dict[str, str]:
