@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 
+from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.resource._global.setting import GlobalSetting
 from app.resource.asset._common._factory import VaultFactory
 from app.resource.asset._common._vault import BaseVault
@@ -24,6 +25,8 @@ class GlobalVaults:
             加载全局Vault
         get_vault(name: str) -> BaseVault:
             获取指定名称的Vault
+        resolve(value: BaseVault | str | None, default: BaseVault, filesystem: AssetFilesystem | None = None) -> BaseVault:
+            将传入的实例/名称/None解析为具体的Vault实例，不会注册进全局字典
         reset() -> None:
             重置全局Vault管理器
 
@@ -64,12 +67,64 @@ class GlobalVaults:
     def get_vault(
         cls,
         name: str,
-    ) -> BaseVault:
+        strict: bool = True,
+    ) -> BaseVault | None:
         with cls._lock:
             cls._ensure_loaded()
-            if name not in cls.vaults:
+            if strict and name not in cls.vaults:
                 raise ValueError(f"Vault '{name}' not found")
-            return cls.vaults[name]
+            return cls.vaults.get(name)
+
+    @classmethod
+    def resolve(
+        cls,
+        value: BaseVault | str | None,
+        default: BaseVault,
+        filesystem: AssetFilesystem | None = None,
+    ) -> BaseVault:
+        if isinstance(value, BaseVault):
+            _res: BaseVault = value
+        elif value is None:
+            if not isinstance(default, BaseVault):
+                raise ValueError(f"Default must be type 'BaseVault', got {type(default)}")
+            _res: BaseVault = default
+        elif isinstance(value, str):
+            _res: BaseVault = cls.get_vault(value, strict=True)
+        else:
+            raise ValueError(f"Unsupported type: {type(value)}")
+
+        if filesystem and _res.filesystem != filesystem:
+            raise ValueError(f"Vault '{_res.name}' does not match filesystem '{filesystem}'")
+
+        return _res
+
+    @classmethod
+    def list_vault_names(
+        cls,
+        filesystem: AssetFilesystem | None = None,
+    ) -> list[str]:
+        with cls._lock:
+            cls._ensure_loaded()
+            _snapshot: list[BaseVault] = list(cls.vaults.values())
+        _results: list[BaseVault] = []
+        for _v in _snapshot:
+            if filesystem is None or _v.filesystem == filesystem:
+                _results.append(_v.name)
+        return _results
+
+    @classmethod
+    def list_vaults(
+        cls,
+        filesystem: AssetFilesystem | None = None,
+    ) -> list[BaseVault]:
+        with cls._lock:
+            cls._ensure_loaded()
+            _snapshot: list[BaseVault] = list(cls.vaults.values())
+        _results: list[BaseVault] = []
+        for _v in _snapshot:
+            if filesystem is None or _v.filesystem == filesystem:
+                _results.append(_v)
+        return _results
 
     @classmethod
     def reset(cls) -> None:

@@ -114,6 +114,58 @@ class TestGlobalLogStreamsGetStream:
         assert result.name == "primary"
 
 
+class TestGlobalLogStreamsResolve:
+    def test_resolve_returns_instance_directly_without_registering(self, monkeypatch):
+        _patch_system(monkeypatch, _log_setting("sys"))
+        GlobalLogStreams.load()
+        _stream = LogStream(name="adhoc", console_verbose=False)
+        result = GlobalLogStreams.resolve(value=_stream, default=_stream)
+        assert result is _stream
+        assert "adhoc" not in GlobalLogStreams.streams
+
+    def test_resolve_uses_default_without_registering_when_value_is_none(self, monkeypatch):
+        _patch_system(monkeypatch, _log_setting("sys"))
+        GlobalLogStreams.load()
+        _default = LogStream(name="fallback", console_verbose=False)
+        result = GlobalLogStreams.resolve(value=None, default=_default)
+        assert result is _default
+        assert "fallback" not in GlobalLogStreams.streams
+
+    def test_resolve_raises_when_default_has_wrong_type(self, monkeypatch):
+        _patch_system(monkeypatch, _log_setting("sys"))
+        with pytest.raises(ValueError, match="Default must be type 'LogStream'"):
+            GlobalLogStreams.resolve(value=None, default="not_a_stream")
+
+    def test_resolve_from_setting_builds_a_new_stream_without_registering(self, monkeypatch):
+        _patch_system(monkeypatch, _log_setting("sys"))
+        _default = LogStream(name="fallback", console_verbose=False)
+        result = GlobalLogStreams.resolve(value=_log_setting("added"), default=_default)
+        assert isinstance(result, LogStream)
+        assert result.name == "added"
+        assert GlobalLogStreams.get_stream("added") is None
+
+    def test_resolve_from_setting_does_not_reuse_existing_stream_of_same_name(self, monkeypatch):
+        _patch_system(monkeypatch, _log_setting("sys"))
+        GlobalLogStreams.load()
+        _existing = GlobalLogStreams.streams["sys"]
+        _default = LogStream(name="fallback", console_verbose=False)
+        result = GlobalLogStreams.resolve(value=_log_setting("sys"), default=_default)
+        assert result is not _existing
+
+    def test_resolve_looks_up_by_name_when_value_is_string(self, monkeypatch):
+        _patch_system(monkeypatch, _log_setting("sys"))
+        GlobalLogStreams.load()
+        _default = LogStream(name="fallback", console_verbose=False)
+        result = GlobalLogStreams.resolve(value="sys", default=_default)
+        assert result is GlobalLogStreams.streams["sys"]
+
+    def test_resolve_raises_for_unsupported_type(self, monkeypatch):
+        _patch_system(monkeypatch, _log_setting("sys"))
+        _default = LogStream(name="fallback", console_verbose=False)
+        with pytest.raises(ValueError, match="Unsupported type"):
+            GlobalLogStreams.resolve(value=123, default=_default)
+
+
 class TestGlobalLogStreamsListStreams:
     def test_list_stream_names_returns_all_names(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("primary"))

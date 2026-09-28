@@ -87,6 +87,53 @@ class TestGlobalIdentitiesGetIdentity:
         assert result.name == "found"
 
 
+class TestGlobalIdentitiesResolve:
+    def test_resolve_returns_instance_directly_without_registering(self, monkeypatch):
+        _patch_system(monkeypatch)
+        GlobalIdentities.load()
+        _identity = LocalIdentity(name="adhoc")
+        result = GlobalIdentities.resolve(value=_identity, default=_identity)
+        assert result is _identity
+        assert "adhoc" not in GlobalIdentities.identities
+
+    def test_resolve_uses_default_without_registering_when_value_is_none(self, monkeypatch):
+        _patch_system(monkeypatch)
+        GlobalIdentities.load()
+        _default = LocalIdentity(name="fallback")
+        result = GlobalIdentities.resolve(value=None, default=_default)
+        assert result is _default
+        assert "fallback" not in GlobalIdentities.identities
+
+    def test_resolve_raises_when_default_has_wrong_type(self, monkeypatch):
+        _patch_system(monkeypatch)
+        with pytest.raises(ValueError, match="Default must be type 'BaseIdentity'"):
+            GlobalIdentities.resolve(value=None, default="not_an_identity")
+
+    def test_resolve_looks_up_by_name_when_value_is_string(self, monkeypatch):
+        _patch_system(monkeypatch, LocalIdentitySetting(name="registered"))
+        _default = LocalIdentity(name="fallback")
+        result = GlobalIdentities.resolve(value="registered", default=_default)
+        assert result is GlobalIdentities.identities["registered"]
+
+    def test_resolve_raises_for_unsupported_type(self, monkeypatch):
+        _patch_system(monkeypatch)
+        _default = LocalIdentity(name="fallback")
+        with pytest.raises(ValueError, match="Unsupported type"):
+            GlobalIdentities.resolve(value=123, default=_default)
+
+    def test_resolve_raises_when_platform_mismatch(self, monkeypatch):
+        _patch_system(monkeypatch)
+        _identity = LocalIdentity(name="adhoc")
+        with pytest.raises(ValueError, match="does not match platform"):
+            GlobalIdentities.resolve(value=_identity, default=_identity, platform=Platform.ALIYUN)
+
+    def test_resolve_passes_when_platform_matches(self, monkeypatch):
+        _patch_system(monkeypatch)
+        _identity = LocalIdentity(name="adhoc")
+        result = GlobalIdentities.resolve(value=_identity, default=_identity, platform=Platform.LOCAL)
+        assert result is _identity
+
+
 class TestGlobalIdentitiesListIdentityNames:
     def test_list_identity_names_returns_all_names(self, monkeypatch):
         _patch_system(

@@ -25,6 +25,8 @@ class GlobalIdentities:
             加载全局Identity
         get_identity(name: str, strict: bool = False) -> BaseIdentity | None:
             获取指定名称的Identity
+        resolve(value: BaseIdentity | str | None, default: BaseIdentity, platform: Platform | None = None) -> BaseIdentity | None:
+            将传入的实例/名称/None解析为具体的Identity实例，不会注册进全局字典
         list_identity_names(platform: Platform | None = None) -> list[str]:
             列出所有Identity的名称
         list_identities(platform: Platform | None = None) -> list[BaseIdentity]:
@@ -82,19 +84,21 @@ class GlobalIdentities:
     def resolve(
         cls,
         value: BaseIdentity | str | None,
-        platform: Platform,
         default: BaseIdentity,
+        platform: Platform | None = None,
     ) -> BaseIdentity | None:
         if isinstance(value, BaseIdentity):
             _res: BaseIdentity = value
         elif value is None:
+            if not isinstance(default, BaseIdentity):
+                raise ValueError(f"Default must be type 'BaseIdentity', got {type(default)}")
             _res: BaseIdentity = default
         elif isinstance(value, str):
             _res: BaseIdentity = cls.get_identity(value, strict=True)
         else:
             raise ValueError(f"Unsupported type: {type(value)}")
 
-        if _res.platform != platform:
+        if platform and _res.platform != platform:
             raise ValueError(f"Identity '{_res.name}' does not match platform '{platform}'")
 
         return _res

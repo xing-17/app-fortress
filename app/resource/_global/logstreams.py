@@ -29,6 +29,8 @@ class GlobalLogStreams:
             新增一个LogStream
         get_stream(name: str, strict: bool = False) -> LogStream | None:
             获取指定名称的LogStream
+        resolve(value: LogStream | LogSetting | str | None, default: LogStream) -> LogStream:
+            将传入的实例/LogSetting/名称/None解析为具体的LogStream实例，不会注册进全局字典
         list_stream_names() -> list[str]:
             列出所有LogStream的名称
         list_streams() -> list[LogStream]:
@@ -90,6 +92,27 @@ class GlobalLogStreams:
             except Exception as e:
                 raise ValueError(f"Failed to add log stream '{_name}': {e}") from e
             return cls.streams[_name]
+
+    @classmethod
+    def resolve(
+        cls,
+        value: LogStream | LogSetting | str | None,
+        default: LogStream,
+    ) -> LogStream:
+        if isinstance(value, LogStream):
+            _res: LogStream = value
+        elif value is None:
+            if not isinstance(default, LogStream):
+                raise ValueError(f"Default must be type 'LogStream', got {type(default)}")
+            _res: LogStream = default
+        elif isinstance(value, LogSetting):
+            _res: LogStream = LogStream.from_setting(value)
+        elif isinstance(value, str):
+            _res: LogStream = cls.get_stream(value, strict=True)
+        else:
+            raise ValueError(f"Unsupported type: {type(value)}")
+
+        return _res
 
     @classmethod
     def get_stream(

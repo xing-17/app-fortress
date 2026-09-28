@@ -25,6 +25,8 @@ class GlobalStores:
             加载全局Store
         get_store(name: str) -> BaseStore:
             获取指定名称的Store
+        resolve(value: BaseStore | str | None, default: BaseStore, platform: Platform | None = None) -> BaseStore:
+            将传入的实例/名称/None解析为具体的Store实例，不会注册进全局字典
         list_store_names(platform: Platform | None = None) -> list[str]:
             列出所有Store的名称
         list_stores(platform: Platform | None = None) -> list[BaseStore]:
@@ -70,12 +72,36 @@ class GlobalStores:
     def get_store(
         cls,
         name: str,
+        strict: bool = True,
     ) -> BaseStore:
         with cls._lock:
             cls._ensure_loaded()
-            if name not in cls.stores:
+            if strict and name not in cls.stores:
                 raise ValueError(f"Store '{name}' not found")
-            return cls.stores[name]
+            return cls.stores.get(name)
+
+    @classmethod
+    def resolve(
+        cls,
+        value: BaseStore | str | None,
+        default: BaseStore,
+        platform: Platform | None = None,
+    ) -> BaseStore:
+        if isinstance(value, BaseStore):
+            _res: BaseStore = value
+        elif value is None:
+            if not isinstance(default, BaseStore):
+                raise ValueError(f"Default must be type 'BaseStore', got {type(default)}")
+            _res: BaseStore = default
+        elif isinstance(value, str):
+            _res: BaseStore = cls.get_store(value, strict=True)
+        else:
+            raise ValueError(f"Unsupported type: {type(value)}")
+
+        if platform and _res.platform != platform:
+            raise ValueError(f"Store '{_res.name}' does not match platform '{platform}'")
+
+        return _res
 
     @classmethod
     def list_store_names(

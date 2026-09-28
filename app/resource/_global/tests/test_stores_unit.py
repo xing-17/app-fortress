@@ -90,6 +90,53 @@ class TestGlobalStoresGetStore:
         assert result.name == "found"
 
 
+class TestGlobalStoresResolve:
+    def test_resolve_returns_instance_directly_without_registering(self, monkeypatch, tmp_path):
+        _patch_system(monkeypatch)
+        GlobalStores.load()
+        _store = DuckDbStore(name="adhoc", path=str(tmp_path))
+        result = GlobalStores.resolve(value=_store, default=_store)
+        assert result is _store
+        assert "adhoc" not in GlobalStores.stores
+
+    def test_resolve_uses_default_without_registering_when_value_is_none(self, monkeypatch, tmp_path):
+        _patch_system(monkeypatch)
+        GlobalStores.load()
+        _default = DuckDbStore(name="fallback", path=str(tmp_path))
+        result = GlobalStores.resolve(value=None, default=_default)
+        assert result is _default
+        assert "fallback" not in GlobalStores.stores
+
+    def test_resolve_raises_when_default_has_wrong_type(self, monkeypatch):
+        _patch_system(monkeypatch)
+        with pytest.raises(ValueError, match="Default must be type 'BaseStore'"):
+            GlobalStores.resolve(value=None, default="not_a_store")
+
+    def test_resolve_looks_up_by_name_when_value_is_string(self, monkeypatch, tmp_path):
+        _patch_system(monkeypatch, _local_setting("registered", tmp_path))
+        _default = DuckDbStore(name="fallback", path=str(tmp_path))
+        result = GlobalStores.resolve(value="registered", default=_default)
+        assert result is GlobalStores.stores["registered"]
+
+    def test_resolve_raises_for_unsupported_type(self, monkeypatch, tmp_path):
+        _patch_system(monkeypatch)
+        _default = DuckDbStore(name="fallback", path=str(tmp_path))
+        with pytest.raises(ValueError, match="Unsupported type"):
+            GlobalStores.resolve(value=123, default=_default)
+
+    def test_resolve_raises_when_platform_mismatch(self, monkeypatch, tmp_path):
+        _patch_system(monkeypatch)
+        _store = DuckDbStore(name="adhoc", path=str(tmp_path))
+        with pytest.raises(ValueError, match="does not match platform"):
+            GlobalStores.resolve(value=_store, default=_store, platform=Platform.ALIYUN)
+
+    def test_resolve_passes_when_platform_matches(self, monkeypatch, tmp_path):
+        _patch_system(monkeypatch)
+        _store = DuckDbStore(name="adhoc", path=str(tmp_path))
+        result = GlobalStores.resolve(value=_store, default=_store, platform=Platform.LOCAL)
+        assert result is _store
+
+
 class TestGlobalStoresListStoreNames:
     def test_list_store_names_returns_all_names(self, monkeypatch, tmp_path):
         _patch_system(
