@@ -22,12 +22,12 @@ def _patch_system(monkeypatch, log_setting: LogSetting) -> SimpleNamespace:
 
 
 class TestGlobalLogStreamsLoad:
-    def test_load_builds_default_stream_from_system_setting(self, monkeypatch):
+    def test_load_builds_system_stream_from_system_setting(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("sys"))
         GlobalLogStreams.load()
         assert set(GlobalLogStreams.streams) == {"sys"}
         assert isinstance(GlobalLogStreams.streams["sys"], LogStream)
-        assert GlobalLogStreams.default is GlobalLogStreams.streams["sys"]
+        assert GlobalLogStreams.system is GlobalLogStreams.streams["sys"]
 
     def test_load_wraps_stream_creation_errors_in_value_error(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("broken"))
@@ -41,13 +41,13 @@ class TestGlobalLogStreamsLoad:
 
 
 class TestGlobalLogStreamsEnsureLoaded:
-    def test_get_default_lazy_loads_when_not_loaded(self, monkeypatch):
+    def test_get_system_lazy_loads_when_not_loaded(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("lazy"))
-        result = GlobalLogStreams.get_default()
+        result = GlobalLogStreams.get_system()
         assert isinstance(result, LogStream)
         assert result.name == "lazy"
 
-    def test_get_default_does_not_reload_when_already_cached(self, monkeypatch):
+    def test_get_system_does_not_reload_when_already_cached(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("cached"))
         GlobalLogStreams.load()
 
@@ -55,16 +55,16 @@ class TestGlobalLogStreamsEnsureLoaded:
             raise AssertionError("load should not be called again")
 
         monkeypatch.setattr(GlobalLogStreams, "load", classmethod(_fail_load))
-        result = GlobalLogStreams.get_default()
+        result = GlobalLogStreams.get_system()
         assert result.name == "cached"
 
 
 class TestGlobalLogStreamsGetDefault:
-    def test_get_default_stays_on_system_stream_after_adding_more_streams(self, monkeypatch):
+    def test_get_system_stays_on_system_stream_after_adding_more_streams(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("primary"))
         GlobalLogStreams.load()
         GlobalLogStreams.add_stream(_log_setting("secondary"))
-        assert GlobalLogStreams.get_default().name == "primary"
+        assert GlobalLogStreams.get_system().name == "primary"
 
 
 class TestGlobalLogStreamsAddStream:
@@ -137,17 +137,17 @@ class TestGlobalLogStreamsListStreams:
 
 
 class TestGlobalLogStreamsReset:
-    def test_reset_clears_cached_streams_and_default(self, monkeypatch):
+    def test_reset_clears_cached_streams_and_system(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("primary"))
         GlobalLogStreams.load()
         assert GlobalLogStreams.streams is not None
         GlobalLogStreams.reset()
         assert GlobalLogStreams.streams is None
-        assert GlobalLogStreams.default is None
+        assert GlobalLogStreams.system is None
 
 
 class TestGlobalLogStreamsConcurrency:
-    def test_get_default_under_concurrent_access_loads_only_once(self, monkeypatch):
+    def test_get_system_under_concurrent_access_loads_only_once(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("threaded"))
 
         _original_from_setting = LogStream.from_setting
@@ -164,7 +164,7 @@ class TestGlobalLogStreamsConcurrency:
 
         def _worker():
             _barrier.wait()
-            _results.append(GlobalLogStreams.get_default())
+            _results.append(GlobalLogStreams.get_system())
 
         _threads = [threading.Thread(target=_worker) for _ in range(8)]
         for t in _threads:

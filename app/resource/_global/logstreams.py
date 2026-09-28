@@ -15,7 +15,7 @@ class GlobalLogStreams:
     Attributes:
         streams (dict[str, LogStream] | None):
             全局LogStream字典，键为LogStream名称，值为LogStream实例
-        default (LogStream | None):
+        system (LogStream | None):
             默认LogStream实例，取自系统设置中的日志配置
         _lock (threading.RLock):
             线程锁，用于保证线程安全
@@ -23,7 +23,7 @@ class GlobalLogStreams:
     Methods:
         load() -> None:
             加载全局LogStream
-        get_default() -> LogStream:
+        get_system() -> LogStream:
             获取默认LogStream
         add_stream(setting: LogSetting) -> LogStream:
             新增一个LogStream
@@ -38,14 +38,14 @@ class GlobalLogStreams:
 
     Examples:
         >>> from app.resource._global.logstreams import GlobalLogStreams
-        >>> default_stream = GlobalLogStreams.get_default()
+        >>> system_stream = GlobalLogStreams.get_system()
         >>> all_stream_names = GlobalLogStreams.list_stream_names()
         >>> all_streams = GlobalLogStreams.list_streams()
 
     """
 
     streams: dict[str, LogStream] | None = None
-    default: LogStream | None = None
+    system: LogStream | None = None
     _lock: threading.RLock = threading.RLock()
 
     @classmethod
@@ -59,7 +59,7 @@ class GlobalLogStreams:
             raise ValueError(f"Failed to load log stream: {e}") from e
         with cls._lock:
             cls.streams = {_sys_log_name: _sys_log}
-            cls.default = _sys_log
+            cls.system = _sys_log
 
     @classmethod
     def _ensure_loaded(cls) -> None:
@@ -70,10 +70,10 @@ class GlobalLogStreams:
                 cls.load()
 
     @classmethod
-    def get_default(cls) -> LogStream:
+    def get_system(cls) -> LogStream:
         with cls._lock:
             cls._ensure_loaded()
-            return cls.default
+            return cls.system
 
     @classmethod
     def add_stream(
@@ -120,4 +120,4 @@ class GlobalLogStreams:
     def reset(cls) -> None:
         with cls._lock:
             cls.streams = None
-            cls.default = None
+            cls.system = None
