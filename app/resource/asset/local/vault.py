@@ -49,9 +49,9 @@ class LocalVault(BaseVault):
     # - name: str | None
     # - description: str
     # - tags: dict[str, str]
-    path: str | Path = Field(
-        ...,
-        description="[Required] Local vault path",
+    path: str | Path | None = Field(
+        default=None,
+        description="[Required] Local vault path, default ./vault",
     )
     identity: LocalIdentity = Field(
         default_factory=LocalIdentity.default,
@@ -62,7 +62,10 @@ class LocalVault(BaseVault):
 
     @model_validator(mode="after")
     def _derive_path(self) -> "LocalVault":
-        _path: Path = IPath.resolve(self.path, ensure=True)
+        if not self.path:
+            _path = Path(f"./vault/")
+        else:
+            _path: Path = IPath.resolve(self.path, ensure=True)
         if not _path.is_dir():
             raise ValueError(f"Path {self.path} must be a directory")
         object.__setattr__(self, "path", _path)

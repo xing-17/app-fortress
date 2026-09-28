@@ -54,9 +54,9 @@ class OSSVault(BaseVault):
         ...,
         description="[Required] OSS bucket所在区域",
     )
-    prefix: str = Field(
-        default="",
-        description="[Optional] OSS bucket前缀",
+    prefix: str | None = Field(
+        default=None,
+        description="[Optional] OSS bucket前缀, 默认为/vault",
     )
     in_vpc: bool = Field(
         default=False,
@@ -69,7 +69,10 @@ class OSSVault(BaseVault):
 
     @model_validator(mode="after")
     def _derive_prefix(self) -> "OSSVault":
-        _p = IPrefix.resolve(self.prefix)
+        if not self.prefix:
+            _p = f"vault"
+        else:
+            _p = IPrefix.resolve(self.prefix)
         object.__setattr__(self, "prefix", _p)
         return self
 
