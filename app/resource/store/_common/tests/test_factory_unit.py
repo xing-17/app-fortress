@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from app.internal.constant.platform import Platform
+from app.internal.constant.storesystem import StoreSystem
 from app.resource._global.identities import GlobalIdentities
 from app.resource.store._common._base import BaseStore
 from app.resource.store._common._factory import StoreFactory
-from app.resource.store.aliyun.ots import OtsStore
-from app.resource.store.local.duckdb import DuckDbStore
-from app.setting._store import AliyunStoreSetting, LocalStoreSetting
+from app.resource.store.file.store import FileStore
+from app.resource.store.oss.store import OSSStore
+from app.setting._store import FileStoreSetting, OSSStoreSetting
 
 
 @pytest.fixture(autouse=True)
@@ -20,25 +20,25 @@ def _reset_global_identities():
 
 
 class TestStoreFactoryGet:
-    def test_get_local_returns_duckdb_store_class(self):
-        klass = StoreFactory.get(Platform.LOCAL)
-        assert klass is DuckDbStore
+    def test_get_file_returns_file_store_class(self):
+        klass = StoreFactory.get(StoreSystem.FILE)
+        assert klass is FileStore
 
-    def test_get_aliyun_returns_ots_store_class(self):
-        klass = StoreFactory.get(Platform.ALIYUN)
-        assert klass is OtsStore
+    def test_get_oss_returns_oss_store_class(self):
+        klass = StoreFactory.get(StoreSystem.OSS)
+        assert klass is OSSStore
 
-    def test_get_accepts_plain_string_platform(self):
-        klass = StoreFactory.get("local")
-        assert klass is DuckDbStore
+    def test_get_accepts_plain_string_storesystem(self):
+        klass = StoreFactory.get("file")
+        assert klass is FileStore
 
     def test_get_returned_class_is_subclass_of_base_store(self):
-        klass = StoreFactory.get(Platform.ALIYUN)
+        klass = StoreFactory.get(StoreSystem.OSS)
         assert issubclass(klass, BaseStore)
 
-    def test_get_unknown_platform_raises_value_error(self):
+    def test_get_unknown_storesystem_raises_value_error(self):
         with pytest.raises(ValueError):
-            StoreFactory.get("not_a_platform")
+            StoreFactory.get("not_a_storesystem")
 
 
 class TestStoreFactoryRegistryValidation:
@@ -58,33 +58,21 @@ class TestStoreFactoryRegistryValidation:
 
 
 class TestStoreFactoryLoad:
-    def test_load_returns_duckdb_store_instance(self, tmp_path):
-        GlobalIdentities.identities = {}
-        setting = LocalStoreSetting(
-            name="my-duckdb-store",
-            path=str(tmp_path),
-            tags={"env": "prod"},
-        )
+    def test_load_returns_file_store_instance(self, tmp_path):
+        setting = FileStoreSetting(name="my_store", path=str(tmp_path))
         store = StoreFactory.load(setting)
-        assert isinstance(store, DuckDbStore)
-        assert store.name == "my-duckdb-store"
+        assert isinstance(store, FileStore)
+        assert store.name == "my_store"
 
-    def test_load_returns_ots_store_instance(self):
-        GlobalIdentities.identities = {}
-        setting = AliyunStoreSetting(
-            name="my-ots-store",
-            instance="my-instance",
-            region="cn-hangzhou",
-            tags={},
-        )
+    def test_load_returns_oss_store_instance(self):
+        setting = OSSStoreSetting(name="my_store", bucket="my-bucket", region="cn-hangzhou")
         store = StoreFactory.load(setting)
-        assert isinstance(store, OtsStore)
-        assert store.name == "my-ots-store"
-        assert store.instance == "my-instance"
+        assert isinstance(store, OSSStore)
+        assert store.name == "my_store"
+        assert store.bucket == "my-bucket"
 
     def test_load_raises_value_error_when_get_returns_none(self, monkeypatch):
-        GlobalIdentities.identities = {}
-        monkeypatch.setattr(StoreFactory, "get", classmethod(lambda cls, platform: None))
-        setting = LocalStoreSetting(name="my-duckdb-store", tags={})
+        monkeypatch.setattr(StoreFactory, "get", classmethod(lambda cls, storesystem: None))
+        setting = FileStoreSetting(name="my_store")
         with pytest.raises(ValueError):
             StoreFactory.load(setting)

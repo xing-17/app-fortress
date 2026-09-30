@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from .duckdb import DuckDbStore
+from .store import OSSStore
 
 __all__ = [
-    "DuckDbStore",
+    "OSSStore",
 ]

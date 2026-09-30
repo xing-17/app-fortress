@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any
 
 from pydantic import Field
 
 from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.platform import Platform
+from app.internal.constant.storesystem import StoreSystem
 from app.resource.identity._common import BaseIdentity
 from app.setting._store import UnionStoreSetting
 
@@ -30,8 +31,12 @@ class BaseStore(
         ...,
         description="[Required] Store name",
     )
+    storesystem: StoreSystem = Field(
+        ...,
+        description="[Required] Store system",
+    )
     platform: Platform = Field(
-        default=Platform.LOCAL,
+        ...,
         description="[Required] Store platform",
     )
     identity: BaseIdentity | str | None = Field(
@@ -50,11 +55,15 @@ class BaseStore(
     ) -> BaseStore: ...
 
     @property
-    @abstractmethod
-    def frn(self) -> str: ...
+    def frn(self) -> str:
+        return f"store:platform={self.platform}:storesystem={self.storesystem}:name={self.name}"
 
     def _non_override_tags(self):
-        return {"platform": self.platform}
+        return {
+            "storesystem": self.storesystem,
+            "platform": self.platform,
+            "name": self.name,
+        }
 
     def export(self) -> dict[str, Any]:
         _res: dict[str, Any] = super().export()
