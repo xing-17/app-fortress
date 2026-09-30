@@ -3,6 +3,7 @@ from __future__ import annotations
 from .aliyunidentitytype import AliyunIdentityType
 from .assetfilekind import AssetFileKind
 from .assetfilesystem import AssetFilesystem
+from .frequencyoption import FrequencyOption
 from .geocountry import GeoCountry
 from .logformatoption import LogFormatOption
 from .logleveloption import LogLevelOption
@@ -21,4 +22,5 @@ __all__ = [
     "SourceBoard",
     "SourceProvider",
     "SourceProviderType",
+    "FrequencyOption",
 ]
