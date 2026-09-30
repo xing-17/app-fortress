@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import CoreSchema, core_schema
+
 from app.internal.logstream.event import LogEvent
 from app.internal.logstream.group import ConsoleGroup, FileGroup
 from app.internal.util.clock import IClock
@@ -50,6 +53,16 @@ class LogStream(logging.Logger):
 
     _default_name: str = "default"
     _default_level: str = "INFO"
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        source_type: Any,
+        handler: GetCoreSchemaHandler,
+    ) -> CoreSchema:
+        # logging.Logger isn't a pydantic model; only accept existing instances
+        # (no dict-based construction, no automatic serialization).
+        return core_schema.is_instance_schema(cls)
 
     @classmethod
     def from_setting(
@@ -362,3 +375,16 @@ class LogStream(logging.Logger):
         if self._file:
             _all_events = self._file.read(limit=limit)
         return _all_events
+
+    def export(self) -> dict[str, Any]:
+        return {
+            "name": self._name,
+            "level": self._level,
+            "timezone": str(self._timezone),
+            "metadata": self._metadata,
+            "tags": self._tags,
+            "console_verbose": self._console_verbose,
+            "console_format": self._console_format,
+            "file_path": self._file_path,
+            "file_max_items": self._file_max_items,
+        }
