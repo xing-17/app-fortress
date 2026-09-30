@@ -6,7 +6,7 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.resource._global.setting import GlobalSetting
 from app.resource.asset._common._factory import VaultFactory
 from app.resource.asset._common._vault import BaseVault
-from app.setting._vault import UnionVaultSetting
+from app.setting._vault import AbstractVaultSetting, UnionVaultSetting
 from app.setting.system import SystemSetting
 
 
@@ -78,7 +78,7 @@ class GlobalVaults:
     @classmethod
     def resolve(
         cls,
-        value: BaseVault | str | None,
+        value: BaseVault | UnionVaultSetting | str | None,
         default: BaseVault,
         filesystem: AssetFilesystem | None = None,
     ) -> BaseVault:
@@ -90,6 +90,8 @@ class GlobalVaults:
             _res: BaseVault = default
         elif isinstance(value, str):
             _res: BaseVault = cls.get_vault(value, strict=True)
+        elif isinstance(value, AbstractVaultSetting):
+            _res: BaseVault = VaultFactory.load(value)
         else:
             raise ValueError(f"Unsupported type: {type(value)}")
 

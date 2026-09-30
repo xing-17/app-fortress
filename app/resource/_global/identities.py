@@ -6,7 +6,7 @@ from app.internal.constant.platform import Platform
 from app.resource._global.setting import GlobalSetting
 from app.resource.identity._common._base import BaseIdentity
 from app.resource.identity._common._factory import IdentityFactory
-from app.setting._identity import UnionIdentitySetting
+from app.setting._identity import AbstractIdentitySetting, UnionIdentitySetting
 from app.setting.system import SystemSetting
 
 
@@ -83,7 +83,7 @@ class GlobalIdentities:
     @classmethod
     def resolve(
         cls,
-        value: BaseIdentity | str | None,
+        value: BaseIdentity | UnionIdentitySetting | str | None,
         default: BaseIdentity,
         platform: Platform | None = None,
     ) -> BaseIdentity | None:
@@ -95,6 +95,8 @@ class GlobalIdentities:
             _res: BaseIdentity = default
         elif isinstance(value, str):
             _res: BaseIdentity = cls.get_identity(value, strict=True)
+        elif isinstance(value, AbstractIdentitySetting):
+            _res: BaseIdentity = IdentityFactory.load(value)
         else:
             raise ValueError(f"Unsupported type: {type(value)}")
 

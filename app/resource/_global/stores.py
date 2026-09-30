@@ -6,7 +6,7 @@ from app.internal.constant.platform import Platform
 from app.resource._global.setting import GlobalSetting
 from app.resource.store._common._base import BaseStore
 from app.resource.store._common._factory import StoreFactory
-from app.setting._store import UnionStoreSetting
+from app.setting._store import AbstractStoreSetting, UnionStoreSetting
 from app.setting.system import SystemSetting
 
 
@@ -83,7 +83,7 @@ class GlobalStores:
     @classmethod
     def resolve(
         cls,
-        value: BaseStore | str | None,
+        value: BaseStore | UnionStoreSetting | str | None,
         default: BaseStore,
         platform: Platform | None = None,
     ) -> BaseStore:
@@ -95,6 +95,8 @@ class GlobalStores:
             _res: BaseStore = default
         elif isinstance(value, str):
             _res: BaseStore = cls.get_store(value, strict=True)
+        elif isinstance(value, AbstractStoreSetting):
+            _res: BaseStore = StoreFactory.load(value)
         else:
             raise ValueError(f"Unsupported type: {type(value)}")
 
