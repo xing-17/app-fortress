@@ -41,7 +41,7 @@ class TestOSSVaultInit:
 
     def test_default_prefix_is_empty_string(self):
         vault = OSSVault(bucket="my-bucket", region="cn-hangzhou")
-        assert vault.prefix == "vault"
+        assert vault.prefix == ""
 
 
 class TestOSSVaultDerivePrefix:
@@ -51,7 +51,7 @@ class TestOSSVaultDerivePrefix:
 
     def test_none_prefix_becomes_empty_string(self):
         vault = OSSVault(bucket="my-bucket", region="cn-hangzhou", prefix=None)
-        assert vault.prefix == "vault"
+        assert vault.prefix == ""
 
 
 class TestOSSVaultFromSetting:
@@ -123,7 +123,7 @@ class TestOSSVaultAsset:
     def test_asset_prefix_without_vault_prefix(self):
         vault = OSSVault(bucket="my-bucket", region="cn-hangzhou")
         asset = vault.asset("sub/dir")
-        assert asset.prefix == "vault/sub/dir"
+        assert asset.prefix == "sub/dir"
 
     def test_leading_slash_in_rel_does_not_override_vault_prefix(self):
         vault = OSSVault(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")

@@ -64,7 +64,7 @@ class LocalVault(BaseVault):
     def _derive_path(self) -> "LocalVault":
         _path: Path = IPath.resolve(
             value=self.path,
-            default=Path("./vault/"),
+            default=Path("./"),
             ensure=True,
         )
         if not _path.is_dir():
