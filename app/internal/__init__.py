@@ -4,6 +4,7 @@ from .constant import (
     AliyunIdentityType,
     AssetFileKind,
     AssetFilesystem,
+    FrequencyOption,
     GeoCountry,
     LogFormatOption,
     LogLevelOption,
@@ -16,6 +17,7 @@ from .logstream import (
     LogStream,
 )
 from .util import (
+    IID,
     IClock,
     IEnviron,
     IPartition,
@@ -27,6 +29,7 @@ from .util import (
 __all__ = [
     "IClock",
     "IEnviron",
+    "IID",
     "IPartition",
     "ITimezone",
     "IPath",
@@ -42,4 +45,5 @@ __all__ = [
     "SourceBoard",
     "SourceProvider",
     "SourceProviderType",
+    "FrequencyOption",
 ]
