@@ -73,7 +73,7 @@ class GlobalStores:
         cls,
         name: str,
         strict: bool = True,
-    ) -> BaseStore:
+    ) -> BaseStore | None:
         with cls._lock:
             cls._ensure_loaded()
             if strict and name not in cls.stores:

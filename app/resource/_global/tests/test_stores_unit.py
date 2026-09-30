@@ -8,9 +8,9 @@ from app.internal.constant.platform import Platform
 from app.resource._global.setting import GlobalSetting
 from app.resource._global.stores import GlobalStores
 from app.resource.store._common._factory import StoreFactory
-from app.resource.store.aliyun.ots import OtsStore
-from app.resource.store.local.duckdb import DuckDbStore
-from app.setting._store import AliyunStoreSetting, LocalStoreSetting
+from app.resource.store.file.store import FileStore
+from app.resource.store.oss.store import OSSStore
+from app.setting._store import FileStoreSetting, OSSStoreSetting
 from app.setting.system import SystemSetting
 
 
@@ -20,12 +20,12 @@ def _patch_system(monkeypatch, *stores) -> SystemSetting:
     return _setting
 
 
-def _local_setting(name: str, tmp_path) -> LocalStoreSetting:
-    return LocalStoreSetting(name=name, path=str(tmp_path), tags={})
+def _local_setting(name: str, tmp_path) -> FileStoreSetting:
+    return FileStoreSetting(name=name, path=str(tmp_path), tags={})
 
 
-def _aliyun_setting(name: str) -> AliyunStoreSetting:
-    return AliyunStoreSetting(name=name, instance="my-instance", region="cn-hangzhou", tags={})
+def _aliyun_setting(name: str) -> OSSStoreSetting:
+    return OSSStoreSetting(name=name, bucket="my-bucket", region="cn-hangzhou", tags={})
 
 
 class TestGlobalStoresLoad:
@@ -37,8 +37,8 @@ class TestGlobalStoresLoad:
         )
         GlobalStores.load()
         assert set(GlobalStores.stores) == {"local_one", "aliyun_one"}
-        assert isinstance(GlobalStores.stores["local_one"], DuckDbStore)
-        assert isinstance(GlobalStores.stores["aliyun_one"], OtsStore)
+        assert isinstance(GlobalStores.stores["local_one"], FileStore)
+        assert isinstance(GlobalStores.stores["aliyun_one"], OSSStore)
 
     def test_load_raises_value_error_on_duplicate_names(self, monkeypatch, tmp_path):
         _patch_system(
@@ -64,7 +64,7 @@ class TestGlobalStoresEnsureLoaded:
     def test_get_store_lazy_loads_when_not_loaded(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch, _local_setting("lazy_local", tmp_path))
         result = GlobalStores.get_store("lazy_local")
-        assert isinstance(result, DuckDbStore)
+        assert isinstance(result, FileStore)
 
     def test_get_store_does_not_reload_when_already_cached(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch, _local_setting("cached_local", tmp_path))
@@ -94,7 +94,7 @@ class TestGlobalStoresResolve:
     def test_resolve_returns_instance_directly_without_registering(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch)
         GlobalStores.load()
-        _store = DuckDbStore(name="adhoc", path=str(tmp_path))
+        _store = FileStore(name="adhoc", path=str(tmp_path))
         result = GlobalStores.resolve(value=_store, default=_store)
         assert result is _store
         assert "adhoc" not in GlobalStores.stores
@@ -102,7 +102,7 @@ class TestGlobalStoresResolve:
     def test_resolve_uses_default_without_registering_when_value_is_none(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch)
         GlobalStores.load()
-        _default = DuckDbStore(name="fallback", path=str(tmp_path))
+        _default = FileStore(name="fallback", path=str(tmp_path))
         result = GlobalStores.resolve(value=None, default=_default)
         assert result is _default
         assert "fallback" not in GlobalStores.stores
@@ -114,25 +114,25 @@ class TestGlobalStoresResolve:
 
     def test_resolve_looks_up_by_name_when_value_is_string(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch, _local_setting("registered", tmp_path))
-        _default = DuckDbStore(name="fallback", path=str(tmp_path))
+        _default = FileStore(name="fallback", path=str(tmp_path))
         result = GlobalStores.resolve(value="registered", default=_default)
         assert result is GlobalStores.stores["registered"]
 
     def test_resolve_raises_for_unsupported_type(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch)
-        _default = DuckDbStore(name="fallback", path=str(tmp_path))
+        _default = FileStore(name="fallback", path=str(tmp_path))
         with pytest.raises(ValueError, match="Unsupported type"):
             GlobalStores.resolve(value=123, default=_default)
 
     def test_resolve_raises_when_platform_mismatch(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch)
-        _store = DuckDbStore(name="adhoc", path=str(tmp_path))
+        _store = FileStore(name="adhoc", path=str(tmp_path))
         with pytest.raises(ValueError, match="does not match platform"):
             GlobalStores.resolve(value=_store, default=_store, platform=Platform.ALIYUN)
 
     def test_resolve_passes_when_platform_matches(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch)
-        _store = DuckDbStore(name="adhoc", path=str(tmp_path))
+        _store = FileStore(name="adhoc", path=str(tmp_path))
         result = GlobalStores.resolve(value=_store, default=_store, platform=Platform.LOCAL)
         assert result is _store
 
@@ -173,12 +173,12 @@ class TestGlobalStoresListStores:
         )
         result = GlobalStores.list_stores(platform=Platform.LOCAL)
         assert len(result) == 1
-        assert isinstance(result[0], DuckDbStore)
+        assert isinstance(result[0], FileStore)
 
     def test_list_stores_returns_independent_snapshot(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch, _local_setting("a", tmp_path))
         result = GlobalStores.list_stores()
-        result.append(DuckDbStore(name="mutated", path=str(tmp_path)))
+        result.append(FileStore(name="mutated", path=str(tmp_path)))
         assert len(GlobalStores.stores) == 1
 
 
@@ -204,7 +204,7 @@ class TestGlobalStoresConcurrency:
 
         monkeypatch.setattr(StoreFactory, "load", classmethod(_counting_load))
 
-        _results: list[DuckDbStore | None] = []
+        _results: list[FileStore | None] = []
         _barrier = threading.Barrier(8)
 
         def _worker():
