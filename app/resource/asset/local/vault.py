@@ -62,10 +62,11 @@ class LocalVault(BaseVault):
 
     @model_validator(mode="after")
     def _derive_path(self) -> "LocalVault":
-        if not self.path:
-            _path = Path(f"./vault/")
-        else:
-            _path: Path = IPath.resolve(self.path, ensure=True)
+        _path: Path = IPath.resolve(
+            value=self.path,
+            default=Path("./vault/"),
+            ensure=True,
+        )
         if not _path.is_dir():
             raise ValueError(f"Path {self.path} must be a directory")
         object.__setattr__(self, "path", _path)

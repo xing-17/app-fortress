@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
 
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
@@ -24,10 +23,6 @@ def _reset_global_identities():
 
 
 class TestLocalVaultInit:
-    def test_missing_path_raises_validation_error(self):
-        with pytest.raises(ValidationError):
-            LocalVault()
-
     def test_default_identity_is_local_identity_default(self, tmp_path):
         vault = LocalVault(path=str(tmp_path))
         assert vault.identity.name == LocalIdentity.default().name

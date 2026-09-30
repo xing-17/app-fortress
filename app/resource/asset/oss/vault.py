@@ -70,7 +70,7 @@ class OSSVault(BaseVault):
     @model_validator(mode="after")
     def _derive_prefix(self) -> "OSSVault":
         if not self.prefix:
-            _p = f"vault"
+            _p = "vault"
         else:
             _p = IPrefix.resolve(self.prefix)
         object.__setattr__(self, "prefix", _p)
