@@ -12,7 +12,9 @@ from app.internal.util.prefix import IPrefix
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._vault import BaseVault
 from app.resource.asset.oss.asset import OSSAsset
+from app.resource.identity._common._base import BaseIdentity
 from app.resource.identity.aliyun.aliyun import AliyunIdentity
+from app.setting._identity import AbstractIdentitySetting
 from app.setting._vault import OSSVaultSetting
 
 
@@ -26,7 +28,7 @@ class OSSVault(BaseVault):
         name (str | None): Vault名称
         prefix (str): OSS bucket前缀(默认空字符串)
         in_vpc (bool): 是否在VPC内访问OSS (默认False)
-        identity (AliyunIdentity): Aliyun身份(默认AliyunIdentity.default())
+        identity (AliyunIdentity | AbstractIdentitySetting | str | None): Aliyun身份(默认AliyunIdentity.default())
         filesystem (Literal[AssetFilesystem.OSS]): 文件系统类型(固定为AssetFilesystem.OSS)
         platform (Literal[Platform.ALIYUN]): 平台类型(固定为Platform.ALIYUN)
         description (str): Vault描述信息
@@ -62,10 +64,20 @@ class OSSVault(BaseVault):
         default=False,
         description="[Optional] 是否在VPC内访问OSS",
     )
-    identity: AliyunIdentity = Field(
-        default_factory=AliyunIdentity.default,
+    identity: AliyunIdentity | AbstractIdentitySetting | str | None = Field(
+        default=None,
         description="[Optional] Aliyun Identity身份认证",
     )
+
+    @model_validator(mode="after")
+    def _derive_identity(self) -> "OSSVault":
+        _identity: BaseIdentity = GlobalIdentities.resolve(
+            value=self.identity,
+            default=AliyunIdentity.default(),
+            platform=Platform.ALIYUN,
+        )
+        object.__setattr__(self, "identity", _identity)
+        return self
 
     @model_validator(mode="after")
     def _derive_prefix(self) -> "OSSVault":
@@ -87,11 +99,7 @@ class OSSVault(BaseVault):
             region=setting.region,
             prefix=setting.prefix,
             in_vpc=setting.in_vpc,
-            identity=GlobalIdentities.resolve(
-                value=getattr(setting, "identity", None),
-                platform=Platform.ALIYUN,
-                default=AliyunIdentity.default(),
-            ),
+            identity=setting.identity,
             description=setting.description,
             tags=setting.tags,
         )

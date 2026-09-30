@@ -11,6 +11,7 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource.asset._common._asset import BaseAsset
 from app.resource.identity._common._base import BaseIdentity
+from app.setting._identity import AbstractIdentitySetting
 from app.setting._vault import UnionVaultSetting
 
 
@@ -43,7 +44,7 @@ class BaseVault(
         default=None,
         description="[Optional] Asset vault name",
     )
-    identity: BaseIdentity | str | None = Field(
+    identity: BaseIdentity | AbstractIdentitySetting | str | None = Field(
         default=None,
         description="[Optional] Asset vault identity",
     )

@@ -12,7 +12,9 @@ from app.internal.util.path import IPath
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._vault import BaseVault
 from app.resource.asset.local.asset import LocalAsset
+from app.resource.identity._common._base import BaseIdentity
 from app.resource.identity.local import LocalIdentity
+from app.setting._identity import AbstractIdentitySetting
 from app.setting._vault import LocalVaultSetting
 
 
@@ -23,7 +25,7 @@ class LocalVault(BaseVault):
     Args:
         name (str | None): Local vault name
         path (str | Path): Local vault path
-        identity (LocalIdentity): Local vault identity
+        identity (LocalIdentity | AbstractIdentitySetting | str | None): Local vault identity
         filesystem (Literal[AssetFilesystem.LOCAL]): Asset filesystem type, fixed as LOCAL
         platform (Literal[Platform.LOCAL]): Asset platform type, fixed as LOCAL
         description (str): Local vault description information
@@ -53,8 +55,8 @@ class LocalVault(BaseVault):
         default=None,
         description="[Required] Local vault path, default ./vault",
     )
-    identity: LocalIdentity = Field(
-        default_factory=LocalIdentity.default,
+    identity: LocalIdentity | AbstractIdentitySetting | str | None = Field(
+        default=None,
         description="[Optional] Local vault identity",
     )
     filesystem: Literal[AssetFilesystem.LOCAL] = AssetFilesystem.LOCAL
@@ -72,6 +74,16 @@ class LocalVault(BaseVault):
         object.__setattr__(self, "path", _path)
         return self
 
+    @model_validator(mode="after")
+    def _derive_identity(self) -> "LocalVault":
+        _identity: BaseIdentity = GlobalIdentities.resolve(
+            value=self.identity,
+            default=LocalIdentity.default(),
+            platform=Platform.LOCAL,
+        )
+        object.__setattr__(self, "identity", _identity)
+        return self
+
     @classmethod
     def from_setting(
         cls,
@@ -80,11 +92,7 @@ class LocalVault(BaseVault):
         return cls(
             name=setting.name,
             path=setting.path,
-            identity=GlobalIdentities.resolve(
-                value=getattr(setting, "identity", None),
-                platform=Platform.LOCAL,
-                default=LocalIdentity.default(),
-            ),
+            identity=setting.identity,
             description=setting.description,
             tags=setting.tags,
         )
