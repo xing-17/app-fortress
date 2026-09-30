@@ -8,8 +8,10 @@ from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.internal.util.prefix import IPrefix
 from app.resource._global.identities import GlobalIdentities
+from app.resource.identity._common._base import BaseIdentity
 from app.resource.identity.aliyun import AliyunIdentity
 from app.resource.store._common._base import BaseStore
+from app.setting._identity import AbstractIdentitySetting
 from app.setting._store import OSSStoreSetting
 
 
@@ -23,7 +25,7 @@ class OSSStore(BaseStore):
         region (str): OSS bucket所在区域
         prefix (str | None): OSS bucket前缀(默认store)
         in_vpc (bool): 是否在VPC内访问OSS(默认False)
-        identity (AliyunIdentity): Aliyun身份(默认AliyunIdentity.default())
+        identity (AliyunIdentity | AbstractIdentitySetting | str | None): Aliyun身份(默认AliyunIdentity.default())
         storesystem (Literal[StoreSystem.OSS]): Store system类型(固定为StoreSystem.OSS)
         platform (Literal[Platform.ALIYUN]): Store platform类型(固定为Platform.ALIYUN)
         tags (dict[str, str]): Store标签
@@ -61,10 +63,20 @@ class OSSStore(BaseStore):
         default=False,
         description="[Optional] 是否在VPC内访问OSS",
     )
-    identity: AliyunIdentity = Field(
-        default_factory=AliyunIdentity.default,
+    identity: AliyunIdentity | AbstractIdentitySetting | str | None = Field(
+        default=None,
         description="[Optional] Identity used for this Aliyun store",
     )
+
+    @model_validator(mode="after")
+    def _derive_identity(self) -> "OSSStore":
+        _identity: BaseIdentity = GlobalIdentities.resolve(
+            value=self.identity,
+            default=AliyunIdentity.default(),
+            platform=Platform.ALIYUN,
+        )
+        object.__setattr__(self, "identity", _identity)
+        return self
 
     @model_validator(mode="after")
     def _derive_prefix(self) -> "OSSStore":
@@ -90,10 +102,6 @@ class OSSStore(BaseStore):
             region=setting.region,
             prefix=setting.prefix,
             in_vpc=setting.in_vpc,
-            identity=GlobalIdentities.resolve(
-                value=getattr(setting, "identity", None),
-                platform=Platform.ALIYUN,
-                default=AliyunIdentity.default(),
-            ),
+            identity=setting.identity,
             tags=setting.tags,
         )

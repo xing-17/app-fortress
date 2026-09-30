@@ -9,6 +9,7 @@ from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.resource.identity._common import BaseIdentity
+from app.setting._identity import AbstractIdentitySetting
 from app.setting._store import UnionStoreSetting
 
 
@@ -22,7 +23,7 @@ class BaseStore(
     Args:
         name (str): Store name
         platform (Platform): Store platform
-        identity (BaseIdentity | str | None): Asset vault identity
+        identity (BaseIdentity | AbstractIdentitySetting | str | None): Asset vault identity
         tags (dict[str, str]): Store tags
 
     """
@@ -39,7 +40,7 @@ class BaseStore(
         ...,
         description="[Required] Store platform",
     )
-    identity: BaseIdentity | str | None = Field(
+    identity: BaseIdentity | AbstractIdentitySetting | str | None = Field(
         default=None,
         description="[Optional] Asset vault identity",
     )

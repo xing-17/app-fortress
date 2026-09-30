@@ -9,8 +9,10 @@ from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.internal.util.path import IPath
 from app.resource._global.identities import GlobalIdentities
+from app.resource.identity._common._base import BaseIdentity
 from app.resource.identity.local import LocalIdentity
 from app.resource.store._common._base import BaseStore
+from app.setting._identity import AbstractIdentitySetting
 from app.setting._store import FileStoreSetting
 
 
@@ -21,7 +23,7 @@ class FileStore(BaseStore):
     Args:
         name (str): Store name
         path (str | Path | None): File store path, default ./store
-        identity (LocalIdentity): Local identity associated with the file store
+        identity (LocalIdentity | AbstractIdentitySetting | str | None): Local identity associated with the file store
         storesystem (Literal[StoreSystem.FILE]): Store system type, fixed as FILE
         platform (Literal[Platform.LOCAL]): Store platform type, fixed as LOCAL
         tags (dict[str, str]): Store tags
@@ -47,10 +49,20 @@ class FileStore(BaseStore):
         default=None,
         description="[Optional] File store path",
     )
-    identity: LocalIdentity = Field(
-        default_factory=LocalIdentity.default,
+    identity: LocalIdentity | AbstractIdentitySetting | str | None = Field(
+        default=None,
         description="[NoOps] Local identity associated with the DuckDB store",
     )
+
+    @model_validator(mode="after")
+    def _derive_identity(self) -> "FileStore":
+        _identity: BaseIdentity = GlobalIdentities.resolve(
+            value=self.identity,
+            default=LocalIdentity.default(),
+            platform=Platform.LOCAL,
+        )
+        object.__setattr__(self, "identity", _identity)
+        return self
 
     @model_validator(mode="after")
     def _derive_path(self) -> "FileStore":
@@ -72,10 +84,6 @@ class FileStore(BaseStore):
         return cls(
             name=setting.name,
             path=setting.path,
-            identity=GlobalIdentities.resolve(
-                value=getattr(setting, "identity", None),
-                platform=Platform.LOCAL,
-                default=LocalIdentity.default(),
-            ),
+            identity=setting.identity,
             tags=setting.tags,
         )
