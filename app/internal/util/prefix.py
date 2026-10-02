@@ -5,8 +5,11 @@ from app.internal.abstract.utility import IAbstractUtility
 
 class IPrefix(IAbstractUtility):
     @staticmethod
-    def resolve(value: str | None) -> str:
-        _value = value or ""
+    def resolve(
+        value: str | None,
+        default: str | None = None,
+    ) -> str:
+        _value = value or default or ""
         return _value.strip("/")
 
     @staticmethod
