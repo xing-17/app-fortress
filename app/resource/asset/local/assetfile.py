@@ -10,9 +10,9 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.internal.util.partition import IPartition
 from app.internal.util.path import IPath
+from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._assetfile import BaseAssetfile
-from app.resource.asset.local._client import LocalObjectClient
 from app.resource.identity.local.local import LocalIdentity
 
 

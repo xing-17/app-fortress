@@ -9,9 +9,9 @@ from pydantic import Field, model_validator
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.internal.util.path import IPath
+from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._asset import BaseAsset
-from app.resource.asset.local._client import LocalObjectClient
 from app.resource.asset.local.assetfile import LocalAssetfile
 from app.resource.identity.local.local import LocalIdentity
 

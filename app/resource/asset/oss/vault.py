@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import posixpath
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import Field, model_validator
 
@@ -69,6 +69,9 @@ class OSSVault(BaseVault):
         description="[Optional] Aliyun Identity身份认证",
     )
 
+    # Class-level attributes
+    default_prefix: ClassVar[str] = "vault"
+
     @model_validator(mode="after")
     def _derive_identity(self) -> "OSSVault":
         _identity: BaseIdentity = GlobalIdentities.resolve(
@@ -81,10 +84,10 @@ class OSSVault(BaseVault):
 
     @model_validator(mode="after")
     def _derive_prefix(self) -> "OSSVault":
-        if not self.prefix:
-            _p = ""
-        else:
-            _p = IPrefix.resolve(self.prefix)
+        _p = IPrefix.resolve(
+            value=self.prefix,
+            default=self.default_prefix,
+        )
         object.__setattr__(self, "prefix", _p)
         return self
 

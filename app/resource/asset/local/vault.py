@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import Field, model_validator
 
@@ -62,11 +62,14 @@ class LocalVault(BaseVault):
     filesystem: Literal[AssetFilesystem.LOCAL] = AssetFilesystem.LOCAL
     platform: Literal[Platform.LOCAL] = Platform.LOCAL
 
+    # Class-level attributes
+    default_path: ClassVar[str] = "./vault"
+
     @model_validator(mode="after")
     def _derive_path(self) -> "LocalVault":
         _path: Path = IPath.resolve(
             value=self.path,
-            default=Path("./"),
+            default=Path(self.default_path),
             ensure=True,
         )
         if not _path.is_dir():
