@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import Field, model_validator
 
@@ -54,6 +54,9 @@ class FileStore(BaseStore):
         description="[NoOps] Local identity associated with the DuckDB store",
     )
 
+    # Class-level attributes
+    default_path: ClassVar[str] = "./store/"
+
     @model_validator(mode="after")
     def _derive_identity(self) -> "FileStore":
         _identity: BaseIdentity = GlobalIdentities.resolve(
@@ -67,8 +70,8 @@ class FileStore(BaseStore):
     @model_validator(mode="after")
     def _derive_path(self) -> "FileStore":
         _p = IPath.resolve(
-            self.path,
-            default=Path("store"),
+            value=self.path,
+            default=Path(self.default_path),
             ensure=True,
         )
         if not _p.is_dir():
