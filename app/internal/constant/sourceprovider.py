@@ -9,11 +9,13 @@ class SourceProvider(StrEnum):
 
     Attributes:
         TUSHARE: China Tushare (3rd party).
+        NSW_VG: New South Wales Valuer General (government).
         ABS: Australia ABS (government).
 
     """
 
     TUSHARE = "tushare"
+    NSW_VG = "nsw_vg"
     ABS = "abs"
 
 

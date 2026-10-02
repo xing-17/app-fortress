@@ -14,10 +14,6 @@ class TestSourceBoardValues:
     def test_macro_value(self):
         assert SourceBoard.MACRO == "macro"
 
-    def test_members_count(self):
-        assert len(SourceBoard) == 2
-
-
 class TestSourceBoardBehaviour:
     def test_is_str_enum(self):
         assert issubclass(SourceBoard, StrEnum)

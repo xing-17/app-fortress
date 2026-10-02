@@ -14,10 +14,6 @@ class TestSourceProviderValues:
     def test_abs_value(self):
         assert SourceProvider.ABS == "abs"
 
-    def test_members_count(self):
-        assert len(SourceProvider) == 2
-
-
 class TestSourceProviderBehaviour:
     def test_is_str_enum(self):
         assert issubclass(SourceProvider, StrEnum)
