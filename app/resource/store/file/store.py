@@ -8,6 +8,7 @@ from pydantic import Field, model_validator
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.internal.util.path import IPath
+from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.identity._common._base import BaseIdentity
 from app.resource.identity.local import LocalIdentity
@@ -31,6 +32,10 @@ class FileStore(BaseStore):
     Methods:
         from_setting(cls, setting: FileStoreSetting) -> FileStore:
             Create a FileStore instance from a FileStoreSetting object.
+        write_bytes(key: str, data: bytes) -> None:
+            Write raw bytes to key (relative to path), creating parent directories as needed.
+        read_bytes(key: str) -> bytes:
+            Read raw bytes from key (relative to path).
 
     Example:
         >>> from app.resource.store.file.store import FileStore
@@ -78,6 +83,19 @@ class FileStore(BaseStore):
             raise ValueError(f"Path {self.path} must be a directory")
         object.__setattr__(self, "path", _p)
         return self
+
+    def write_bytes(
+        self,
+        key: str,
+        data: bytes,
+    ) -> None:
+        LocalObjectClient.write_bytes(self.path / key, data)
+
+    def read_bytes(
+        self,
+        key: str,
+    ) -> bytes:
+        return LocalObjectClient.read_bytes(self.path / key)
 
     @classmethod
     def from_setting(

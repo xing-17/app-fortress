@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import ClassVar, Literal
 
 from pydantic import Field, model_validator
@@ -7,6 +8,7 @@ from pydantic import Field, model_validator
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.internal.util.prefix import IPrefix
+from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.identity._common._base import BaseIdentity
 from app.resource.identity.aliyun import AliyunIdentity
@@ -30,9 +32,16 @@ class OSSStore(BaseStore):
         platform (Literal[Platform.ALIYUN]): Store platform类型(固定为Platform.ALIYUN)
         tags (dict[str, str]): Store标签
 
+    Attributes:
+        client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
+
     Methods:
         from_setting(cls, setting: OSSStoreSetting) -> OSSStore:
             Create an OSSStore instance from an OSSStoreSetting object.
+        write_bytes(key: str, data: bytes) -> None:
+            Write raw bytes to key (relative to prefix).
+        read_bytes(key: str) -> bytes:
+            Read raw bytes from key (relative to prefix); raises FileNotFoundError if missing.
 
     Example:
         >>> from app.resource.store.oss.store import OSSStore
@@ -93,6 +102,33 @@ class OSSStore(BaseStore):
     @property
     def uri(self) -> str:
         return f"oss://{self.bucket}/{self.prefix}"
+
+    @property
+    def client(self) -> OSSClient:
+        return OSSClient.get_client(
+            bucket=self.bucket,
+            region=self.region,
+            identity=self.identity,
+            in_vpc=self.in_vpc,
+        )
+
+    def _resolve_key(self, key: str) -> str:
+        return str(PurePosixPath(self.prefix) / key)
+
+    def write_bytes(
+        self,
+        key: str,
+        data: bytes,
+    ) -> None:
+        _key: str = self._resolve_key(key)
+        self.client.write_bytes(_key, data)
+
+    def read_bytes(
+        self,
+        key: str,
+    ) -> bytes:
+        _key: str = self._resolve_key(key)
+        return self.client.read_bytes(_key)
 
     @classmethod
     def from_setting(

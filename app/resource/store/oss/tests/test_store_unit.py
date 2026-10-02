@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 from pydantic import ValidationError
 
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
+from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.identity.aliyun.aliyun import AliyunIdentity
 from app.resource.identity.local.local import LocalIdentity
@@ -105,6 +108,46 @@ class TestOSSStoreUri:
     def test_uri_returns_oss_scheme_with_bucket_and_prefix(self):
         store = OSSStore(name="my_store", bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
         assert store.uri == "oss://my-bucket/my/prefix"
+
+
+class TestOSSStoreClient:
+    def test_client_is_built_from_bucket_region_identity_in_vpc(self, monkeypatch):
+        _captured = {}
+
+        def _fake_get_client(**kwargs):
+            _captured.update(kwargs)
+            return MagicMock()
+
+        monkeypatch.setattr(OSSClient, "get_client", _fake_get_client)
+        store = OSSStore(name="my_store", bucket="my-bucket", region="cn-hangzhou", in_vpc=True)
+
+        _ = store.client
+
+        assert _captured["bucket"] == "my-bucket"
+        assert _captured["region"] == "cn-hangzhou"
+        assert _captured["identity"] is store.identity
+        assert _captured["in_vpc"] is True
+
+
+class TestOSSStoreWriteAndReadBytes:
+    def test_write_bytes_calls_client_with_prefixed_key(self, monkeypatch):
+        _fake_client = MagicMock()
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+        store = OSSStore(name="my_store", bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
+
+        store.write_bytes("a.txt", b"hello")
+
+        _fake_client.write_bytes.assert_called_once_with("my/prefix/a.txt", b"hello")
+
+    def test_read_bytes_calls_client_with_prefixed_key(self, monkeypatch):
+        _fake_client = MagicMock(read_bytes=MagicMock(return_value=b"payload"))
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client)
+        store = OSSStore(name="my_store", bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
+
+        result = store.read_bytes("a.txt")
+
+        _fake_client.read_bytes.assert_called_once_with("my/prefix/a.txt")
+        assert result == b"payload"
 
 
 class TestOSSStoreFrn:

@@ -91,6 +91,28 @@ class TestFileStoreFromSetting:
             FileStore.from_setting(setting)
 
 
+class TestFileStoreWriteAndReadBytes:
+    def test_write_bytes_creates_file_under_path(self, tmp_path):
+        store = FileStore(name="my_store", path=str(tmp_path))
+        store.write_bytes("a.txt", b"hello")
+        assert (tmp_path / "a.txt").read_bytes() == b"hello"
+
+    def test_write_bytes_creates_missing_parent_directories(self, tmp_path):
+        store = FileStore(name="my_store", path=str(tmp_path))
+        store.write_bytes("nested/deeper/a.txt", b"hello")
+        assert (tmp_path / "nested" / "deeper" / "a.txt").read_bytes() == b"hello"
+
+    def test_read_bytes_returns_written_content(self, tmp_path):
+        store = FileStore(name="my_store", path=str(tmp_path))
+        store.write_bytes("a.txt", b"payload")
+        assert store.read_bytes("a.txt") == b"payload"
+
+    def test_read_bytes_missing_key_raises_file_not_found_error(self, tmp_path):
+        store = FileStore(name="my_store", path=str(tmp_path))
+        with pytest.raises(FileNotFoundError):
+            store.read_bytes("missing.txt")
+
+
 class TestFileStoreFrn:
     def test_frn_returns_expected_identifier(self, tmp_path):
         store = FileStore(name="my_store", path=str(tmp_path))
