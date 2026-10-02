@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import Field, model_validator
 
@@ -68,6 +68,9 @@ class OSSStore(BaseStore):
         description="[Optional] Identity used for this Aliyun store",
     )
 
+    # Class-level attributes
+    default_prefix: ClassVar[str] = "store"
+
     @model_validator(mode="after")
     def _derive_identity(self) -> "OSSStore":
         _identity: BaseIdentity = GlobalIdentities.resolve(
@@ -80,10 +83,10 @@ class OSSStore(BaseStore):
 
     @model_validator(mode="after")
     def _derive_prefix(self) -> "OSSStore":
-        if not self.prefix:
-            _p = "store"
-        else:
-            _p = IPrefix.resolve(self.prefix)
+        _p = IPrefix.resolve(
+            value=self.prefix,
+            default=self.default_prefix,
+        )
         object.__setattr__(self, "prefix", _p)
         return self
 
