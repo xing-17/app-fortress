@@ -18,9 +18,9 @@ from alibabacloud_oss_v2.models import (
     PutObjectResult,
 )
 
-from app.resource.asset.oss import _client as oss_client_module
-from app.resource.asset.oss._client import OSSClient
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
+from app.resource._client.oss import client as oss_client_module
+from app.resource._client.oss.client import OSSClient
+from app.resource.identity.aliyun.identity import AliyunIdentity
 
 
 def _make_identity(name: str = "my-identity") -> AliyunIdentity:

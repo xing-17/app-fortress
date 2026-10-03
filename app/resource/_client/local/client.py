@@ -137,3 +137,13 @@ class LocalObjectClient:
                 "st_ctime": _stat.st_ctime,
             },
         }
+
+    @staticmethod
+    def delete_object(path: Path) -> None:
+        if path.exists():
+            if path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                for child in path.iterdir():
+                    LocalObjectClient.delete_object(child)
+                path.rmdir()

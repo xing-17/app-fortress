@@ -8,14 +8,14 @@ class FrequencyOption(StrEnum):
     Frequency Options
 
     Attributes:
-        SECOND: str = "SECOND" 每秒频率
-        MINUTE: str = "MINUTE" 每分钟频率
-        HOUR: str = "HOUR" 每小时频率
-        DAY: str = "DAY" 每日频率
-        WEEK: str = "WEEK" 每周频率
-        MONTH: str = "MONTH" 每月频率
-        QUARTER: str = "QUARTER" 每季度频率
-        YEAR: str = "YEAR" 每年频率
+        SECOND: str = "SECOND" per-second frequency
+        MINUTE: str = "MINUTE" per-minute frequency
+        HOUR: str = "HOUR" per-hour frequency
+        DAY: str = "DAY" per-day frequency
+        WEEK: str = "WEEK" per-week frequency
+        MONTH: str = "MONTH" per-month frequency
+        QUARTER: str = "QUARTER" per-quarter frequency
+        YEAR: str = "YEAR" per-year frequency
 
     """
 

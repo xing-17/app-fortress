@@ -14,6 +14,7 @@ class TestSourceBoardValues:
     def test_macro_value(self):
         assert SourceBoard.MACRO == "macro"
 
+
 class TestSourceBoardBehaviour:
     def test_is_str_enum(self):
         assert issubclass(SourceBoard, StrEnum)

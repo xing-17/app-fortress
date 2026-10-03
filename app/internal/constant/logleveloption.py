@@ -8,10 +8,10 @@ class LogLevelOption(StrEnum):
     Log level Options
 
     Attributes:
-        DEBUG: str = "DEBUG" 调试级别
-        INFO: str = "INFO" 信息级别
-        WARNING: str = "WARNING" 警告级别
-        ERROR: str = "ERROR" 错误级别
+        DEBUG: str = "DEBUG" debug level
+        INFO: str = "INFO" info level
+        WARNING: str = "WARNING" warning level
+        ERROR: str = "ERROR" error level
 
     """
 

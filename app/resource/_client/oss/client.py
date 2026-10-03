@@ -12,6 +12,7 @@ from alibabacloud_oss_v2.config import load_default
 from alibabacloud_oss_v2.credentials import Credentials, CredentialsProviderFunc
 from alibabacloud_oss_v2.exceptions import OperationError, ServiceError
 from alibabacloud_oss_v2.models import (
+    DeleteObjectRequest,
     GetObjectRequest,
     GetObjectResult,
     HeadObjectRequest,
@@ -22,7 +23,7 @@ from alibabacloud_oss_v2.models import (
 from alibabacloud_oss_v2.paginator import ListObjectsV2Paginator
 
 from app.internal.util.clock import IClock
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
+from app.resource.identity.aliyun import AliyunIdentity
 
 
 class OSSClient:
@@ -51,6 +52,8 @@ class OSSClient:
             列出指定前缀下的“文件夹”（common prefix），recursive 控制是否递归子层级。
         get_object(key: str) -> dict:
             获取单个对象的元数据；key 不存在时抛出 FileNotFoundError。
+        delete_object(key: str) -> None:
+            删除指定 key 的对象(OSS 语义上删除不存在的 key 不会报错)。
         reset() -> None:
             清空进程级实例缓存(主要用于测试隔离)。
 
@@ -75,7 +78,7 @@ class OSSClient:
                 cls._cache.move_to_end(_key)
                 return _hit
 
-            # Cache miss, create a new client instance
+            # 缓存未命中，创建新的客户端实例
             _instance: OSSClient = OSSClient(
                 bucket=bucket,
                 region=region,
@@ -268,6 +271,16 @@ class OSSClient:
             "size": _response.content_length,
             "storage_class": _response.storage_class,
         }
+
+    def delete_object(
+        self,
+        key: str,
+    ) -> None:
+        _request: DeleteObjectRequest = DeleteObjectRequest(
+            bucket=self.bucket,
+            key=key,
+        )
+        self.client.delete_object(_request)
 
     @classmethod
     def reset(cls) -> None:

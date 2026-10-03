@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.resource.asset.local._client import LocalObjectClient
+from app.resource._client.local.client import LocalObjectClient
 
 
 def _set_mtime(path: Path, timestamp: float) -> None:

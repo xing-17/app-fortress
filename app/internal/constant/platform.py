@@ -8,8 +8,8 @@ class Platform(StrEnum):
     Enumeration of supported platforms.
 
     Attributes:
-        LOCAL: str = "local" 本地平台
-        ALIYUN: str = "aliyun" 阿里云平台
+        LOCAL: str = "local" local platform
+        ALIYUN: str = "aliyun" Aliyun platform
 
     """
 
