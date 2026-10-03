@@ -50,25 +50,25 @@ class AliyunIdentity(BaseIdentity):
 
     """
 
-    # Inherited from BaseIdentity
+    # 继承自 BaseIdentity
     # - name: str
     # - tags: dict[str, str]
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
     type: AliyunIdentityType = Field(
         default=AliyunIdentityType.CHAIN,
-        description="Aliyun identity type",
+        description="Aliyun 身份类型",
     )
     access_key_id: str | None = Field(
         default=None,
-        description="Aliyun access key ID",
+        description="阿里云 Access Key ID",
     )
     access_key_secret: str | None = Field(
         default=None,
-        description="Aliyun access key secret",
+        description="阿里云 Access Key Secret",
     )
     region: str | None = Field(
         default=None,
-        description="Aliyun region",
+        description="阿里云 region",
     )
 
     @classmethod
