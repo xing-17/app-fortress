@@ -20,6 +20,7 @@ from .util import (
     IID,
     IClock,
     IEnviron,
+    IFrn,
     IPartition,
     IPath,
     IPrefix,
@@ -29,6 +30,7 @@ from .util import (
 __all__ = [
     "IClock",
     "IEnviron",
+    "IFrn",
     "IID",
     "IPartition",
     "ITimezone",

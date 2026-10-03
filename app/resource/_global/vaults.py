@@ -12,23 +12,23 @@ from app.setting.system import SystemSetting
 
 class GlobalVaults:
     """
-    全局Vault类资源管理
+    Global Vault resource manager.
 
     Attributes:
         vaults (dict[str, BaseVault] | None):
-            全局Vault字典，键为Vault名称，值为Vault实例
+            Global Vault dict, keyed by Vault name, valued by Vault instance
         _lock (threading.RLock):
-            线程锁，用于保证线程安全
+            Thread lock, used to ensure thread safety
 
     Methods:
         load() -> None:
-            加载全局Vault
+            Load global Vaults
         get_vault(name: str) -> BaseVault:
-            获取指定名称的Vault
+            Get the Vault with the given name
         resolve(value: BaseVault | str | None, default: BaseVault, filesystem: AssetFilesystem | None = None) -> BaseVault:
-            将传入的实例/名称/None解析为具体的Vault实例，不会注册进全局字典
+            Resolve the given instance/name/None into a concrete Vault instance, without registering it into the global dict
         reset() -> None:
-            重置全局Vault管理器
+            Reset the global Vault manager
 
     Examples:
         >>> from app.resource._global.vaults import GlobalVaults

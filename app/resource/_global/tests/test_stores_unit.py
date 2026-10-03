@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import threading
+from unittest.mock import MagicMock
 
 import pytest
 
 from app.internal.constant.platform import Platform
+from app.resource._client.oss.client import OSSClient
 from app.resource._global.setting import GlobalSetting
 from app.resource._global.stores import GlobalStores
 from app.resource.store._common._factory import StoreFactory
@@ -12,6 +14,14 @@ from app.resource.store.file.store import FileStore
 from app.resource.store.oss.store import OSSStore
 from app.setting._store import FileStoreSetting, OSSStoreSetting
 from app.setting.system import SystemSetting
+
+
+@pytest.fixture(autouse=True)
+def _fake_oss_client(monkeypatch):
+    # OSSStore eagerly lists databases on construction; never hit the real OSS API in tests.
+    _client = MagicMock()
+    _client.list_folders.return_value = []
+    monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _client)
 
 
 def _patch_system(monkeypatch, *stores) -> SystemSetting:

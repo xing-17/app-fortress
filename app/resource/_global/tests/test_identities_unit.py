@@ -8,8 +8,8 @@ from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
 from app.resource._global.setting import GlobalSetting
 from app.resource.identity._common._factory import IdentityFactory
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.local.identity import LocalIdentity
 from app.setting._identity import AliyunIdentitySetting, LocalIdentitySetting
 from app.setting.system import SystemSetting
 

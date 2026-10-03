@@ -9,25 +9,25 @@ from app.setting.system import SystemSetting
 
 class GlobalSetting:
     """
-    全局设置资源管理
+    Global setting resource manager.
 
     Attributes:
         setting_path (Path | None):
-            全局设置路径
+            Global setting path
         system_file_name (str):
-            系统设置文件名
+            System setting file name
         system_setting_path (Path | None):
-            系统设置路径
+            System setting path
         system_setting (SystemSetting | None):
-            系统设置实例
+            System setting instance
 
     Methods:
         load(setting_path: Path | str | None = None) -> None:
-            加载全局设置
+            Load global setting
         get_system() -> SystemSetting:
-            获取系统设置
+            Get the system setting
         get_setting_path() -> Path:
-            获取设置路径
+            Get the setting path
 
     Examples:
         >>> from app.resource._global.setting import GlobalSetting

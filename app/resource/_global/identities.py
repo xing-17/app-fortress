@@ -4,35 +4,35 @@ import threading
 
 from app.internal.constant.platform import Platform
 from app.resource._global.setting import GlobalSetting
-from app.resource.identity._common._base import BaseIdentity
 from app.resource.identity._common._factory import IdentityFactory
+from app.resource.identity._common._identity import BaseIdentity
 from app.setting._identity import AbstractIdentitySetting, UnionIdentitySetting
 from app.setting.system import SystemSetting
 
 
 class GlobalIdentities:
     """
-    全局Identity类资源管理
+    Global Identity resource manager.
 
     Attributes:
         identities (dict[str, BaseIdentity] | None):
-            全局Identity字典，键为Identity名称，值为Identity实例
+            Global Identity dict, keyed by Identity name, valued by Identity instance
         _lock (threading.RLock):
-            线程锁，用于保证线程安全
+            Thread lock, used to ensure thread safety
 
     Methods:
         load() -> None:
-            加载全局Identity
+            Load global Identities
         get_identity(name: str, strict: bool = False) -> BaseIdentity | None:
-            获取指定名称的Identity
+            Get the Identity with the given name
         resolve(value: BaseIdentity | str | None, default: BaseIdentity, platform: Platform | None = None) -> BaseIdentity | None:
-            将传入的实例/名称/None解析为具体的Identity实例，不会注册进全局字典
+            Resolve the given instance/name/None into a concrete Identity instance, without registering it into the global dict
         list_identity_names(platform: Platform | None = None) -> list[str]:
-            列出所有Identity的名称
+            List all Identity names
         list_identities(platform: Platform | None = None) -> list[BaseIdentity]:
-            列出所有Identity实例
+            List all Identity instances
         reset() -> None:
-            重置全局Identity管理器
+            Reset the global Identity manager
 
     Examples:
         >>> from app.resource._global.identities import GlobalIdentities

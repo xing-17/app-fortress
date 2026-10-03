@@ -4,35 +4,35 @@ import threading
 
 from app.internal.constant.platform import Platform
 from app.resource._global.setting import GlobalSetting
-from app.resource.store._common._base import BaseStore
 from app.resource.store._common._factory import StoreFactory
+from app.resource.store._common._store import BaseStore
 from app.setting._store import AbstractStoreSetting, UnionStoreSetting
 from app.setting.system import SystemSetting
 
 
 class GlobalStores:
     """
-    全局Store类资源管理
+    Global Store resource manager.
 
     Attributes:
         stores (dict[str, BaseStore] | None):
-            全局Store字典，键为Store名称，值为Store实例
+            Global Store dict, keyed by Store name, valued by Store instance
         _lock (threading.RLock):
-            线程锁，用于保证线程安全
+            Thread lock, used to ensure thread safety
 
     Methods:
         load() -> None:
-            加载全局Store
+            Load global Stores
         get_store(name: str) -> BaseStore:
-            获取指定名称的Store
+            Get the Store with the given name
         resolve(value: BaseStore | str | None, default: BaseStore, platform: Platform | None = None) -> BaseStore:
-            将传入的实例/名称/None解析为具体的Store实例，不会注册进全局字典
+            Resolve the given instance/name/None into a concrete Store instance, without registering it into the global dict
         list_store_names(platform: Platform | None = None) -> list[str]:
-            列出所有Store的名称
+            List all Store names
         list_stores(platform: Platform | None = None) -> list[BaseStore]:
-            列出所有Store实例
+            List all Store instances
         reset() -> None:
-            重置全局Store管理器
+            Reset the global Store manager
 
     Examples:
         >>> from app.resource._global.stores import GlobalStores

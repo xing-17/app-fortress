@@ -10,33 +10,33 @@ from app.setting.system import SystemSetting
 
 class GlobalLogStreams:
     """
-    全局LogStream类资源管理
+    Global LogStream resource manager.
 
     Attributes:
         streams (dict[str, LogStream] | None):
-            全局LogStream字典，键为LogStream名称，值为LogStream实例
+            Global LogStream dict, keyed by LogStream name, valued by LogStream instance
         system (LogStream | None):
-            默认LogStream实例，取自系统设置中的日志配置
+            Default LogStream instance, taken from the system setting's log configuration
         _lock (threading.RLock):
-            线程锁，用于保证线程安全
+            Thread lock, used to ensure thread safety
 
     Methods:
         load() -> None:
-            加载全局LogStream
+            Load global LogStreams
         get_system() -> LogStream:
-            获取默认LogStream
+            Get the default LogStream
         add_stream(setting: LogSetting) -> LogStream:
-            新增一个LogStream
+            Add a new LogStream
         get_stream(name: str, strict: bool = False) -> LogStream | None:
-            获取指定名称的LogStream
+            Get the LogStream with the given name
         resolve(value: LogStream | LogSetting | str | None, default: LogStream) -> LogStream:
-            将传入的实例/LogSetting/名称/None解析为具体的LogStream实例，不会注册进全局字典
+            Resolve the given instance/LogSetting/name/None into a concrete LogStream instance, without registering it into the global dict
         list_stream_names() -> list[str]:
-            列出所有LogStream的名称
+            List all LogStream names
         list_streams() -> list[LogStream]:
-            列出所有LogStream实例
+            List all LogStream instances
         reset() -> None:
-            重置全局LogStream管理器
+            Reset the global LogStream manager
 
     Examples:
         >>> from app.resource._global.logstreams import GlobalLogStreams
