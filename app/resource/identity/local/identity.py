@@ -17,9 +17,9 @@ class LocalIdentity(BaseIdentity):
 
     Methods:
         from_setting(cls, settings: LocalIdentitySetting) -> LocalIdentity:
-            从LocalIdentitySetting创建LocalIdentity实例。
+            creates a LocalIdentity instance from a LocalIdentitySetting object.
         describe() -> str:
-            返回Access的描述信息。
+            returns the description of the Access.
 
     Example:
         >>> local_identity = LocalIdentity(
