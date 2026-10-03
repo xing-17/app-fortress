@@ -22,17 +22,17 @@ from app.setting._store import OSSStoreSetting
 
 class OSSStore(BaseStore):
     """
-    OSS store backed by Aliyun Object Storage Service.
+    基于阿里云对象存储服务（OSS）的 Store 实现。
 
     Args:
-        name (str): Store name
+        name (str): Store 名称
         bucket (str): OSS bucket名称
         region (str): OSS bucket所在区域
         prefix (str | None): OSS bucket前缀(默认store)
         in_vpc (bool): 是否在VPC内访问OSS(默认False)
         identity (AliyunIdentity | AbstractIdentitySetting | str | None): Aliyun身份(默认AliyunIdentity.default())
-        storesystem (Literal[StoreSystem.OSS]): Store system类型(固定为StoreSystem.OSS)
-        platform (Literal[Platform.ALIYUN]): Store platform类型(固定为Platform.ALIYUN)
+        storesystem (Literal[StoreSystem.OSS]): Store 系统类型(固定为 StoreSystem.OSS)
+        platform (Literal[Platform.ALIYUN]): Store 平台类型(固定为 Platform.ALIYUN)
         tags (dict[str, str]): Store标签
 
     Attributes:
@@ -61,7 +61,7 @@ class OSSStore(BaseStore):
 
     """
 
-    # Inherited from BaseStore
+    # 继承自 BaseStore
     # - name: str
     # - tags: dict[str, Any]
     storesystem: Literal[StoreSystem.OSS] = StoreSystem.OSS
@@ -87,10 +87,10 @@ class OSSStore(BaseStore):
         description="[Optional] 用于该 Aliyun 存储的身份",
     )
 
-    # Class-level attributes
+    # 类级别属性
     default_prefix: ClassVar[str] = "store"
 
-    # List of databases under store
+    # 该 store 下的数据库列表
     _databases: list[OSSStoreDatabase] | None = PrivateAttr(default=None)
 
     @model_validator(mode="after")

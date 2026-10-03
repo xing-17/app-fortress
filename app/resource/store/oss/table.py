@@ -72,7 +72,7 @@ class OSSStoreTable(BaseTable):
         description="[NoOps] 与表关联的 Aliyun 身份",
     )
 
-    # Lock registry keyed by (bucket, region, key), shared by every instance pointing at the same object.
+    # 按 (bucket, region, key) 为键的锁注册表，指向同一对象的所有实例共享同一把锁。
     _locks: ClassVar[dict[tuple[str, str, str], threading.RLock]] = {}
     _locks_guard: ClassVar[threading.RLock] = threading.RLock()
 
@@ -174,7 +174,7 @@ class OSSStoreTable(BaseTable):
 
     def expire(self) -> None:
         with self._lock:
-            # Strict load: a corrupted object must raise, never be silently wiped by the rewrite below.
+            # 严格加载：损坏的对象必须抛出异常，不能被下面的重写操作静默清空。
             _content = self._load_content(strict=True)
             _now: float = IClock.current_timestamp(timezone="UTC")
             _filtered: dict[str, Any] = {}

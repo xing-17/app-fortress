@@ -19,12 +19,12 @@ from app.resource.store.oss.table import OSSStoreTable
 
 class OSSStoreDatabase(BaseDatabase):
     """
-    OSS store database backed by a single prefix directly under its parent store's prefix.
+    OSS store 数据库，对应父 store 前缀下的单个子前缀。
 
-    Only constructible via `OSSStore.database(name)`.
+    仅可通过 `OSSStore.database(name)` 构建。
 
     Args:
-        name (str): Database name, single path segment
+        name (str): Database 名称，单路径段
         bucket (str): OSS bucket 名称
         region (str): OSS bucket 所在区域
         prefix (str): Database 前缀, 由父存储的前缀和数据库名称派生
@@ -51,7 +51,7 @@ class OSSStoreDatabase(BaseDatabase):
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
     bucket: str = Field(
         ...,
-        description="[NoOps] OSS bucket name",
+        description="[NoOps] OSS bucket 名称",
     )
     region: str = Field(
         ...,
@@ -59,7 +59,7 @@ class OSSStoreDatabase(BaseDatabase):
     )
     prefix: str = Field(
         ...,
-        description="[NoOps] Database prefix, derived from the parent store prefix and name",
+        description="[NoOps] Database 前缀，由父 store 前缀和名称派生",
     )
     in_vpc: bool = Field(
         default=False,
@@ -67,7 +67,7 @@ class OSSStoreDatabase(BaseDatabase):
     )
     identity: AliyunIdentity = Field(
         ...,
-        description="[NoOps] Aliyun identity associated with the database",
+        description="[NoOps] 与该数据库关联的 Aliyun 身份",
     )
 
     @model_validator(mode="after")
