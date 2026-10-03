@@ -8,7 +8,7 @@ from pydantic import Field, model_validator
 from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
-from app.resource.identity._common import BaseIdentity
+from app.resource.identity._common._base import BaseIdentity
 from app.setting._identity import AbstractIdentitySetting
 
 

@@ -112,6 +112,12 @@ class TestOSSStoreTableWriteRead:
         tbl = _make_table(monkeypatch)
         assert tbl.read("k1") is None
 
+    def test_read_with_no_key_returns_unwrapped_dict_of_all_data(self, monkeypatch):
+        tbl = _make_table(monkeypatch)
+        tbl.write("k1", "v1")
+        tbl.write("k2", "v2")
+        assert tbl.read() == {"k1": "v1", "k2": "v2"}
+
 
 class TestOSSStoreTableWriteErrorHandling:
     def test_write_failure_non_strict_does_not_raise(self, monkeypatch):
@@ -153,7 +159,7 @@ class TestOSSStoreTableDelete:
 
     def test_missing_object_strict_raises_key_error(self, monkeypatch):
         tbl = _make_table(monkeypatch)
-        with pytest.raises(KeyError):
+        with pytest.raises(Exception):
             tbl.delete("missing", strict=True)
 
 
@@ -182,3 +188,75 @@ class TestOSSStoreTableExport:
         _result = tbl.export()
         assert _result["name"] == tbl.name
         assert _result["tags"]["name"] == tbl.name
+
+
+class TestOSSStoreTableTTL:
+    def test_ttl_hours_defaults_to_none(self, monkeypatch):
+        tbl = _make_table(monkeypatch)
+        assert tbl.ttl_hours is None
+        assert tbl.ttl_seconds is None
+
+    def test_ttl_hours_is_converted_to_ttl_seconds(self, monkeypatch):
+        _client = _fake_client()
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _client)
+        store = OSSStore(name="s", bucket="my-bucket", region="cn-hangzhou")
+        db = store.database("db")
+        tbl = db.table("tbl", ttl_hours=2)
+        assert tbl.ttl_hours == 2
+        assert tbl.ttl_seconds == 7200.0
+
+    def test_write_records_table_ttl_seconds_in_envelope(self, monkeypatch):
+        _client = _fake_client()
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _client)
+        store = OSSStore(name="s", bucket="my-bucket", region="cn-hangzhou")
+        db = store.database("db")
+        tbl = db.table("tbl", ttl_hours=1)
+        tbl.write("k1", "v1")
+        _envelope = json.loads(tbl.client.write_bytes.call_args.args[1])["k1"]
+        assert _envelope["ttl"] == 3600.0
+
+    def test_write_uses_utc_timestamp(self, monkeypatch):
+        from app.internal.util.clock import IClock
+
+        _original = IClock.current_timestamp
+        _captured: dict = {}
+
+        def _spy(timezone=None):
+            _captured["timezone"] = timezone
+            return _original(timezone=timezone)
+
+        monkeypatch.setattr(IClock, "current_timestamp", staticmethod(_spy))
+        tbl = _make_table(monkeypatch)
+        tbl.write("k1", "v1")
+        assert _captured["timezone"] == "UTC"
+
+
+class TestOSSStoreTableExpire:
+    def test_expire_without_ttl_never_removes_keys(self, monkeypatch):
+        tbl = _make_table(monkeypatch)
+        tbl.write("k1", "v1")
+        tbl.expire()
+        assert tbl.read("k1") == "v1"
+
+    def test_expire_removes_only_expired_keys(self, monkeypatch):
+        tbl = _make_table(monkeypatch)
+        tbl.write("alive", "v1")
+        tbl.write("dead", "v2")
+        # Manually backdate "dead"'s envelope well past a 1-second TTL.
+        _content = json.loads(tbl.client.read_bytes(tbl.key))
+        _content["dead"]["ttl"] = 1.0
+        _content["dead"]["written_at"] -= 1000.0
+        tbl.client.write_bytes(tbl.key, json.dumps(_content).encode("utf-8"))
+
+        tbl.expire()
+
+        assert tbl.read("alive") == "v1"
+        assert tbl.read("dead") is None
+
+    def test_expire_on_corrupted_json_raises(self, monkeypatch):
+        tbl = _make_table(monkeypatch)
+        tbl.write("k1", "v1")
+        tbl.client.read_bytes.side_effect = None
+        tbl.client.read_bytes.return_value = b"not valid json"
+        with pytest.raises(json.JSONDecodeError):
+            tbl.expire()

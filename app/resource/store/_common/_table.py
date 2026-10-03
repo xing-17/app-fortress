@@ -7,6 +7,7 @@ from pydantic import Field
 
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
+from app.internal.util.clock import IClock
 from app.internal.util.frn import IFrn
 from app.resource.identity._common._base import BaseIdentity
 from app.resource.store._common._base import GovernedStoreResource
@@ -26,20 +27,32 @@ class BaseTable(
     that expose write capability; whether a `write` call behaves as an update or an append
     is entirely up to the business layer (determined by whether it reuses or invents `key`).
 
+    Each key's stored value is wrapped in an envelope recording its write time and TTL:
+    `{"data": <value>, "key": <key>, "written_at": <UTC timestamp>, "ttl": <seconds | None>}`.
+    `written_at` is always a UTC POSIX timestamp. Expiry is never enforced automatically;
+    callers must invoke `expire()` to actually purge expired keys.
+
     Args:
         name (str): Table name, must be a single path segment (no nested separators)
         storesystem (StoreSystem): Store system
         platform (Platform): Store platform
         identity (BaseIdentity | AbstractIdentitySetting | str | None): Table identity
         tags (dict[str, str]): Table tags
+        ttl_hours (float | None): Default TTL, in hours, applied to keys written to this
+            table; None (default) means written keys never expire
+
+    Attributes:
+        ttl_seconds (float | None): `ttl_hours` converted to seconds, or None.
 
     Methods:
         write(key: str, data: Any, strict: bool = False) -> None:
             Upsert a single key's value; content is not constrained.
-        read(key: str, strict: bool = False) -> Any:
-            Read a single key's value, or None if missing.
+        read(key: str | None = None, strict: bool = False) -> Any:
+            Read a single key's value, or the entire content if key is None.
         delete(key: str, strict: bool = False) -> None:
             Delete a single key's value; raises if missing and strict is True.
+        expire() -> None:
+            Permanently remove all keys whose TTL has elapsed; must be called explicitly.
 
     """
 
@@ -63,6 +76,10 @@ class BaseTable(
         default_factory=dict,
         description="[Optional] Table tags",
     )
+    ttl_hours: float | None = Field(
+        default=None,
+        description="[Optional] Default TTL in hours for keys written to this table; None means never expire",
+    )
 
     @property
     def frn(self) -> str:
@@ -77,6 +94,36 @@ class BaseTable(
             ]
         )
 
+    @property
+    def ttl_seconds(self) -> float | None:
+        if self.ttl_hours is None:
+            return None
+        return self.ttl_hours * 3600.0
+
+    def _wrap(
+        self,
+        key: str,
+        data: Any,
+    ) -> dict[str, Any]:
+        _now = IClock.current_timestamp(timezone="UTC")
+        return {
+            "data": data,
+            "key": key,
+            "written_at": _now,
+            "ttl": self.ttl_seconds,
+        }
+
+    @staticmethod
+    def _is_expired(
+        envelope: dict[str, Any],
+        now: float,
+    ) -> bool:
+        _ttl = envelope.get("ttl")
+        if _ttl is None:
+            return False
+        _written_at = envelope.get("written_at", 0.0)
+        return _written_at + _ttl <= now
+
     @abstractmethod
     def write(
         self,
@@ -88,7 +135,7 @@ class BaseTable(
     @abstractmethod
     def read(
         self,
-        key: str,
+        key: str | None = None,
         strict: bool = False,
     ) -> Any: ...
 
@@ -98,3 +145,6 @@ class BaseTable(
         key: str,
         strict: bool = False,
     ) -> None: ...
+
+    @abstractmethod
+    def expire(self) -> None: ...

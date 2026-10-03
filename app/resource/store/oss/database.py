@@ -118,6 +118,7 @@ class OSSStoreDatabase(BaseDatabase):
     def table(
         self,
         name: str,
+        ttl_hours: float | None = None,
     ) -> OSSStoreTable:
         return OSSStoreTable(
             name=name,
@@ -126,6 +127,7 @@ class OSSStoreDatabase(BaseDatabase):
             key=posixpath.join(self.prefix, f"{name}.json"),
             in_vpc=self.in_vpc,
             identity=self.identity,
+            ttl_hours=ttl_hours,
             _authorized=True,
         )
 

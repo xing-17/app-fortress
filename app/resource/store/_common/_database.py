@@ -108,6 +108,7 @@ class BaseDatabase(
     def table(
         self,
         name: str,
+        ttl_hours: float | None = None,
     ) -> BaseTable: ...
 
     @abstractmethod

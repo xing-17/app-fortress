@@ -163,7 +163,8 @@ class FileStore(BaseStore):
         self,
         database: str,
         name: str,
+        ttl_hours: float | None = None,
     ) -> FileStoreTable:
         _database: FileStoreDatabase = self.database(database)
-        _table: FileStoreTable = _database.table(name)
+        _table: FileStoreTable = _database.table(name, ttl_hours=ttl_hours)
         return _table

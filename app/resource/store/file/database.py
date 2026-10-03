@@ -95,11 +95,13 @@ class FileStoreDatabase(BaseDatabase):
     def table(
         self,
         name: str,
+        ttl_hours: float | None = None,
     ) -> FileStoreTable:
         return FileStoreTable(
             name=name,
             path=self.path / f"{name}.json",
             identity=self.identity,
+            ttl_hours=ttl_hours,
             _authorized=True,
         )
 

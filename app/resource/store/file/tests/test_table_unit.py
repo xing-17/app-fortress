@@ -56,7 +56,11 @@ class TestFileStoreTableWriteRead:
         tbl = _make_table(tmp_path)
         tbl.write("k1", "v1")
         assert tbl.path.exists()
-        assert json.loads(tbl.path.read_bytes()) == {"k1": "v1"}
+        _envelope = json.loads(tbl.path.read_bytes())["k1"]
+        assert _envelope["data"] == "v1"
+        assert _envelope["key"] == "k1"
+        assert _envelope["ttl"] is None
+        assert isinstance(_envelope["written_at"], float)
 
     def test_write_upserts_existing_key(self, tmp_path):
         tbl = _make_table(tmp_path)
@@ -79,6 +83,12 @@ class TestFileStoreTableWriteRead:
     def test_read_missing_file_returns_none(self, tmp_path):
         tbl = _make_table(tmp_path)
         assert tbl.read("k1") is None
+
+    def test_read_with_no_key_returns_unwrapped_dict_of_all_data(self, tmp_path):
+        tbl = _make_table(tmp_path)
+        tbl.write("k1", "v1")
+        tbl.write("k2", "v2")
+        assert tbl.read() == {"k1": "v1", "k2": "v2"}
 
 
 class TestFileStoreTableWriteErrorHandling:
@@ -148,3 +158,75 @@ class TestFileStoreTableExport:
         _result = tbl.export()
         assert _result["name"] == tbl.name
         assert _result["tags"]["name"] == tbl.name
+
+
+class TestFileStoreTableTTL:
+    def test_ttl_hours_defaults_to_none(self, tmp_path):
+        tbl = _make_table(tmp_path)
+        assert tbl.ttl_hours is None
+        assert tbl.ttl_seconds is None
+
+    def test_ttl_hours_is_converted_to_ttl_seconds(self, tmp_path):
+        store = FileStore(name="s", path=str(tmp_path))
+        db = store.database("db")
+        tbl = db.table("tbl", ttl_hours=2)
+        assert tbl.ttl_hours == 2
+        assert tbl.ttl_seconds == 7200.0
+
+    def test_write_records_table_ttl_seconds_in_envelope(self, tmp_path):
+        store = FileStore(name="s", path=str(tmp_path))
+        db = store.database("db")
+        tbl = db.table("tbl", ttl_hours=1)
+        tbl.write("k1", "v1")
+        _envelope = json.loads(tbl.path.read_bytes())["k1"]
+        assert _envelope["ttl"] == 3600.0
+
+    def test_write_uses_utc_timestamp(self, tmp_path, monkeypatch):
+        from app.internal.util.clock import IClock
+
+        _original = IClock.current_timestamp
+        _captured: dict = {}
+
+        def _spy(timezone=None):
+            _captured["timezone"] = timezone
+            return _original(timezone=timezone)
+
+        monkeypatch.setattr(IClock, "current_timestamp", staticmethod(_spy))
+        tbl = _make_table(tmp_path)
+        tbl.write("k1", "v1")
+        assert _captured["timezone"] == "UTC"
+
+
+class TestFileStoreTableExpire:
+    def test_expire_without_ttl_never_removes_keys(self, tmp_path):
+        tbl = _make_table(tmp_path)
+        tbl.write("k1", "v1")
+        tbl.expire()
+        assert tbl.read("k1") == "v1"
+
+    def test_expire_removes_only_expired_keys(self, tmp_path):
+        tbl = _make_table(tmp_path)
+        tbl.write("alive", "v1")
+        tbl.write("dead", "v2")
+        # Manually backdate "dead"'s envelope well past a 1-second TTL.
+        _content = json.loads(tbl.path.read_bytes())
+        _content["dead"]["ttl"] = 1.0
+        _content["dead"]["written_at"] -= 1000.0
+        tbl.path.write_bytes(json.dumps(_content).encode("utf-8"))
+
+        tbl.expire()
+
+        assert tbl.read("alive") == "v1"
+        assert tbl.read("dead") is None
+
+    def test_expire_on_missing_file_does_nothing(self, tmp_path):
+        tbl = _make_table(tmp_path)
+        tbl.expire()  # should not raise, should not create the file
+        assert not tbl.path.exists()
+
+    def test_expire_on_corrupted_json_raises(self, tmp_path):
+        tbl = _make_table(tmp_path)
+        tbl.write("k1", "v1")
+        tbl.path.write_text("not valid json")
+        with pytest.raises(json.JSONDecodeError):
+            tbl.expire()

@@ -199,7 +199,8 @@ class OSSStore(BaseStore):
         self,
         database: str,
         name: str,
+        ttl_hours: float | None = None,
     ) -> OSSStoreTable:
         _database: OSSStoreDatabase = self.database(database)
-        _table: OSSStoreTable = _database.table(name)
+        _table: OSSStoreTable = _database.table(name, ttl_hours=ttl_hours)
         return _table

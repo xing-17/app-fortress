@@ -11,7 +11,7 @@ from app.resource.store._common._table import BaseTable
 
 
 class _ConcreteTable(BaseTable):
-    # BaseTable is abstract (write/read/delete); a trivial subclass exercises its shared logic.
+    # BaseTable is abstract (write/read/delete/expire); a trivial subclass exercises its shared logic.
     def write(self, key: str, data: Any, strict: bool = False) -> None:
         raise NotImplementedError
 
@@ -19,6 +19,9 @@ class _ConcreteTable(BaseTable):
         raise NotImplementedError
 
     def delete(self, key: str, strict: bool = False) -> None:
+        raise NotImplementedError
+
+    def expire(self) -> None:
         raise NotImplementedError
 
 
