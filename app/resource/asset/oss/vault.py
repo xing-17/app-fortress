@@ -8,12 +8,13 @@ from pydantic import Field, model_validator
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.internal.util.frn import IFrn
 from app.internal.util.prefix import IPrefix
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._vault import BaseVault
 from app.resource.asset.oss.asset import OSSAsset
-from app.resource.identity._common._base import BaseIdentity
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
+from app.resource.identity._common._identity import BaseIdentity
+from app.resource.identity.aliyun import AliyunIdentity
 from app.setting._identity import AbstractIdentitySetting
 from app.setting._vault import OSSVaultSetting
 
@@ -113,7 +114,14 @@ class OSSVault(BaseVault):
 
     @property
     def frn(self) -> str:
-        return f"vault:{self.platform}:{self.bucket}/{self.prefix}"
+        return IFrn.resolve(
+            [
+                "vault",
+                f"platform={self.platform}",
+                f"bucket={self.bucket}",
+                f"prefix={self.prefix}",
+            ]
+        )
 
     def asset(
         self,
@@ -121,6 +129,8 @@ class OSSVault(BaseVault):
         filekind: AssetFileKind | None = None,
         partitions: list[str] | None = None,
     ) -> "OSSAsset":
+        # OSS key 是不透明字符串，存储层不解析 ".."
+        # 不存在 LocalVault 那种路径穿越风险，无需 escape 校验
         _seg: str = rel.strip("/")
         _key: str = posixpath.join(self.prefix, _seg)
         return OSSAsset(

@@ -9,7 +9,7 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource.asset._common._assetfile import BaseAssetfile
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.local.identity import LocalIdentity
 
 
 class _ConcreteAssetfile(BaseAssetfile):

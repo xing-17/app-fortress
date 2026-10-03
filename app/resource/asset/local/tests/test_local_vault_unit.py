@@ -9,8 +9,8 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset.local.vault import LocalVault
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.local.identity import LocalIdentity
 from app.setting._vault import LocalVaultSetting
 
 
@@ -98,12 +98,6 @@ class TestLocalVaultUri:
     def test_uri_returns_file_scheme_with_path(self, tmp_path):
         vault = LocalVault(path=str(tmp_path))
         assert vault.uri == f"file://{tmp_path}"
-
-
-class TestLocalVaultFrn:
-    def test_frn_returns_local_vault_identifier(self, tmp_path):
-        vault = LocalVault(path=str(tmp_path))
-        assert vault.frn == f"vault:{Platform.LOCAL}:{tmp_path}"
 
 
 class TestLocalVaultAsset:

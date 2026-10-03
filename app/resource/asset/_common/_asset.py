@@ -12,7 +12,7 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.internal.util.partition import IPartition
 from app.resource.asset._common._assetfile import BaseAssetfile
-from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._identity import BaseIdentity
 
 
 class BaseAsset(
@@ -57,6 +57,7 @@ class BaseAsset(
         description="[Optional] Asset tags",
     )
 
+    # Cached list of asset files
     _assetfiles: list[BaseAssetfile] | None = PrivateAttr(default=None)
 
     @property

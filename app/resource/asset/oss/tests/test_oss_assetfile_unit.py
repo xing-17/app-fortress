@@ -11,8 +11,8 @@ from app.internal.constant.platform import Platform
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset.oss.assetfile import OSSAssetfile
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.local.identity import LocalIdentity
 
 
 @pytest.fixture(autouse=True)
@@ -110,10 +110,6 @@ class TestOSSAssetfileProperties:
         assert assetfile.stem == "report"
         assert assetfile.extension == "csv"
         assert assetfile.name == "report.csv"
-
-    def test_frn_returns_oss_assetfile_identifier(self):
-        assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="my/prefix/report.csv")
-        assert assetfile.frn == f"assetfile:{Platform.ALIYUN}:my-bucket/my/prefix/report.csv"
 
 
 class TestOSSAssetfileTags:

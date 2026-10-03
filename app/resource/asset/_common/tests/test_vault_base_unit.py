@@ -10,7 +10,7 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource.asset._common._asset import BaseAsset
 from app.resource.asset._common._vault import BaseVault
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.local.identity import LocalIdentity
 from app.setting._vault import LocalVaultSetting
 
 

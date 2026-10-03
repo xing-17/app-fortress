@@ -12,10 +12,11 @@ from app.internal.util.path import IPath
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._vault import BaseVault
 from app.resource.asset.local.asset import LocalAsset
-from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._identity import BaseIdentity
 from app.resource.identity.local import LocalIdentity
 from app.setting._identity import AbstractIdentitySetting
 from app.setting._vault import LocalVaultSetting
+from app.internal.util.frn import IFrn
 
 
 class LocalVault(BaseVault):
@@ -106,7 +107,13 @@ class LocalVault(BaseVault):
 
     @property
     def frn(self) -> str:
-        return f"vault:{self.platform}:{self.path}"
+        return IFrn.resolve(
+            [
+                "vault",
+                f"platform={self.platform}",
+                f"path={self.path}",
+            ]
+        )
 
     def asset(
         self,

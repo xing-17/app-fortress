@@ -10,10 +10,11 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.internal.util.partition import IPartition
 from app.internal.util.prefix import IPrefix
+from app.internal.util.frn import IFrn
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._assetfile import BaseAssetfile
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
+from app.resource.identity.aliyun import AliyunIdentity
 
 
 class OSSAssetfile(BaseAssetfile):
@@ -138,7 +139,14 @@ class OSSAssetfile(BaseAssetfile):
 
     @property
     def frn(self) -> str:
-        return f"assetfile:{self.platform}:{self.bucket}/{self.key}"
+        return IFrn.resolve(
+            [
+                "assetfile",
+                f"platform={self.platform}",
+                f"bucket={self.bucket}",
+                f"key={self.key}",
+            ]
+        )
 
     @property
     def name(self) -> str:

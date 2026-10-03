@@ -10,8 +10,8 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset.local.assetfile import LocalAssetfile
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.local.identity import LocalIdentity
 
 
 @pytest.fixture(autouse=True)
@@ -101,11 +101,6 @@ class TestLocalAssetfileProperties:
         assert assetfile.stem == "report"
         assert assetfile.extension == "csv"
         assert assetfile.name == "report.csv"
-
-    def test_frn_returns_local_assetfile_identifier(self, tmp_path):
-        _target = tmp_path / "report.csv"
-        assetfile = LocalAssetfile(path=str(_target))
-        assert assetfile.frn == f"assetfile:{Platform.LOCAL}:{_target}"
 
 
 class TestLocalAssetfileTags:

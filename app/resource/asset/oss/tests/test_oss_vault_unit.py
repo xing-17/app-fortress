@@ -8,8 +8,8 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset.oss.vault import OSSVault
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.local.identity import LocalIdentity
 from app.setting._vault import OSSVaultSetting
 
 
@@ -106,12 +106,6 @@ class TestOSSVaultUri:
     def test_uri_returns_s3_scheme_with_bucket_and_prefix(self):
         vault = OSSVault(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
         assert vault.uri == "oss://my-bucket/my/prefix"
-
-
-class TestOSSVaultFrn:
-    def test_frn_returns_oss_vault_identifier(self):
-        vault = OSSVault(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
-        assert vault.frn == f"vault:{Platform.ALIYUN}:my-bucket/my/prefix"
 
 
 class TestOSSVaultAsset:

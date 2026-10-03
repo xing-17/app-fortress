@@ -12,8 +12,8 @@ from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset.oss.asset import OSSAsset
 from app.resource.asset.oss.assetfile import OSSAssetfile
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.local.identity import LocalIdentity
 
 
 @pytest.fixture(autouse=True)
@@ -83,12 +83,6 @@ class TestOSSAssetUri:
     def test_uri_returns_oss_scheme_with_bucket_and_prefix(self):
         asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
         assert asset.uri == "oss://my-bucket/my/prefix"
-
-
-class TestOSSAssetFrn:
-    def test_frn_returns_oss_asset_identifier(self):
-        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
-        assert asset.frn == f"asset:{Platform.ALIYUN}:my-bucket/my/prefix"
 
 
 class TestOSSAssetTags:

@@ -13,7 +13,8 @@ from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._asset import BaseAsset
 from app.resource.asset.local.assetfile import LocalAssetfile
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.local import LocalIdentity
+from app.internal.util.frn import IFrn
 
 
 class LocalAsset(BaseAsset):
@@ -74,7 +75,13 @@ class LocalAsset(BaseAsset):
 
     @property
     def frn(self) -> str:
-        return f"asset:{self.platform}:{self.path}"
+        return IFrn.resolve(
+            [
+                "asset",
+                f"platform={self.platform}",
+                f"path={self.path}",
+            ]
+        )
 
     @property
     def name(self) -> str:

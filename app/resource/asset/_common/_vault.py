@@ -10,7 +10,7 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource.asset._common._asset import BaseAsset
-from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._identity import BaseIdentity
 from app.setting._identity import AbstractIdentitySetting
 from app.setting._vault import UnionVaultSetting
 

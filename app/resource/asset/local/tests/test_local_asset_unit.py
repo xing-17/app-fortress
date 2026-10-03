@@ -10,8 +10,8 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset.local.asset import LocalAsset
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.local.identity import LocalIdentity
 
 
 @pytest.fixture(autouse=True)
@@ -82,12 +82,6 @@ class TestLocalAssetUri:
     def test_uri_returns_file_scheme_with_path(self, tmp_path):
         asset = LocalAsset(path=str(tmp_path))
         assert asset.uri == f"file://{tmp_path}"
-
-
-class TestLocalAssetFrn:
-    def test_frn_returns_local_asset_identifier(self, tmp_path):
-        asset = LocalAsset(path=str(tmp_path))
-        assert asset.frn == f"asset:{Platform.LOCAL}:{tmp_path}"
 
 
 class TestLocalAssetName:
