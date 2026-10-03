@@ -9,8 +9,8 @@ from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.local.identity import LocalIdentity
 from app.resource.store.oss.database import OSSStoreDatabase
 from app.resource.store.oss.store import OSSStore
 from app.setting._store import OSSStoreSetting

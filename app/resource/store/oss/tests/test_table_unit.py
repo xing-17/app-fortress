@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
 from app.resource.store.oss.store import OSSStore
 from app.resource.store.oss.table import OSSStoreTable
 

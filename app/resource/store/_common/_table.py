@@ -9,7 +9,7 @@ from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.internal.util.clock import IClock
 from app.internal.util.frn import IFrn
-from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._identity import BaseIdentity
 from app.resource.store._common._base import GovernedStoreResource
 from app.setting._identity import AbstractIdentitySetting
 

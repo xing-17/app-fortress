@@ -11,7 +11,7 @@ from app.internal.constant.storesystem import StoreSystem
 from app.internal.util.prefix import IPrefix
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
-from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._identity import BaseIdentity
 from app.resource.identity.aliyun import AliyunIdentity
 from app.resource.store._common._database import BaseDatabase
 from app.resource.store.oss.table import OSSStoreTable

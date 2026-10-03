@@ -10,7 +10,7 @@ from app.internal.constant.storesystem import StoreSystem
 from app.internal.util.path import IPath
 from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
-from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._identity import BaseIdentity
 from app.resource.identity.local import LocalIdentity
 from app.resource.store._common._database import BaseDatabase
 from app.resource.store.file.table import FileStoreTable

@@ -9,8 +9,8 @@ from pydantic import ValidationError
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.resource._global.identities import GlobalIdentities
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.local.identity import LocalIdentity
 from app.resource.store.file.database import FileStoreDatabase
 from app.resource.store.file.store import FileStore
 from app.setting._store import FileStoreSetting
