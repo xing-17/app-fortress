@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Any
+
+from pydantic import Field
+
+from app.internal.constant.platform import Platform
+from app.internal.constant.storesystem import StoreSystem
+from app.internal.util.frn import IFrn
+from app.resource.identity._common._base import BaseIdentity
+from app.resource.store._common._base import GovernedStoreResource
+from app.setting._identity import AbstractIdentitySetting
+
+
+class BaseTable(
+    GovernedStoreResource,
+    ABC,
+):
+    """
+    Base class for store table resources, governed and derived from a parent database.
+
+    A table can only be constructed via its parent database's `table()` method, which
+    guarantees the table occupies exactly one path segment directly under the database
+    (no nested names). Tables are the only resource in the store/database/table hierarchy
+    that expose write capability; whether a `write` call behaves as an update or an append
+    is entirely up to the business layer (determined by whether it reuses or invents `key`).
+
+    Args:
+        name (str): Table name, must be a single path segment (no nested separators)
+        storesystem (StoreSystem): Store system
+        platform (Platform): Store platform
+        identity (BaseIdentity | AbstractIdentitySetting | str | None): Table identity
+        tags (dict[str, str]): Table tags
+
+    Methods:
+        write(key: str, data: Any, strict: bool = False) -> None:
+            Upsert a single key's value; content is not constrained.
+        read(key: str, strict: bool = False) -> Any:
+            Read a single key's value, or None if missing.
+        delete(key: str, strict: bool = False) -> None:
+            Delete a single key's value; raises if missing and strict is True.
+
+    """
+
+    name: str = Field(
+        ...,
+        description="[Required] Table name, single path segment governed by the parent database",
+    )
+    storesystem: StoreSystem = Field(
+        ...,
+        description="[Required] Store system",
+    )
+    platform: Platform = Field(
+        ...,
+        description="[Required] Store platform",
+    )
+    identity: BaseIdentity | AbstractIdentitySetting | str | None = Field(
+        default=None,
+        description="[Optional] Table identity",
+    )
+    tags: dict[str, str] = Field(
+        default_factory=dict,
+        description="[Optional] Table tags",
+    )
+
+    @property
+    def frn(self) -> str:
+        return IFrn.resolve(
+            [
+                "store",
+                "database",
+                "table",
+                f"platform={self.platform}",
+                f"storesystem={self.storesystem}",
+                f"name={self.name}",
+            ]
+        )
+
+    @abstractmethod
+    def write(
+        self,
+        key: str,
+        data: Any,
+        strict: bool = False,
+    ) -> None: ...
+
+    @abstractmethod
+    def read(
+        self,
+        key: str,
+        strict: bool = False,
+    ) -> Any: ...
+
+    @abstractmethod
+    def delete(
+        self,
+        key: str,
+        strict: bool = False,
+    ) -> None: ...

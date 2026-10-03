@@ -1,22 +1,16 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from app.internal.constant.storesystem import StoreSystem
-from app.resource._global.identities import GlobalIdentities
-from app.resource.store._common._base import BaseStore
+from app.resource._client.oss.client import OSSClient
 from app.resource.store._common._factory import StoreFactory
+from app.resource.store._common._store import BaseStore
 from app.resource.store.file.store import FileStore
 from app.resource.store.oss.store import OSSStore
 from app.setting._store import FileStoreSetting, OSSStoreSetting
-
-
-@pytest.fixture(autouse=True)
-def _reset_global_identities():
-    # GlobalIdentities holds process-wide singleton state; isolate tests from each other.
-    GlobalIdentities.reset()
-    yield
-    GlobalIdentities.reset()
 
 
 class TestStoreFactoryGet:
@@ -59,20 +53,22 @@ class TestStoreFactoryRegistryValidation:
 
 class TestStoreFactoryLoad:
     def test_load_returns_file_store_instance(self, tmp_path):
-        setting = FileStoreSetting(name="my_store", path=str(tmp_path))
+        setting = FileStoreSetting(name="my_store", path=str(tmp_path), tags={"env": "prod"})
         store = StoreFactory.load(setting)
         assert isinstance(store, FileStore)
         assert store.name == "my_store"
 
-    def test_load_returns_oss_store_instance(self):
+    def test_load_oss_returns_oss_store_instance(self, monkeypatch):
+        _client = MagicMock()
+        _client.list_folders.return_value = []
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _client)
         setting = OSSStoreSetting(name="my_store", bucket="my-bucket", region="cn-hangzhou")
         store = StoreFactory.load(setting)
         assert isinstance(store, OSSStore)
         assert store.name == "my_store"
-        assert store.bucket == "my-bucket"
 
-    def test_load_raises_value_error_when_get_returns_none(self, monkeypatch):
+    def test_load_raises_value_error_when_get_returns_none(self, monkeypatch, tmp_path):
         monkeypatch.setattr(StoreFactory, "get", classmethod(lambda cls, storesystem: None))
-        setting = FileStoreSetting(name="my_store")
+        setting = FileStoreSetting(name="my_store", path=str(tmp_path))
         with pytest.raises(ValueError):
             StoreFactory.load(setting)

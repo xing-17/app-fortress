@@ -4,7 +4,7 @@ from importlib import import_module
 from types import ModuleType
 
 from app.internal.constant.storesystem import StoreSystem
-from app.resource.store._common._base import BaseStore
+from app.resource.store._common._store import BaseStore
 from app.setting._store import UnionStoreSetting
 
 
