@@ -11,7 +11,7 @@ from pydantic import Field
 from app.internal.constant.aliyunidentitytype import AliyunIdentityType
 from app.internal.constant.platform import Platform
 from app.internal.util.environ import IEnviron
-from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._identity import BaseIdentity
 from app.setting._identity import AliyunIdentitySetting
 
 
@@ -103,10 +103,6 @@ class AliyunIdentity(BaseIdentity):
             access_key_secret=None,
             region=None,
         )
-
-    @property
-    def frn(self) -> str:
-        return f"identity:aliyun:{self.name}"
 
     def get_client(self) -> CredentialClient:
         if self.type == AliyunIdentityType.CHAIN:

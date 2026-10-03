@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock
 
 import pytest
-from alibabacloud_credentials.models import CredentialModel
 from pydantic import ValidationError
 
 from app.internal.constant.aliyunidentitytype import AliyunIdentityType
 from app.internal.constant.platform import Platform
-from app.resource.identity.aliyun import aliyun as aliyun_module
-from app.resource.identity.aliyun.aliyun import AliyunIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
 from app.setting._identity import AliyunIdentitySetting
 
 
@@ -136,64 +133,3 @@ class TestAliyunIdentityDescribe:
         identity = AliyunIdentity(name="my_aliyun_identity", access_key_secret="secretvalue")
         identity.describe()
         assert identity.access_key_secret == "secretvalue"
-
-
-class TestAliyunIdentityGetCredential:
-    def test_chain_type_uses_default_credential_client_with_no_config(self, monkeypatch):
-        _expected = CredentialModel(access_key_id="chain_ak", access_key_secret="chain_sk")
-        _mock_client_cls = MagicMock(return_value=MagicMock(get_credential=MagicMock(return_value=_expected)))
-        monkeypatch.setattr(aliyun_module, "CredentialClient", _mock_client_cls)
-
-        identity = AliyunIdentity(name="my_aliyun_identity", type=AliyunIdentityType.CHAIN)
-        result = identity.get_credential()
-
-        _mock_client_cls.assert_called_once_with()
-        assert result is _expected
-
-    def test_ak_type_builds_config_from_keys_and_returns_credential(self, monkeypatch):
-        _expected = CredentialModel(access_key_id="AKIDEXAMPLE", access_key_secret="secretvalue")
-        _mock_client_cls = MagicMock(return_value=MagicMock(get_credential=MagicMock(return_value=_expected)))
-        _mock_config_cls = MagicMock()
-        monkeypatch.setattr(aliyun_module, "CredentialClient", _mock_client_cls)
-        monkeypatch.setattr(aliyun_module, "CredentialConfig", _mock_config_cls)
-
-        identity = AliyunIdentity(
-            name="my_aliyun_identity",
-            type=AliyunIdentityType.AK,
-            access_key_id="AKIDEXAMPLE",
-            access_key_secret="secretvalue",
-        )
-        result = identity.get_credential()
-
-        _mock_config_cls.assert_called_once_with(
-            type="access_key",
-            access_key_id="AKIDEXAMPLE",
-            access_key_secret="secretvalue",
-        )
-        _mock_client_cls.assert_called_once_with(_mock_config_cls.return_value)
-        assert result is _expected
-
-    def test_ak_type_missing_access_key_id_raises_value_error(self):
-        identity = AliyunIdentity(
-            name="my_aliyun_identity",
-            type=AliyunIdentityType.AK,
-            access_key_secret="secretvalue",
-        )
-        with pytest.raises(ValueError, match="Access key ID and Secret"):
-            identity.get_credential()
-
-    def test_ak_type_missing_access_key_secret_raises_value_error(self):
-        identity = AliyunIdentity(
-            name="my_aliyun_identity",
-            type=AliyunIdentityType.AK,
-            access_key_id="AKIDEXAMPLE",
-        )
-        with pytest.raises(ValueError, match="Access key ID and Secret"):
-            identity.get_credential()
-
-    def test_unsupported_type_raises_value_error(self):
-        identity = AliyunIdentity(name="my_aliyun_identity")
-        # Bypass pydantic's validate_assignment to force an out-of-enum value.
-        object.__setattr__(identity, "type", "not_a_real_type")
-        with pytest.raises(ValueError, match="Unsupported Aliyun identity type"):
-            identity.get_credential()

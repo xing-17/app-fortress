@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .aliyun import AliyunIdentity
+from .identity import AliyunIdentity
 
 __all__ = [
     "AliyunIdentity",

@@ -4,7 +4,7 @@ from importlib import import_module
 from types import ModuleType
 
 from app.internal.constant.platform import Platform
-from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._identity import BaseIdentity
 from app.setting._identity import UnionIdentitySetting
 
 
@@ -27,8 +27,8 @@ class IdentityFactory:
 
     # Registry mapping platform name to corresponding module and class paths.
     _registry: dict[Platform, str] = {
-        Platform.ALIYUN: "app.resource.identity.aliyun.aliyun:AliyunIdentity",
-        Platform.LOCAL: "app.resource.identity.local.local:LocalIdentity",
+        Platform.ALIYUN: "app.resource.identity.aliyun.identity:AliyunIdentity",
+        Platform.LOCAL: "app.resource.identity.local.identity:LocalIdentity",
     }
 
     @classmethod

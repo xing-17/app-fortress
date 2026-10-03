@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from app.internal.constant.platform import Platform
-from app.resource.identity._common._base import BaseIdentity
+from app.resource.identity._common._identity import BaseIdentity
 from app.setting._identity import LocalIdentitySetting
 
 
@@ -49,7 +49,3 @@ class LocalIdentity(BaseIdentity):
     @classmethod
     def default(cls) -> LocalIdentity:
         return cls(name="local_default_identity")
-
-    @property
-    def frn(self) -> str:
-        return f"identity:local:{self.name}"

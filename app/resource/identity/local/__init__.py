@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .local import LocalIdentity
+from .identity import LocalIdentity
 
 __all__ = [
     "LocalIdentity",

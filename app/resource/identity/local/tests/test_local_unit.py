@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.internal.constant.platform import Platform
-from app.resource.identity.local.local import LocalIdentity
+from app.resource.identity.local.identity import LocalIdentity
 from app.setting._identity import LocalIdentitySetting
 
 

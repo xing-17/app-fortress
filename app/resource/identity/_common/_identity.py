@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 
 from pydantic import Field
 
 from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.platform import Platform
+from app.internal.util.frn import IFrn
 from app.setting._identity import UnionIdentitySetting
 
 
@@ -46,8 +47,14 @@ class BaseIdentity(
     def default(cls) -> BaseIdentity: ...
 
     @property
-    @abstractmethod
-    def frn(self) -> str: ...
+    def frn(self) -> str:
+        return IFrn.resolve(
+            [
+                "identity",
+                f"platform={self.platform}",
+                f"name={self.name}",
+            ]
+        )
 
     def _non_override_tags(self) -> dict[str, str]:
         return {"platform": self.platform}
