@@ -25,25 +25,25 @@ class OSSStoreDatabase(BaseDatabase):
 
     Args:
         name (str): Database name, single path segment
-        bucket (str): OSS bucket名称
-        region (str): OSS bucket所在区域
-        prefix (str): Database prefix, derived from the parent store prefix and name
+        bucket (str): OSS bucket 名称
+        region (str): OSS bucket 所在区域
+        prefix (str): Database 前缀, 由父存储的前缀和数据库名称派生
         in_vpc (bool): 是否在VPC内访问OSS
-        identity (AliyunIdentity): Aliyun identity associated with the database
-        storesystem (Literal[StoreSystem.OSS]): Store system type, fixed as OSS
-        platform (Literal[Platform.ALIYUN]): Store platform type, fixed as ALIYUN
-        tags (dict[str, str]): Database tags
+        identity (AliyunIdentity): Aliyun 身份认证
+        storesystem (Literal[StoreSystem.OSS]): Store 系统类型, 固定为 OSS
+        platform (Literal[Platform.ALIYUN]): Store 平台类型, 固定为 ALIYUN
+        tags (dict[str, str]): Database 标签
 
     Attributes:
         client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
 
     Methods:
         table(name: str) -> OSSStoreTable:
-            Only entry point for building a table under this database.
+            返回指定名称的表对象。
         list_tables() -> list[OSSStoreTable]:
-            Enumerate the *.json tables that currently exist directly under this database.
+            列举当前直接存在于该数据库下的 *.json 表。
         delete(name: str, strict: bool = False) -> None:
-            Delete a table's JSON object by name; raises FileNotFoundError if missing and strict is True.
+            删除指定名称的表的 JSON 对象；如果缺失且 strict 为 True，则抛出 FileNotFoundError。
 
     """
 

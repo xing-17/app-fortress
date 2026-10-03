@@ -37,21 +37,21 @@ class OSSStore(BaseStore):
 
     Attributes:
         client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
-        databases (list[OSSStoreDatabase]): Lazily loaded and cached list of databases under the store.
+        databases (list[OSSStoreDatabase]): 当前存储下的数据库列表，懒加载并缓存。
 
     Methods:
         from_setting(cls, setting: OSSStoreSetting) -> OSSStore:
-            Create an OSSStore instance from an OSSStoreSetting object.
+            从 OSSStoreSetting 对象创建一个 OSSStore 实例。
         database(name: str) -> OSSStoreDatabase:
-            Only entry point for building a database under this store.
+            仅此为在该存储下构建数据库的入口。
         list_databases() -> list[OSSStoreDatabase]:
-            Enumerate databases that currently exist under the store prefix.
+            列举当前存在于该存储前缀下的数据库。
         load_databases(force: bool = False) -> list[OSSStoreDatabase]:
-            Load (and cache) the databases list, re-scanning when force is True.
+            加载（并缓存）数据库列表，当 force 为 True 时重新扫描。
         reset_databases() -> None:
-            Clear the cached databases list.
+            清空缓存的数据库列表。
         table(database: str, name: str) -> OSSStoreTable:
-            Retrieve a table under the specified database in this store.
+            获取该存储下指定数据库中的表对象。
 
     Example:
         >>> from app.resource.store.oss.store import OSSStore
@@ -68,7 +68,7 @@ class OSSStore(BaseStore):
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
     bucket: str = Field(
         ...,
-        description="[Required] OSS bucket name",
+        description="[Required] OSS bucket名称",
     )
     region: str = Field(
         ...,
@@ -84,7 +84,7 @@ class OSSStore(BaseStore):
     )
     identity: AliyunIdentity | AbstractIdentitySetting | str | None = Field(
         default=None,
-        description="[Optional] Identity used for this Aliyun store",
+        description="[Optional] 用于该 Aliyun 存储的身份",
     )
 
     # Class-level attributes

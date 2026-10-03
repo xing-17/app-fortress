@@ -19,34 +19,33 @@ from app.resource.store._common._table import BaseTable
 
 class OSSStoreTable(BaseTable):
     """
-    OSS store table backed by a single JSON object directly under its parent database's prefix.
-
-    Only constructible via `OSSStoreDatabase.table(name)`.
+    OSS 存储表，直接位于其父数据库前缀下的单个 JSON 对象。
+    仅可通过 `OSSStoreDatabase.table(name)` 构建。
 
     Args:
-        name (str): Table name, single path segment
+        name (str): Table 名称，单路径段
         bucket (str): OSS bucket名称
         region (str): OSS bucket所在区域
-        key (str): Table object key, derived from the parent database prefix and name
+        key (str): Table 对象的 key，由父数据库前缀和表名派生
         in_vpc (bool): 是否在VPC内访问OSS
-        identity (AliyunIdentity): Aliyun identity associated with the table
-        storesystem (Literal[StoreSystem.OSS]): Store system type, fixed as OSS
-        platform (Literal[Platform.ALIYUN]): Store platform type, fixed as ALIYUN
-        tags (dict[str, str]): Table tags
-        ttl_hours (float | None): Default TTL in hours for keys written to this table
+        identity (AliyunIdentity): 与表关联的 Aliyun 身份
+        storesystem (Literal[StoreSystem.OSS]): 存储系统类型，固定为 OSS
+        platform (Literal[Platform.ALIYUN]): 存储平台类型，固定为 ALIYUN
+        tags (dict[str, str]): 表标签
+        ttl_hours (float | None): 写入该表的键的默认 TTL（小时）
 
     Attributes:
         client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
 
     Methods:
         write(key: str, data: Any, strict: bool = False) -> None:
-            Upsert data for key, wrapped in a {data, key, written_at, ttl} envelope.
+            写入或更新指定 key 的数据，数据会被封装在 {data, key, written_at, ttl} 结构中。
         read(key: str | None = None, strict: bool = False) -> Any:
-            Read the unwrapped data for key, or all unwrapped data if key is None.
+            读取指定 key 的解封装数据，如果 key 为 None，则读取所有解封装数据。
         delete(key: str, strict: bool = False) -> None:
-            Delete a key's value; raises KeyError if missing and strict is True.
+            删除指定 key 的值；如果 key 不存在且 strict 为 True，则抛出 KeyError。
         expire() -> None:
-            Permanently remove all keys whose TTL has elapsed; must be called explicitly.
+            永久移除所有 TTL 已过的键；必须显式调用。
 
     """
 
@@ -54,7 +53,7 @@ class OSSStoreTable(BaseTable):
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
     bucket: str = Field(
         ...,
-        description="[NoOps] OSS bucket name",
+        description="[NoOps] OSS bucket名称",
     )
     region: str = Field(
         ...,
@@ -62,7 +61,7 @@ class OSSStoreTable(BaseTable):
     )
     key: str = Field(
         ...,
-        description="[NoOps] Table object key, derived from the parent database prefix and name",
+        description="[NoOps] Table 对象的 key，由父数据库前缀和表名派生",
     )
     in_vpc: bool = Field(
         default=False,
@@ -70,7 +69,7 @@ class OSSStoreTable(BaseTable):
     )
     identity: AliyunIdentity = Field(
         ...,
-        description="[NoOps] Aliyun identity associated with the table",
+        description="[NoOps] 与表关联的 Aliyun 身份",
     )
 
     # Lock registry keyed by (bucket, region, key), shared by every instance pointing at the same object.
