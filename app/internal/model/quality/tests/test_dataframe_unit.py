@@ -46,17 +46,86 @@ class TestColumnQuality:
         assert column.unique_count == 0
         assert column.duplicate_count == 0
 
-    def test_missing_complete_rate(self):
-        ColumnQuality(
-            name="a",
-            type="Int64",
-        )
-        # should raise value error
+    def test_rates_default_to_zero(self):
+        column = ColumnQuality(name="a", type="Int64")
+        assert column.complete_rate == 0.0
+        assert column.null_rate == 0.0
+        assert column.unique_rate == 0.0
+        assert column.duplicate_rate == 0.0
 
     @pytest.mark.parametrize("rate", [-0.1, 1.1])
     def test_rate_outside_unit_interval_raises(self, rate):
         with pytest.raises(ValidationError):
             _make_column_quality(complete_rate=rate)
+
+
+class TestColumnQualityValidateRatePairs:
+    def test_complete_and_null_rate_must_sum_to_zero_or_one(self):
+        with pytest.raises(ValidationError):
+            _make_column_quality(complete_rate=0.5, null_rate=0.2)
+
+    def test_unique_and_duplicate_rate_must_sum_to_zero_or_one(self):
+        with pytest.raises(ValidationError):
+            _make_column_quality(unique_rate=0.5, duplicate_rate=0.2)
+
+    def test_both_zero_is_allowed_as_no_data_placeholder(self):
+        column = ColumnQuality(name="a", type="Int64")
+        assert column.complete_rate + column.null_rate == 0.0
+        assert column.unique_rate + column.duplicate_rate == 0.0
+
+
+class TestColumnQualityDeriveFlags:
+    def test_is_constant_true_when_single_distinct_value(self):
+        column = _make_column_quality(unique_count=1, duplicate_count=3, unique_rate=0.25, duplicate_rate=0.75)
+        assert column.is_constant is True
+
+    def test_is_constant_false_when_multiple_distinct_values(self):
+        assert _make_column_quality().is_constant is False
+
+    def test_is_all_null_true_when_fully_null(self):
+        column = _make_column_quality(
+            complete_count=0,
+            complete_rate=0.0,
+            null_count=4,
+            null_rate=1.0,
+            unique_count=0,
+            unique_rate=0.0,
+            duplicate_count=0,
+            duplicate_rate=0.0,
+        )
+        assert column.is_all_null is True
+
+    def test_is_all_null_false_when_partially_populated(self):
+        assert _make_column_quality().is_all_null is False
+
+    def test_is_unique_true_when_no_nulls_and_fully_distinct(self):
+        column = _make_column_quality(
+            complete_count=4,
+            complete_rate=1.0,
+            null_count=0,
+            null_rate=0.0,
+            unique_count=4,
+            unique_rate=1.0,
+            duplicate_count=0,
+            duplicate_rate=0.0,
+        )
+        assert column.is_unique is True
+
+    def test_is_unique_false_when_duplicates_present(self):
+        assert _make_column_quality().is_unique is False
+
+    def test_is_unique_false_when_nulls_present(self):
+        column = _make_column_quality(
+            complete_count=3,
+            complete_rate=0.75,
+            null_count=1,
+            null_rate=0.25,
+            unique_count=3,
+            unique_rate=1.0,
+            duplicate_count=0,
+            duplicate_rate=0.0,
+        )
+        assert column.is_unique is False
 
 
 class TestDataframeQualityDefaults:
@@ -92,12 +161,32 @@ class TestDataframeQualityDeriveIsEmpty:
 class TestDataframeQualityDeriveColumns:
     def test_columns_are_sorted_by_name(self):
         quality = DataframeQuality(
+            width=2,
             columns=[
                 _make_column_quality(name="b"),
                 _make_column_quality(name="a"),
-            ]
+            ],
         )
         assert [col.name for col in quality.columns] == ["a", "b"]
+
+
+class TestDataframeQualityValidateRowsWithinHeight:
+    def test_complete_rows_exceeding_height_raises(self):
+        with pytest.raises(ValidationError):
+            DataframeQuality(height=2, complete_rows=3)
+
+    def test_duplicate_rows_exceeding_height_raises(self):
+        with pytest.raises(ValidationError):
+            DataframeQuality(height=2, duplicate_rows=3)
+
+
+class TestDataframeQualityValidateColumnsMatchWidth:
+    def test_columns_length_mismatching_width_raises(self):
+        with pytest.raises(ValidationError):
+            DataframeQuality(width=2, columns=[_make_column_quality(name="a")])
+
+    def test_empty_columns_does_not_require_matching_width(self):
+        assert DataframeQuality(width=3).columns == []
 
 
 class TestDataframeQualityFromDf:
@@ -155,3 +244,35 @@ class TestDataframeQualityFromDf:
             assert col.null_rate == 0.0
             assert col.unique_rate == 0.0
             assert col.duplicate_rate == 0.0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TestBenchmark (requires pytest-benchmark)
+# ──────────────────────────────────────────────────────────────────────────────
+# Run with: pytest app/internal/model/quality/tests/test_dataframe_unit.py::TestBenchmark --benchmark-sort=mean
+
+
+def _make_wide_rows_df(n_rows: int = 200_000) -> pl.DataFrame:
+    _id = pl.int_range(0, n_rows, eager=True)
+    return pl.DataFrame(
+        {
+            "id": _id,
+            "category": (_id % 50).cast(pl.Utf8),
+            "value": _id.cast(pl.Float64),
+        }
+    ).with_columns(pl.when(pl.col("id") % 11 == 0).then(None).otherwise(pl.col("value")).alias("value"))
+
+
+def _make_wide_columns_df(n_rows: int = 5_000, n_cols: int = 200) -> pl.DataFrame:
+    _id = pl.int_range(0, n_rows, eager=True)
+    return pl.DataFrame({f"col_{i}": (_id * i) % (i + 1) for i in range(n_cols)})
+
+
+class TestBenchmark:
+    def test_from_df_throughput_many_rows(self, benchmark):
+        df = _make_wide_rows_df()
+        benchmark(DataframeQuality.from_df, df)
+
+    def test_from_df_throughput_many_columns(self, benchmark):
+        df = _make_wide_columns_df()
+        benchmark(DataframeQuality.from_df, df)

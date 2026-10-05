@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import polars as pl
 from pydantic import Field, model_validator
 
@@ -7,6 +9,9 @@ from app.internal.abstract.domain import IAbstractDomain
 from app.internal.util.clock import IClock
 from app.internal.util.dataframe import IDataframe
 from app.internal.util.id import IID
+
+# a (0.0, 0.0) pair marks "no rows" placeholders; every other pair must sum to 1.0
+_RATE_PAIR_TOLERANCE = 1e-9
 
 
 class ColumnQuality(IAbstractDomain):
@@ -24,6 +29,9 @@ class ColumnQuality(IAbstractDomain):
         unique_rate (float): The unique rate of the column, represented as a float between 0 and 1.
         duplicate_count (int): The duplicate count of the column.
         duplicate_rate (float): The duplicate rate of the column, represented as a float between 0 and 1.
+        is_constant (bool): Whether the column has exactly one distinct value.
+        is_all_null (bool): Whether every value in the column is null.
+        is_unique (bool): Whether every value in the column is non-null and distinct.
 
     """
 
@@ -79,6 +87,42 @@ class ColumnQuality(IAbstractDomain):
         ge=0.0,
         le=1.0,
     )
+    is_constant: bool = Field(
+        default=False,
+        description="Whether the column has exactly one distinct value.",
+    )
+    is_all_null: bool = Field(
+        default=False,
+        description="Whether every value in the column is null.",
+    )
+    is_unique: bool = Field(
+        default=False,
+        description="Whether every value in the column is non-null and distinct.",
+    )
+
+    @staticmethod
+    def _is_valid_rate_pair(first: float, second: float) -> bool:
+        _total = first + second
+        _is_zero = math.isclose(_total, 0.0, abs_tol=_RATE_PAIR_TOLERANCE)
+        _is_one = math.isclose(_total, 1.0, abs_tol=_RATE_PAIR_TOLERANCE)
+        return _is_zero or _is_one
+
+    @model_validator(mode="after")
+    def _validate_rate_pairs(self) -> ColumnQuality:
+        if not self._is_valid_rate_pair(self.complete_rate, self.null_rate):
+            raise ValueError("complete_rate and null_rate must sum to 0.0 or 1.0")
+        if not self._is_valid_rate_pair(self.unique_rate, self.duplicate_rate):
+            raise ValueError("unique_rate and duplicate_rate must sum to 0.0 or 1.0")
+        return self
+
+    @model_validator(mode="after")
+    def _derive_flags(self) -> ColumnQuality:
+        _is_all_null = self.complete_count == 0 and math.isclose(self.null_rate, 1.0, abs_tol=_RATE_PAIR_TOLERANCE)
+        _is_unique = self.null_count == 0 and math.isclose(self.unique_rate, 1.0, abs_tol=_RATE_PAIR_TOLERANCE)
+        object.__setattr__(self, "is_constant", self.unique_count == 1)
+        object.__setattr__(self, "is_all_null", _is_all_null)
+        object.__setattr__(self, "is_unique", _is_unique)
+        return self
 
 
 class DataframeQuality(IAbstractDomain):
@@ -157,6 +201,20 @@ class DataframeQuality(IAbstractDomain):
     def _derive_columns(self) -> DataframeQuality:
         _sorted = sorted(self.columns, key=lambda col: col.name)
         object.__setattr__(self, "columns", _sorted)
+        return self
+
+    @model_validator(mode="after")
+    def _validate_rows_within_height(self) -> DataframeQuality:
+        if self.complete_rows > self.height:
+            raise ValueError("complete_rows cannot exceed height")
+        if self.duplicate_rows > self.height:
+            raise ValueError("duplicate_rows cannot exceed height")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_columns_match_width(self) -> DataframeQuality:
+        if self.columns and len(self.columns) != self.width:
+            raise ValueError("columns length must match width when columns are provided")
         return self
 
     @classmethod
