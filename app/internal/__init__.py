@@ -19,6 +19,7 @@ from .logstream import (
 from .util import (
     IID,
     IClock,
+    IDataframe,
     IEnviron,
     IFrn,
     IPartition,
@@ -29,6 +30,7 @@ from .util import (
 
 __all__ = [
     "IClock",
+    "IDataframe",
     "IEnviron",
     "IFrn",
     "IID",
