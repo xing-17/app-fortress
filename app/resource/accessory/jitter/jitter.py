@@ -13,10 +13,14 @@ class Jitter(BaseAccessory):
     Jitter accessory that pauses execution for a random interval.
 
     Args:
-        min_seconds (float): Minimum number of seconds for the jitter delay, default is 0.0
-        max_seconds (float): Maximum number of seconds for the jitter delay, default is 1.0
+    -----------
+        min_seconds (float):
+            Minimum number of seconds for the jitter delay, default is 0.0
+        max_seconds (float):
+            Maximum number of seconds for the jitter delay, default is 1.0
 
     Methods:
+    -----------
         run() -> None:
             Sleep for a random duration in [min_seconds, max_seconds] if valid, then log the result.
 
