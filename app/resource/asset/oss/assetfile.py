@@ -8,9 +8,9 @@ from pydantic import Field, model_validator
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.internal.util.frn import IFrn
 from app.internal.util.partition import IPartition
 from app.internal.util.prefix import IPrefix
-from app.internal.util.frn import IFrn
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._assetfile import BaseAssetfile

@@ -8,6 +8,7 @@ from pydantic import Field, model_validator
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.internal.util.frn import IFrn
 from app.internal.util.path import IPath
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._vault import BaseVault
@@ -16,7 +17,6 @@ from app.resource.identity._common._identity import BaseIdentity
 from app.resource.identity.local import LocalIdentity
 from app.setting._identity import AbstractIdentitySetting
 from app.setting._vault import LocalVaultSetting
-from app.internal.util.frn import IFrn
 
 
 class LocalVault(BaseVault):
