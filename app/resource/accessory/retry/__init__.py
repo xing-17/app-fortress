@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from .backoff import Backoff
+from .retry import Retry
 
 __all__ = [
-    "Backoff",
+    "Retry",
 ]

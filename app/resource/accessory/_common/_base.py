@@ -25,11 +25,16 @@ class BaseAccessory(
     Base class for accessory resources.
 
     Args:
-        id (str): Unique identifier of the accessory, auto-generated if not provided
-        logstream (LogStream | None): Log stream associated with the accessory
-        tags (dict[str, str]): Tags associated with the accessory
+    -----------
+        id (str):
+            Unique identifier of the accessory, auto-generated if not provided
+        logstream (LogStream | None):
+            Log stream associated with the accessory
+        tags (dict[str, str]):
+            Tags associated with the accessory
 
     Methods:
+    -----------
         info/debug/warning/error/critical(msg, metadata=None, metrics=None, tags=None) -> None:
             Emit a log record to the bound logstream, prefixed with the accessory's kind and id.
         export() -> dict[str, Any]:
