@@ -51,11 +51,11 @@ class BaseAsset(
 
     Methods:
     ----------
-        assetfile(partitions: dict[str, str] | None = None, data: bytes | None = None) -> BaseAssetfile:
+        assetfile(name: str, partitions: dict[str, str] | None = None) -> BaseAssetfile:
             Construct an assetfile under this asset
-        list_assetfiles(since: datetime | float | None = None, until: datetime | float | None = None) -> list[BaseAssetfile]:
+        list_assetfiles(since: datetime | float | None = None, until: datetime | float | None = None, recursive: bool = True) -> list[BaseAssetfile]:
             List assetfiles under this asset matching full_pattern, optionally filtered by modified time
-        list_objects(pattern: str | None = None, since: datetime | float | None = None, until: datetime | float | None = None) -> list[BaseAssetfile]:
+        list_objects(pattern: str | None = None, since: datetime | float | None = None, until: datetime | float | None = None, recursive: bool = True) -> list[BaseAssetfile]:
             List assetfiles under this asset matching pattern, optionally filtered by modified time
         export() -> dict[str, Any]:
             Export the asset as a dictionary
