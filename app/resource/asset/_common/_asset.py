@@ -4,42 +4,71 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field
 
-from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.assetfilekind import AssetFileKind
-from app.internal.constant.assetfilesystem import AssetFilesystem
-from app.internal.constant.platform import Platform
 from app.internal.util.partition import IPartition
 from app.resource.asset._common._assetfile import BaseAssetfile
-from app.resource.identity._common._identity import BaseIdentity
+from app.resource.asset._common._base import GovernedAssetResource
 
 
 class BaseAsset(
-    IAbstractTaggedDomain,
+    GovernedAssetResource,
     ABC,
 ):
     """
     Base class for asset resources
 
+    Attributes:
+    ----------
+        uri (str):
+            Asset URI (e.g., "scheme://bucket/key")
+        frn (str):
+            Asset FRN (Fortress resource identifier)
+        name (str):
+            Asset name
+        object_pattern (str):
+            Pattern for matching asset objects
+        partition_pattern (str):
+            Pattern for matching asset partitions
+        full_pattern (str):
+            Full pattern combining object and partition patterns
+
     Args:
-        filesystem (AssetFilesystem): Asset filesystem type
-        platform (Platform): Asset operating platform
-        filekind (AssetFileKind): Asset file kind, default is AssetFileKind.OBJECT
-        partitions (list[str]): Partition keys for the asset
-        identity (BaseIdentity | str | None): Asset identity
-        tags (dict[str, str]): Asset tags
+    ----------
+        filesystem (AssetFilesystem):
+            Asset filesystem type
+        platform (Platform):
+            Specifies the asset operating platform
+        filekind (AssetFileKind):
+            Asset file kind, default is AssetFileKind.OBJECT
+        partitions (list[str]):
+            Partition keys for the asset (e.g., ["year", "month", "day"])
+        identity (BaseIdentity | str | None):
+            Asset identity
+        tags (dict[str, str]):
+            Asset tags
+
+    Methods:
+    ----------
+        assetfile(partitions: dict[str, str] | None = None, data: bytes | None = None) -> BaseAssetfile:
+            Construct an assetfile under this asset
+        list_assetfiles(since: datetime | float | None = None, until: datetime | float | None = None) -> list[BaseAssetfile]:
+            List assetfiles under this asset matching full_pattern, optionally filtered by modified time
+        list_objects(pattern: str | None = None, since: datetime | float | None = None, until: datetime | float | None = None) -> list[BaseAssetfile]:
+            List assetfiles under this asset matching pattern, optionally filtered by modified time
+        export() -> dict[str, Any]:
+            Export the asset as a dictionary
 
     """
 
-    filesystem: AssetFilesystem = Field(
-        ...,
-        description="[Required] Asset filesystem type",
-    )
-    platform: Platform = Field(
-        ...,
-        description="[Required] Asset operating platform",
-    )
+    # Enforced public class variables
+    # [Inherited] filesystem: ClassVar[AssetFilesystem]
+    # [Inherited] platform: ClassVar[Platform]
+
+    # Enforced instance variables
+    # [Inherited] identity: BaseIdentity | str | None
+    # [Inherited] tags: dict[str, str]
     filekind: AssetFileKind = Field(
         default=AssetFileKind.OBJECT,
         description="[Optional] Asset file kind",
@@ -48,30 +77,6 @@ class BaseAsset(
         default_factory=list,
         description="Partition keys for the asset",
     )
-    identity: BaseIdentity | str | None = Field(
-        default=None,
-        description="[Optional] Asset identity",
-    )
-    tags: dict[str, str] = Field(
-        default_factory=dict,
-        description="[Optional] Asset tags",
-    )
-
-    # Cached list of asset files
-    _assetfiles: list[BaseAssetfile] | None = PrivateAttr(default=None)
-
-    @property
-    def assetfiles(self) -> list[BaseAssetfile]:
-        self.load_assetfiles()
-        return self._assetfiles
-
-    @property
-    @abstractmethod
-    def uri(self) -> str: ...
-
-    @property
-    @abstractmethod
-    def frn(self) -> str: ...
 
     @property
     @abstractmethod
@@ -93,27 +98,20 @@ class BaseAsset(
     @abstractmethod
     def full_pattern(self) -> str: ...
 
-    def load_assetfiles(
+    @abstractmethod
+    def assetfile(
         self,
-        since: datetime | float | None = None,
-        until: datetime | float | None = None,
-        force: bool = False,
-    ) -> list[BaseAssetfile]:
-        if force or self._assetfiles is None:
-            self._assetfiles = self.list_assetfiles(
-                since=since,
-                until=until,
-            )
-        return self._assetfiles
-
-    def reset_assetfiles(self) -> None:
-        self._assetfiles = None
+        name: str,
+        partitions: dict[str, str] | None = None,
+        data: bytes | None = None,
+    ) -> BaseAssetfile: ...
 
     @abstractmethod
     def list_assetfiles(
         self,
         since: datetime | float | None = None,
         until: datetime | float | None = None,
+        recursive: bool = True,
     ) -> list[BaseAssetfile]: ...
 
     @abstractmethod
@@ -122,6 +120,7 @@ class BaseAsset(
         pattern: str | None = None,
         since: datetime | float | None = None,
         until: datetime | float | None = None,
+        recursive: bool = True,
     ) -> list[BaseAssetfile]: ...
 
     def _non_override_tags(self) -> dict[str, str]:

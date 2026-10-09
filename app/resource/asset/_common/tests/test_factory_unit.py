@@ -28,6 +28,10 @@ class TestVaultFactoryGet:
         klass = VaultFactory.get(AssetFilesystem.OSS)
         assert klass is OSSVault
 
+    def test_get_accepts_plain_string_filesystem(self):
+        klass = VaultFactory.get("local")
+        assert klass is LocalVault
+
     def test_get_returned_class_is_subclass_of_base_vault(self):
         klass = VaultFactory.get(AssetFilesystem.OSS)
         assert issubclass(klass, BaseVault)
@@ -61,14 +65,14 @@ class TestVaultFactoryLoad:
         assert vault.name == "my_vault"
 
     def test_load_returns_oss_vault_instance(self):
-        setting = OSSVaultSetting(name="my_vault", bucket="my-bucket", region="cn-hangzhou")
+        setting = OSSVaultSetting(name="my_vault", bucket="my_bucket", region="cn-hangzhou")
         vault = VaultFactory.load(setting)
         assert isinstance(vault, OSSVault)
         assert vault.name == "my_vault"
-        assert vault.bucket == "my-bucket"
+        assert vault.bucket == "my_bucket"
 
-    def test_load_raises_value_error_when_get_returns_none(self, monkeypatch, tmp_path):
+    def test_load_raises_value_error_when_get_returns_none(self, monkeypatch):
         monkeypatch.setattr(VaultFactory, "get", classmethod(lambda cls, filesystem: None))
-        setting = LocalVaultSetting(name="my_vault", path=str(tmp_path))
+        setting = LocalVaultSetting(name="my_vault", path="/tmp/does_not_matter")
         with pytest.raises(ValueError):
             VaultFactory.load(setting)

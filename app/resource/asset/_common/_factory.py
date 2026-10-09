@@ -13,10 +13,19 @@ class VaultFactory:
     Factory class for asset vault instances by filesystem type.
 
     Attributes:
+    ----------
         _registry (dict[AssetFilesystem, str]):
             A mapping of filesystem types to their corresponding module and class paths.
 
+    Methods:
+    ----------
+        get(filesystem: AssetFilesystem) -> type[BaseVault]:
+            Resolve and return the vault class registered for the given filesystem
+        load(setting: UnionVaultSetting) -> BaseVault:
+            Construct a vault instance from a setting using the resolved class
+
     Example:
+    ----------
         >>> klass = VaultFactory.get(AssetFilesystem.LOCAL)
         >>> instance = klass(
         ...     name="my_vault",
