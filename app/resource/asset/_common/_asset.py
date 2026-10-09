@@ -103,7 +103,6 @@ class BaseAsset(
         self,
         name: str,
         partitions: dict[str, str] | None = None,
-        data: bytes | None = None,
     ) -> BaseAssetfile: ...
 
     @abstractmethod
