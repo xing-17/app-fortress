@@ -46,6 +46,16 @@ class TestFileStoreTableDerivePath:
             db.table("tbl")
 
 
+class TestFileStoreTableFrn:
+    def test_frn_includes_path(self, tmp_path):
+        tbl = _make_table(tmp_path)
+        assert tbl.frn == f"store:database:table:platform=local:storesystem=file:path={tbl.path}"
+
+    def test_same_name_under_different_databases_has_different_frn(self, tmp_path):
+        store = FileStore(name="s", path=str(tmp_path))
+        assert store.table("db_a", "tbl").frn != store.table("db_b", "tbl").frn
+
+
 class TestFileStoreTableWriteRead:
     def test_write_then_read_returns_same_value(self, tmp_path):
         tbl = _make_table(tmp_path)

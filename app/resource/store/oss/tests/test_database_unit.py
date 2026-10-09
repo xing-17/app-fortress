@@ -60,6 +60,18 @@ class TestOSSStoreDatabaseDeriveIdentity:
         assert db.identity is store.identity
 
 
+class TestOSSStoreDatabaseFrn:
+    def test_frn_includes_bucket_and_prefix(self, monkeypatch):
+        db = _make_store(monkeypatch).database("db")
+        assert db.frn == "store:database:platform=aliyun:storesystem=oss:bucket=my-bucket:prefix=store/db"
+
+    def test_same_name_under_different_prefixes_has_different_frn(self, monkeypatch):
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client())
+        first = OSSStore(name="a", bucket="my-bucket", region="cn-hangzhou", prefix="a").database("db")
+        second = OSSStore(name="b", bucket="my-bucket", region="cn-hangzhou", prefix="b").database("db")
+        assert first.frn != second.frn
+
+
 class TestOSSStoreDatabaseClient:
     def test_client_property_resolves_via_oss_client_get_client(self, monkeypatch):
         _captured = {}

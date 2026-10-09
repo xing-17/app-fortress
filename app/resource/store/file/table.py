@@ -10,6 +10,7 @@ from pydantic import Field, model_validator
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.internal.util.clock import IClock
+from app.internal.util.frn import IFrn
 from app.internal.util.path import IPath
 from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
@@ -103,6 +104,19 @@ class FileStoreTable(BaseTable):
         )
         object.__setattr__(self, "identity", _identity)
         return self
+
+    @property
+    def frn(self) -> str:
+        return IFrn.resolve(
+            [
+                "store",
+                "database",
+                "table",
+                f"platform={self.platform}",
+                f"storesystem={self.storesystem}",
+                f"path={self.path}",
+            ]
+        )
 
     def write(
         self,

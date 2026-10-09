@@ -7,7 +7,6 @@ from pydantic import Field
 
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
-from app.internal.util.frn import IFrn
 from app.resource.identity._common._identity import BaseIdentity
 from app.resource.store._common._base import GovernedStoreResource
 from app.resource.store._common._table import BaseTable
@@ -27,6 +26,8 @@ class BaseDatabase(
             Store system
         platform (Platform):
             Store platform
+        frn (str):
+            Database FRN, built from the database location so equal names under different stores stay distinct.
 
     Args:
     ----------
@@ -64,16 +65,8 @@ class BaseDatabase(
     )
 
     @property
-    def frn(self) -> str:
-        return IFrn.resolve(
-            [
-                "store",
-                "database",
-                f"platform={self.platform}",
-                f"storesystem={self.storesystem}",
-                f"name={self.name}",
-            ]
-        )
+    @abstractmethod
+    def frn(self) -> str: ...
 
     @abstractmethod
     def list_tables(self) -> list[BaseTable]: ...

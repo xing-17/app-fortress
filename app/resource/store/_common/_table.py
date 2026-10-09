@@ -8,7 +8,6 @@ from pydantic import Field
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
 from app.internal.util.clock import IClock
-from app.internal.util.frn import IFrn
 from app.resource.identity._common._identity import BaseIdentity
 from app.resource.store._common._base import GovernedStoreResource
 from app.setting._identity import AbstractIdentitySetting
@@ -34,6 +33,9 @@ class BaseTable(
             Store platform
         ttl_seconds (float | None):
             `ttl_hours` converted to seconds, or None.
+        frn (str):
+            Table FRN, built from the table location so tables with equal names under different
+            databases/stores stay distinct.
 
     Args:
     ----------
@@ -44,7 +46,7 @@ class BaseTable(
     tags (dict[str, str]):
         Table tags
     ttl_hours (float | None):
-        Default TTL, in hours, applied to keys written to this table; None (default) means written keys never expire
+        Default TTL, in hours, applied to keys written to this table; must be > 0, None (default) means written keys never expire
 
     Methods:
     ----------
@@ -75,21 +77,13 @@ class BaseTable(
     )
     ttl_hours: float | None = Field(
         default=None,
-        description="[Optional] Default TTL in hours for keys written to this table; None means never expire",
+        gt=0,
+        description="[Optional] Default TTL in hours for keys written to this table, must be > 0; None means never expire",
     )
 
     @property
-    def frn(self) -> str:
-        return IFrn.resolve(
-            [
-                "store",
-                "database",
-                "table",
-                f"platform={self.platform}",
-                f"storesystem={self.storesystem}",
-                f"name={self.name}",
-            ]
-        )
+    @abstractmethod
+    def frn(self) -> str: ...
 
     @property
     def ttl_seconds(self) -> float | None:

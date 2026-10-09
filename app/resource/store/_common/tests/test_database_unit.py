@@ -12,9 +12,13 @@ from app.resource.store._common._table import BaseTable
 
 
 class _ConcreteDatabase(BaseDatabase):
-    # BaseDatabase is abstract (list_tables/table/delete); a trivial subclass exercises its shared logic.
+    # BaseDatabase is abstract (frn/list_tables/table/delete); a trivial subclass exercises its shared logic.
     storesystem: ClassVar[StoreSystem] = StoreSystem.FILE
     platform: ClassVar[Platform] = Platform.LOCAL
+
+    @property
+    def frn(self) -> str:
+        return f"concrete:database:{self.name}"
 
     def list_tables(self) -> list[BaseTable]:
         raise NotImplementedError
@@ -52,6 +56,6 @@ class TestBaseDatabaseGovernedConstruction:
 
 
 class TestBaseDatabaseFrn:
-    def test_frn_includes_platform_storesystem_and_name(self):
+    def test_frn_is_abstract_and_supplied_by_subclass(self):
         database = _make_database(name="my_db")
-        assert database.frn == "store:database:platform=local:storesystem=file:name=my_db"
+        assert database.frn == "concrete:database:my_db"

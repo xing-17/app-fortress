@@ -11,9 +11,13 @@ from app.resource.store._common._table import BaseTable
 
 
 class _ConcreteTable(BaseTable):
-    # BaseTable is abstract (write/read/delete/expire); a trivial subclass exercises its shared logic.
+    # BaseTable is abstract (frn/write/read/delete/expire); a trivial subclass exercises its shared logic.
     storesystem: ClassVar[StoreSystem] = StoreSystem.FILE
     platform: ClassVar[Platform] = Platform.LOCAL
+
+    @property
+    def frn(self) -> str:
+        return f"concrete:table:{self.name}"
 
     def write(self, key: str, data: Any, strict: bool = False) -> None:
         raise NotImplementedError
@@ -29,9 +33,13 @@ class _ConcreteTable(BaseTable):
 
 
 class _IncompleteTable(BaseTable):
-    # Only implements two of the three abstract methods; must still fail to instantiate.
+    # Only implements two of the abstract methods; must still fail to instantiate.
     storesystem: ClassVar[StoreSystem] = StoreSystem.FILE
     platform: ClassVar[Platform] = Platform.LOCAL
+
+    @property
+    def frn(self) -> str:
+        return "incomplete:table"
 
     def write(self, key: str, data: Any, strict: bool = False) -> None:
         raise NotImplementedError
@@ -70,6 +78,19 @@ class TestBaseTableGovernedConstruction:
 
 
 class TestBaseTableFrn:
-    def test_frn_includes_platform_storesystem_and_name(self):
+    def test_frn_is_abstract_and_supplied_by_subclass(self):
         table = _make_table(name="my_table")
-        assert table.frn == "store:database:table:platform=local:storesystem=file:name=my_table"
+        assert table.frn == "concrete:table:my_table"
+
+
+class TestBaseTableTtlHours:
+    def test_default_is_none(self):
+        assert _make_table().ttl_hours is None
+
+    def test_positive_value_is_accepted(self):
+        assert _make_table(ttl_hours=0.5).ttl_hours == 0.5
+
+    @pytest.mark.parametrize("bad_ttl", [0, 0.0, -1, -0.5])
+    def test_non_positive_value_raises_validation_error(self, bad_ttl):
+        with pytest.raises(ValidationError):
+            _make_table(ttl_hours=bad_ttl)

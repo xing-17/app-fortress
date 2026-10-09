@@ -84,6 +84,17 @@ class TestOSSStoreTableDeriveKey:
             )
 
 
+class TestOSSStoreTableFrn:
+    def test_frn_includes_bucket_and_key(self, monkeypatch):
+        tbl = _make_table(monkeypatch)
+        assert tbl.frn == "store:database:table:platform=aliyun:storesystem=oss:bucket=my-bucket:key=store/db/tbl.json"
+
+    def test_same_name_under_different_databases_has_different_frn(self, monkeypatch):
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client())
+        store = OSSStore(name="s", bucket="my-bucket", region="cn-hangzhou")
+        assert store.table("db_a", "tbl").frn != store.table("db_b", "tbl").frn
+
+
 class TestOSSStoreTableWriteRead:
     def test_write_then_read_returns_same_value(self, monkeypatch):
         tbl = _make_table(monkeypatch)

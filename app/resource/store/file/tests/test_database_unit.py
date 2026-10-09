@@ -48,6 +48,17 @@ class TestFileStoreDatabaseDeriveIdentity:
         assert db.identity is store.identity
 
 
+class TestFileStoreDatabaseFrn:
+    def test_frn_includes_path(self, tmp_path):
+        db = _make_store(tmp_path).database("db")
+        assert db.frn == f"store:database:platform=local:storesystem=file:path={db.path}"
+
+    def test_same_name_under_different_stores_has_different_frn(self, tmp_path):
+        first = FileStore(name="a", path=str(tmp_path / "a")).database("db")
+        second = FileStore(name="b", path=str(tmp_path / "b")).database("db")
+        assert first.frn != second.frn
+
+
 class TestFileStoreDatabaseListTables:
     def test_only_json_files_are_listed_as_tables(self, tmp_path):
         store = _make_store(tmp_path)

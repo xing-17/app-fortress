@@ -8,6 +8,7 @@ from pydantic import Field, model_validator
 
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
+from app.internal.util.frn import IFrn
 from app.internal.util.prefix import IPrefix
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
@@ -102,6 +103,19 @@ class OSSStoreDatabase(BaseDatabase):
         )
         object.__setattr__(self, "identity", _identity)
         return self
+
+    @property
+    def frn(self) -> str:
+        return IFrn.resolve(
+            [
+                "store",
+                "database",
+                f"platform={self.platform}",
+                f"storesystem={self.storesystem}",
+                f"bucket={self.bucket}",
+                f"prefix={self.prefix}",
+            ]
+        )
 
     @property
     def client(self) -> OSSClient:
