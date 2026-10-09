@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import threading
 from typing import Any, ClassVar
 
 from alibabacloud_credentials.client import Client as CredentialClient
@@ -46,9 +48,11 @@ class AliyunIdentity(BaseIdentity):
         from_setting(cls, settings: AliyunIdentitySetting) -> AliyunIdentity:
             从AliyunIdentitySetting创建AliyunIdentity实例。
         get_credential() -> CredentialModel:
-            获取Aliyun身份的凭证信息。
+            获取Aliyun身份的凭证信息，底层CredentialClient按身份缓存复用并自行刷新临时凭证。
         describe() -> str:
             返回Access的描述信息，敏感信息会被掩码。
+        sha256() -> str:
+            基于未掩码的完整内容计算指纹，不同密钥不会碰撞。
 
     Example:
     ----------
@@ -66,6 +70,11 @@ class AliyunIdentity(BaseIdentity):
 
     # Enforced public class variables
     platform: ClassVar[Platform] = Platform.ALIYUN
+
+    # Enforced private class variables
+    # 按身份指纹缓存的 CredentialClient，由其自行刷新临时凭证
+    _credential_clients: ClassVar[dict[str, CredentialClient]] = {}
+    _credential_clients_guard: ClassVar[threading.RLock] = threading.RLock()
 
     # Enforced instance variables
     # [Inherited] name: str
@@ -136,7 +145,12 @@ class AliyunIdentity(BaseIdentity):
             raise ValueError(f"Unsupported Aliyun identity type: {self.type}")
 
     def get_credential(self) -> CredentialModel:
-        _client: CredentialClient = self.get_client()
+        _key: str = self.sha256()
+        with self._credential_clients_guard:
+            _client: CredentialClient | None = self._credential_clients.get(_key)
+            if _client is None:
+                _client = self.get_client()
+                self._credential_clients[_key] = _client
         _cred: CredentialModel = _client.get_credential()
         return _cred
 
@@ -151,6 +165,15 @@ class AliyunIdentity(BaseIdentity):
             return "*" * len(value)
         else:
             return "*" * (len(value) - 4) + value[-4:]
+
+    def sha256(self) -> str:
+        # describe() 掩码了密钥，不能用于指纹，否则末4位相同的不同密钥会碰撞
+        _encoded: bytes = json.dumps(
+            self.export(),
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode("utf-8")
+        return hashlib.sha256(_encoded).hexdigest()
 
     def describe(self) -> str:
         _res: dict[str, Any] = self.export()

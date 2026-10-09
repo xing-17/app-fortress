@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
 from pydantic import ValidationError
@@ -133,3 +134,52 @@ class TestAliyunIdentityDescribe:
         identity = AliyunIdentity(name="my_aliyun_identity", access_key_secret="secretvalue")
         identity.describe()
         assert identity.access_key_secret == "secretvalue"
+
+
+class TestAliyunIdentitySha256:
+    def test_same_content_yields_same_sha256(self):
+        first = AliyunIdentity(name="n", access_key_id="AKIDEXAMPLE", access_key_secret="secretvalue")
+        second = AliyunIdentity(name="n", access_key_id="AKIDEXAMPLE", access_key_secret="secretvalue")
+        assert first.sha256() == second.sha256()
+
+    def test_secrets_sharing_last_four_chars_do_not_collide(self):
+        first = AliyunIdentity(name="n", access_key_id="AKIDEXAMPLE", access_key_secret="aaaa-1234")
+        second = AliyunIdentity(name="n", access_key_id="AKIDEXAMPLE", access_key_secret="bbbb-1234")
+        assert first.describe() == second.describe()
+        assert first.sha256() != second.sha256()
+
+
+class TestAliyunIdentityGetCredential:
+    @pytest.fixture(autouse=True)
+    def _clear_credential_clients(self):
+        AliyunIdentity._credential_clients.clear()
+        yield
+        AliyunIdentity._credential_clients.clear()
+
+    def test_credential_client_is_built_once_and_reused(self, monkeypatch):
+        _built = MagicMock(return_value=MagicMock())
+        monkeypatch.setattr(AliyunIdentity, "get_client", _built)
+        identity = AliyunIdentity(name="n")
+        identity.get_credential()
+        identity.get_credential()
+        assert _built.call_count == 1
+
+    def test_equal_identities_share_one_credential_client(self, monkeypatch):
+        _built = MagicMock(return_value=MagicMock())
+        monkeypatch.setattr(AliyunIdentity, "get_client", _built)
+        AliyunIdentity(name="n").get_credential()
+        AliyunIdentity(name="n").get_credential()
+        assert _built.call_count == 1
+
+    def test_different_identities_get_separate_credential_clients(self, monkeypatch):
+        _built = MagicMock(side_effect=lambda: MagicMock())
+        monkeypatch.setattr(AliyunIdentity, "get_client", _built)
+        AliyunIdentity(name="a").get_credential()
+        AliyunIdentity(name="b").get_credential()
+        assert _built.call_count == 2
+
+    def test_returns_credential_from_underlying_client(self, monkeypatch):
+        _client = MagicMock()
+        _client.get_credential.return_value = "cred"
+        monkeypatch.setattr(AliyunIdentity, "get_client", MagicMock(return_value=_client))
+        assert AliyunIdentity(name="n").get_credential() == "cred"
