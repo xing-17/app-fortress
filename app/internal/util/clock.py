@@ -47,6 +47,12 @@ class IClock(IAbstractUtility):
         return IClock.current(timezone).timestamp()
 
     @staticmethod
+    def current_snapshotdate(
+        timezone: ZoneInfo | str | None = None,
+    ) -> str:
+        return IClock.current(timezone).strftime("%Y-%m-%d")
+
+    @staticmethod
     def from_datetime(
         value: datetime,
         timezone: ZoneInfo | str | None = None,

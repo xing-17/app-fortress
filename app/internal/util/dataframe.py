@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+from io import BytesIO
+
 import polars as pl
 import polars.datatypes as pldt
 
@@ -21,17 +24,27 @@ class IDataframe(IAbstractUtility):
 
     @staticmethod
     def resolve_column_type(name: str) -> pl.DataType:
-        try:
-            result = eval(
-                name,
-                {"__builtins__": {}},
-                IDataframe._datatype_namespace(),
-            )
-        except Exception as e:
-            raise ValueError(f"Unknown column type: {name!r}") from e
-
-        if isinstance(result, type) and issubclass(result, pl.DataType):
-            return result()
-        if isinstance(result, pl.DataType):
-            return result
+        _namespace = IDataframe._datatype_namespace()
+        _obj = _namespace.get(name)
+        if _obj is None:
+            raise ValueError(f"Unknown column type: {name!r}")
+        if isinstance(_obj, type) and issubclass(_obj, pl.DataType):
+            return _obj()
+        if isinstance(_obj, pl.DataType):
+            return _obj
         raise ValueError(f"Not a polars DataType: {name!r}")
+
+    @staticmethod
+    def to_parquet_bytes(
+        df: pl.DataFrame,
+        compression: str = "zstd",
+    ) -> tuple[bytes, str]:
+        with BytesIO() as buf:
+            df.write_parquet(
+                buf,
+                compression=compression,
+                use_pyarrow=False,
+            )
+            _result: bytes = buf.getvalue()
+            _dna = hashlib.sha256(_result).hexdigest()[:32]
+            return _result, _dna
