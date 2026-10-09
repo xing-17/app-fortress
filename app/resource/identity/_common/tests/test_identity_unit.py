@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import ClassVar
 
 import pytest
 from pydantic import ValidationError
@@ -11,10 +12,20 @@ from app.setting._identity import LocalIdentitySetting
 
 
 class _ConcreteIdentity(BaseIdentity):
+    platform: ClassVar[Platform] = Platform.LOCAL
+
     # BaseIdentity is abstract (frn); a trivial subclass lets us exercise its shared logic.
     @property
     def frn(self) -> str:
         return "concrete:frn"
+
+    @classmethod
+    def from_setting(cls, setting: LocalIdentitySetting) -> _ConcreteIdentity:
+        return cls(name=setting.name)
+
+    @classmethod
+    def default(cls) -> _ConcreteIdentity:
+        return cls(name="default_identity")
 
 
 class TestBaseIdentityInit:
@@ -36,11 +47,6 @@ class TestBaseIdentityInit:
         first.tags["env"] = "prod"
         assert second.tags == {"platform": Platform.LOCAL}
 
-    def test_explicit_platform_and_tags_are_kept(self):
-        identity = _ConcreteIdentity(name="my_identity", platform=Platform.ALIYUN, tags={"env": "prod"})
-        assert identity.platform == Platform.ALIYUN
-        assert identity.tags == {"env": "prod", "platform": Platform.ALIYUN}
-
 
 class TestBaseIdentityExport:
     def test_export_returns_expected_dict(self):
@@ -48,7 +54,6 @@ class TestBaseIdentityExport:
         result = identity.export()
         assert result == {
             "name": "my_identity",
-            "platform": Platform.LOCAL.value,
             "tags": {"env": "prod", "platform": Platform.LOCAL.value},
         }
 

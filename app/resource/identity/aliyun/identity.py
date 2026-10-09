@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Literal
+from typing import Any, ClassVar
 
 from alibabacloud_credentials.client import Client as CredentialClient
 from alibabacloud_credentials.client import CredentialModel
@@ -21,15 +21,28 @@ class AliyunIdentity(BaseIdentity):
 
         ref: https://help.aliyun.com/en/sdk/developer-reference/v2-manage-python-access-credentials
 
+    Attributes:
+    ----------
+        platform (Platform):
+            平台类型，固定为Platform.ALIYUN
+
     Args:
-        name (str): Access名称
-        type (AliyunIdentityType): Identity类型(默认'chain')
-        access_key_id (str | None): 阿里云Access Key ID(默认None)
-        access_key_secret (str | None): 阿里云Access Key Secret(默认None)
-        region (str | None): Aliyun region(默认None)
-        tags (dict[str, str]): Access标签(默认空字典)
+    ----------
+        name (str):
+            Access名称，唯一标识一个Aliyun身份实例。
+        type (AliyunIdentityType):
+            Identity类型(默认'chain')
+        access_key_id (str | None):
+            阿里云Access Key ID(默认None)
+        access_key_secret (str | None):
+            阿里云Access Key Secret(默认None)
+        region (str | None):
+            阿里云地区(默认None)
+        tags (dict[str, str]):
+            权限标签(默认空字典)
 
     Methods:
+    ----------
         from_setting(cls, settings: AliyunIdentitySetting) -> AliyunIdentity:
             从AliyunIdentitySetting创建AliyunIdentity实例。
         get_credential() -> CredentialModel:
@@ -38,6 +51,7 @@ class AliyunIdentity(BaseIdentity):
             返回Access的描述信息，敏感信息会被掩码。
 
     Example:
+    ----------
         >>> aliyun_identity = AliyunIdentity(
         ...     name="my_aliyun_identity",
         ...     type="ak",
@@ -50,10 +64,12 @@ class AliyunIdentity(BaseIdentity):
 
     """
 
-    # 继承自 BaseIdentity
-    # - name: str
-    # - tags: dict[str, str]
-    platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
+    # Enforced public class variables
+    platform: ClassVar[Platform] = Platform.ALIYUN
+
+    # Enforced instance variables
+    # [Inherited] name: str
+    # [Inherited] tags: dict[str, str]
     type: AliyunIdentityType = Field(
         default=AliyunIdentityType.CHAIN,
         description="Aliyun 身份类型",

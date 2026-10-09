@@ -75,9 +75,3 @@ class TestIdentityFactoryLoad:
         assert identity.name == "my_identity"
         assert identity.access_key_id == "ak_id"
         assert identity.access_key_secret == "ak_secret"
-
-    def test_load_raises_value_error_when_get_returns_none(self, monkeypatch):
-        monkeypatch.setattr(IdentityFactory, "get", classmethod(lambda cls, platform: None))
-        setting = LocalIdentitySetting(name="my_identity")
-        with pytest.raises(ValueError):
-            IdentityFactory.load(setting)

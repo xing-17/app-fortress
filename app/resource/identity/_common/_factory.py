@@ -13,10 +13,12 @@ class IdentityFactory:
     Factory class for identity instances based instances by platform type.
 
     Attributes:
+    ----------
         _registry (dict[Platform, str]):
             A mapping of platform names to their corresponding module and class paths.
 
     Example:
+    ----------
         >>> klass = IdentityFactory.get(Platform.ALIYUN)
         >>> instance = klass(
         ...     name="my_identity",
@@ -36,7 +38,7 @@ class IdentityFactory:
         cls,
         platform: Platform | str,
     ) -> type[BaseIdentity] | None:
-        _target: str | None = cls._registry.get(platform)
+        _target: str | None = cls._registry.get(platform, None)
         if not _target:
             raise ValueError(f"'{platform}' identity not found.")
 
@@ -58,6 +60,4 @@ class IdentityFactory:
         setting: UnionIdentitySetting,
     ) -> BaseIdentity:
         klass: type[BaseIdentity] | None = cls.get(setting.platform)
-        if not klass:
-            raise ValueError(f"Identity class '{setting.platform}' not found.")
         return klass.from_setting(setting)

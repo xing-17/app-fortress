@@ -60,4 +60,3 @@ class TestLocalIdentityDescribe:
         result = json.loads(identity.describe())
         assert result["name"] == "my_local_identity"
         assert result["tags"] == {"env": "production", "platform": Platform.LOCAL.value}
-        assert result["platform"] == Platform.LOCAL
