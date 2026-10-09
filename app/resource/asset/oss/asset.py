@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import posixpath
 from datetime import datetime
 from pathlib import PurePosixPath
-from typing import Any, Literal
+from typing import Any, ClassVar
 
 from pydantic import Field, model_validator
 
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
+from app.internal.util.partition import IPartition
 from app.internal.util.prefix import IPrefix
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
@@ -19,33 +21,73 @@ from app.resource.identity.aliyun import AliyunIdentity
 
 class OSSAsset(BaseAsset):
     """
-    OSS asset contains a collection of OSS assetfiles.
-
-    Args:
-        bucket (str): OSS bucket名称
-        region (str): OSS bucket所在区域
-        prefix (str): OSS bucket前缀(默认空字符串)
-        in_vpc (bool): 是否在VPC内访问OSS (默认False)
-        identity (AliyunIdentity | str | None): OSS 身份认证
-        filesystem (Literal[AssetFilesystem.OSS]): 固定为AssetFilesystem.OSS
-        platform (Literal[Platform.ALIYUN]): 固定为Platform.ALIYUN
-        tags (dict[str, str]): OSS asset标签
+    OSS asset，表示一组OSS assetfile的集合，可选择按分区划分前缀路径。
 
     Attributes:
-        client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
+    ----------
+        uri (str):
+            OSS asset的URI
+        frn (str):
+            OSS asset的FRN
+        name (str):
+            OSS asset名称(取自prefix末段)
+        object_pattern (str):
+            按filekind匹配文件的glob pattern
+        partition_pattern (str):
+            匹配分区子目录的glob pattern
+        full_pattern (str):
+            匹配该asset下assetfile的完整glob pattern
+        client (OSSClient):
+            按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例
+
+    Args:
+    ----------
+        bucket (str):
+            OSS bucket名称
+        region (str):
+            OSS bucket所在区域
+        prefix (str):
+            OSS bucket前缀，默认空字符串
+        in_vpc (bool):
+            是否在VPC内访问OSS，默认False
+        identity (AliyunIdentity | str | None):
+            OSS 身份认证
+        filesystem (Literal[AssetFilesystem.OSS]):
+            固定为AssetFilesystem.OSS
+        platform (Literal[Platform.ALIYUN]):
+            固定为Platform.ALIYUN
+        filekind (AssetFileKind):
+            asset文件类型，默认AssetFileKind.OBJECT
+        partitions (list[str]):
+            该asset声明的分区键(如["year", "month"])
+        tags (dict[str, str]):
+            OSS asset标签
 
     Methods:
+    ----------
         list_assetfiles(since=None, until=None, recursive=True) -> list[OSSAssetfile]:
-            List assetfiles under the bucket/prefix matching full_pattern, optionally filtered by modified time.
+            列出bucket/prefix下匹配full_pattern的assetfile，可选按修改时间过滤。
         list_objects(pattern=None, since=None, until=None, recursive=True) -> list[OSSAssetfile]:
-            List assetfiles under the bucket/prefix matching pattern, optionally filtered by modified time.
+            列出bucket/prefix下匹配任意pattern的assetfile。
+        assetfile(name, partitions=None) -> OSSAssetfile:
+            在该asset下构造一个OSSAssetfile，分区键与声明不一致时拒绝。
+
+    Example:
+    ----------
+        >>> vault = OSSVault.from_setting(OSSVaultSetting(name="my_vault", bucket="my-bucket", region="cn-hangzhou"))
+        >>> asset = vault.asset("prices", partitions=["year", "month"])
+        >>> assetfile = asset.assetfile("data.csv", partitions={"year": "2026", "month": "01"})
 
     """
 
-    # Inherited from BaseAsset
-    # - filekind (AssetFileKind): Asset file kind, default is AssetFileKind.OBJECT
-    # - partitions (list[str]): Partition keys for the asset
-    # - tags (dict[str, str]): Asset tags
+    # Enforced public class variables
+    filesystem: ClassVar[AssetFilesystem] = AssetFilesystem.OSS
+    platform: ClassVar[Platform] = Platform.ALIYUN
+
+    # Enforced instance variables
+    # [Inherited] filekind: AssetFileKind
+    # [Inherited] partitions: list[str]
+    # [Inherited] tags: dict[str, str]
     bucket: str = Field(
         ...,
         description="[Required] OSS bucket名称",
@@ -66,8 +108,6 @@ class OSSAsset(BaseAsset):
         default_factory=AliyunIdentity.default,
         description="[Optional] OSS 身份认证",
     )
-    filesystem: Literal[AssetFilesystem.OSS] = AssetFilesystem.OSS
-    platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
 
     @model_validator(mode="after")
     def _derive_prefix(self) -> "OSSAsset":
@@ -175,6 +215,38 @@ class OSSAsset(BaseAsset):
                 size=_size,
                 tags=self.tags,
                 in_vpc=self.in_vpc,
+                _authorized=True,
             )
             _files.append(_assetfile)
         return _files
+
+    def assetfile(
+        self,
+        name: str,
+        partitions: dict[str, str] | None = None,
+    ) -> "OSSAssetfile":
+        _partitions: dict[str, str] = partitions or {}
+
+        # Ensure partitions are consistent
+        _ptn_keys: set[str] = set(_partitions.keys())
+        if _ptn_keys != set(self.partitions):
+            raise ValueError(f"Partitions must be {self.partitions}, got {list(_ptn_keys)}")
+
+        # Construct the full key for the assetfile
+        _ordered: dict[str, str] = {k: _partitions[k] for k in self.partitions}
+        _rel: str = IPartition.to_string(_ordered)
+        _segments: list[str] = [self.prefix, *([_rel] if _rel else []), name]
+        _full_key: str = posixpath.join(*_segments)
+
+        _assetfile: OSSAssetfile = OSSAssetfile(
+            bucket=self.bucket,
+            region=self.region,
+            key=_full_key,
+            identity=self.identity,
+            tags=self.tags,
+            in_vpc=self.in_vpc,
+            _authorized=True,
+        )
+        if _assetfile.filekind != self.filekind:
+            raise ValueError(f"Assetfile must be {self.filekind}, got {_assetfile.filekind}")
+        return _assetfile

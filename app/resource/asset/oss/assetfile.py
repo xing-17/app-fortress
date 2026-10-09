@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import PurePosixPath
-from typing import Any, Literal
+from typing import Any, ClassVar
 
 from pydantic import Field, model_validator
 
@@ -19,41 +19,81 @@ from app.resource.identity.aliyun import AliyunIdentity
 
 class OSSAssetfile(BaseAssetfile):
     """
-    OSS assetfile as a single object at OSS bucket key
-
-    Args:
-        bucket (str): OSS bucket名称
-        region (str): OSS bucket所在区域
-        key (str): OSS bucket key非空路径
-        identity (AliyunIdentity | str | None): OSS 身份认证
-        filesystem (Literal[AssetFilesystem.OSS]): 固定为AssetFilesystem.OSS
-        platform (Literal[Platform.ALIYUN]): 固定为Platform.ALIYUN
-        partitions (dict[str, str]): 从key解析出的分区键值对
-        size (int | None): 文件大小(字节)
-        modified_at (float | None): 最后修改时间
-        metadata (dict[str, Any]): 元数据
-        tags (dict[str, Any]): 标签
+    OSS assetfile，表示OSS bucket中key对应的单个object。
 
     Attributes:
-        client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
+    ----------
+        uri (str):
+            OSS assetfile的URI
+        frn (str):
+            OSS assetfile的FRN
+        stem (str):
+            不含扩展名的文件名
+        extension (str):
+            文件扩展名
+        name (str):
+            包含扩展名的完整文件名
+        client (OSSClient):
+            按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例
+
+    Args:
+    ----------
+        bucket (str):
+            OSS bucket名称
+        region (str):
+            OSS bucket所在区域
+        key (str):
+            OSS bucket key非空路径
+        in_vpc (bool):
+            是否在VPC内访问OSS，默认False
+        identity (AliyunIdentity | str | None):
+            OSS 身份认证
+        filesystem (Literal[AssetFilesystem.OSS]):
+            固定为AssetFilesystem.OSS
+        platform (Literal[Platform.ALIYUN]):
+            固定为Platform.ALIYUN
+        filekind (AssetFileKind):
+            未显式提供时，从key的后缀推导得出
+        partitions (dict[str, str]):
+            未显式提供时，从形如"key=value"的路径分段推导得出
+        size (int | None):
+            文件大小(字节)
+        modified_at (float | None):
+            文件最后修改时间
+        metadata (dict[str, Any]):
+            原始的OSS object元数据
+        tags (dict[str, str]):
+            OSS assetfile标签
 
     Methods:
+    ----------
         read_bytes() -> bytes:
-            Read the assetfile content from OSS; raises FileNotFoundError if the key does not exist.
+            从OSS读取assetfile内容；若key不存在则抛出FileNotFoundError。
         write_bytes(data: bytes) -> None:
-            Write bytes to the assetfile's OSS key.
+            将字节数据写入assetfile对应的OSS key。
         load() -> None:
-            Refresh size/modified_at/metadata from the OSS object's HEAD metadata.
+            从OSS object的HEAD元数据刷新size/modified_at/metadata。
+
+    Example:
+    ----------
+        >>> assetfile = asset.assetfile("data.csv", partitions={"year": "2026", "month": "01"})
+        >>> assetfile.write_bytes(b"col1,col2\\n1,2\\n")
+        >>> assetfile.partitions
+        {'year': '2026', 'month': '01'}
 
     """
 
-    # Inherit from BaseAssetfile
-    # - filekind: AssetFileKind
-    # - partitions: dict[str, str]
-    # - size: int | None
-    # - modified_at: float | None
-    # - metadata: dict[str, Any]
-    # - tags: dict[str, Any]
+    # Enforced public class variables
+    filesystem: ClassVar[AssetFilesystem] = AssetFilesystem.OSS
+    platform: ClassVar[Platform] = Platform.ALIYUN
+
+    # Enforced instance variables
+    # [Inherited] filekind: AssetFileKind
+    # [Inherited]  partitions: dict[str, str]
+    # [Inherited] size: int | None
+    # [Inherited] modified_at: float | None
+    # [Inherited] metadata: dict[str, Any]
+    # [Inherited] tags: dict[str, Any]
     bucket: str = Field(
         ...,
         description="[Required] OSS bucket名称",
@@ -74,8 +114,6 @@ class OSSAssetfile(BaseAssetfile):
         default_factory=AliyunIdentity.default,
         description="[Optional] OSS 身份认证",
     )
-    filesystem: Literal[AssetFilesystem.OSS] = AssetFilesystem.OSS
-    platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
 
     @model_validator(mode="after")
     def _derive_key(self) -> "OSSAssetfile":

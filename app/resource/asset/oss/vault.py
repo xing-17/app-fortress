@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import posixpath
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from pydantic import Field, model_validator
 
@@ -21,34 +21,56 @@ from app.setting._vault import OSSVaultSetting
 
 class OSSVault(BaseVault):
     """
-    OSS Vault Connection
+    OSS vault，表示一组OSS asset及其关联assetfile的集合。
 
     Args:
-        bucket (str): OSS bucket名称
-        region (str): OSS bucket所在区域
-        name (str | None): Vault名称
-        prefix (str): OSS bucket前缀(默认空字符串)
-        in_vpc (bool): 是否在VPC内访问OSS (默认False)
-        identity (AliyunIdentity | AbstractIdentitySetting | str | None): Aliyun身份(默认AliyunIdentity.default())
-        filesystem (Literal[AssetFilesystem.OSS]): 文件系统类型(固定为AssetFilesystem.OSS)
-        platform (Literal[Platform.ALIYUN]): 平台类型(固定为Platform.ALIYUN)
-        description (str): Vault描述信息
-        tags (dict[str, str]): Vault标签
+    ----------
+        name (str | None):
+            Vault名称
+        bucket (str):
+            OSS bucket名称
+        region (str):
+            OSS bucket所在区域
+        prefix (str):
+            OSS bucket前缀，默认空字符串
+        in_vpc (bool):
+            是否在VPC内访问OSS，默认False
+        identity (AliyunIdentity | AbstractIdentitySetting | str | None):
+            Aliyun身份认证，默认AliyunIdentity.default()
+        filesystem (Literal[AssetFilesystem.OSS]):
+            固定为AssetFilesystem.OSS
+        platform (Literal[Platform.ALIYUN]):
+            固定为Platform.ALIYUN
+        description (str):
+            Vault描述信息
+        tags (dict[str, str]):
+            Vault标签
 
     Methods:
+    ----------
         from_setting(cls, setting: OSSVaultSetting) -> OSSVault:
-            Create an OSSVault instance from an OSSVaultSetting object.
+            根据OSSVaultSetting对象创建OSSVault实例。
         asset(rel, filekind=None, partitions=None) -> OSSAsset:
-            Create an OSSAsset scoped to a key joined from the vault prefix and rel.
+            创建一个OSSAsset，其key由vault的prefix与rel拼接而成。
+
+    Example:
+    ----------
+        >>> from app.resource.asset.oss.vault import OSSVault
+        >>> from app.setting._vault import OSSVaultSetting
+        >>> setting = OSSVaultSetting(name="my_vault", bucket="my-bucket", region="cn-hangzhou")
+        >>> vault = OSSVault.from_setting(setting)
 
     """
 
-    # Inherited from BaseVault
-    # - name: str | None
-    # - description: str
-    # - tags: dict[str, str]
-    filesystem: Literal[AssetFilesystem.OSS] = AssetFilesystem.OSS
-    platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
+    # Enforced public class variables
+    filesystem: ClassVar[AssetFilesystem] = AssetFilesystem.OSS
+    platform: ClassVar[Platform] = Platform.ALIYUN
+    default_prefix: ClassVar[str] = "vault"
+
+    # Enforced instance variables
+    # [Inherited] name: str | None
+    # [Inherited] description: str
+    # [Inherited] tags: dict[str, str]
     bucket: str = Field(
         ...,
         description="[Required] OSS bucket名称",
@@ -69,9 +91,6 @@ class OSSVault(BaseVault):
         default=None,
         description="[Optional] Aliyun Identity身份认证",
     )
-
-    # Class-level attributes
-    default_prefix: ClassVar[str] = "vault"
 
     @model_validator(mode="after")
     def _derive_identity(self) -> "OSSVault":
@@ -142,4 +161,5 @@ class OSSVault(BaseVault):
             partitions=partitions,
             identity=self.identity,
             tags=self.tags,
+            _authorized=True,
         )
