@@ -15,18 +15,20 @@ class GlobalIdentities:
     Global Identity resource manager.
 
     Attributes:
+    ----------
         identities (dict[str, BaseIdentity] | None):
             Global Identity dict, keyed by Identity name, valued by Identity instance
         _lock (threading.RLock):
             Thread lock, used to ensure thread safety
 
     Methods:
+    ----------
         load() -> None:
-            Load global Identities
+            Load global Identities from the system setting
         get_identity(name: str, strict: bool = False) -> BaseIdentity | None:
-            Get the Identity with the given name
-        resolve(value: BaseIdentity | str | None, default: BaseIdentity, platform: Platform | None = None) -> BaseIdentity | None:
-            Resolve the given instance/name/None into a concrete Identity instance, without registering it into the global dict
+            Get the Identity with the given name; raises if missing and strict is True
+        resolve(value: BaseIdentity | UnionIdentitySetting | str | None, default: BaseIdentity, platform: Platform | None = None) -> BaseIdentity | None:
+            Resolve the given instance/setting/name/None into a concrete Identity instance, without registering it into the global dict
         list_identity_names(platform: Platform | None = None) -> list[str]:
             List all Identity names
         list_identities(platform: Platform | None = None) -> list[BaseIdentity]:
@@ -34,7 +36,8 @@ class GlobalIdentities:
         reset() -> None:
             Reset the global Identity manager
 
-    Examples:
+    Example:
+    ----------
         >>> from app.resource._global.identities import GlobalIdentities
         >>> all_identity_names = GlobalIdentities.list_identity_names()
         >>> all_identities = GlobalIdentities.list_identities()

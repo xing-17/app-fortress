@@ -70,7 +70,7 @@ class TestGlobalLogStreamsGetDefault:
 class TestGlobalLogStreamsAddStream:
     def test_add_stream_adds_new_entry(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("primary"))
-        result = GlobalLogStreams.add_stream(_log_setting("Secondary"))
+        result = GlobalLogStreams.add_stream(_log_setting("secondary"))
         assert isinstance(result, LogStream)
         assert set(GlobalLogStreams.list_stream_names()) == {"primary", "secondary"}
 
@@ -78,7 +78,7 @@ class TestGlobalLogStreamsAddStream:
         _patch_system(monkeypatch, _log_setting("primary"))
         GlobalLogStreams.load()
         with pytest.raises(ValueError, match="Duplicate log stream entry"):
-            GlobalLogStreams.add_stream(_log_setting("PRIMARY"))
+            GlobalLogStreams.add_stream(_log_setting("primary"))
 
     def test_add_stream_wraps_factory_errors_in_value_error(self, monkeypatch):
         _patch_system(monkeypatch, _log_setting("primary"))
@@ -106,10 +106,10 @@ class TestGlobalLogStreamsGetStream:
         with pytest.raises(ValueError, match="not found"):
             GlobalLogStreams.get_stream("missing", strict=True)
 
-    def test_get_stream_is_case_insensitive(self, monkeypatch):
-        _patch_system(monkeypatch, _log_setting("Primary"))
+    def test_get_stream_returns_registered_stream(self, monkeypatch):
+        _patch_system(monkeypatch, _log_setting("primary"))
         GlobalLogStreams.load()
-        result = GlobalLogStreams.get_stream("PRIMARY")
+        result = GlobalLogStreams.get_stream("primary")
         assert result is not None
         assert result.name == "primary"
 

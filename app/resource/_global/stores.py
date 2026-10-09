@@ -15,18 +15,20 @@ class GlobalStores:
     Global Store resource manager.
 
     Attributes:
+    ----------
         stores (dict[str, BaseStore] | None):
             Global Store dict, keyed by Store name, valued by Store instance
         _lock (threading.RLock):
             Thread lock, used to ensure thread safety
 
     Methods:
+    ----------
         load() -> None:
-            Load global Stores
-        get_store(name: str) -> BaseStore:
-            Get the Store with the given name
-        resolve(value: BaseStore | str | None, default: BaseStore, platform: Platform | None = None) -> BaseStore:
-            Resolve the given instance/name/None into a concrete Store instance, without registering it into the global dict
+            Load global Stores from the system setting
+        get_store(name: str, strict: bool = True) -> BaseStore | None:
+            Get the Store with the given name; raises if missing and strict is True
+        resolve(value: BaseStore | UnionStoreSetting | str | None, default: BaseStore | None = None, platform: Platform | None = None) -> BaseStore:
+            Resolve the given instance/setting/name/None into a concrete Store instance, without registering it into the global dict
         list_store_names(platform: Platform | None = None) -> list[str]:
             List all Store names
         list_stores(platform: Platform | None = None) -> list[BaseStore]:
@@ -34,7 +36,8 @@ class GlobalStores:
         reset() -> None:
             Reset the global Store manager
 
-    Examples:
+    Example:
+    ----------
         >>> from app.resource._global.stores import GlobalStores
         >>> all_store_names = GlobalStores.list_store_names()
         >>> all_stores = GlobalStores.list_stores()
@@ -84,12 +87,14 @@ class GlobalStores:
     def resolve(
         cls,
         value: BaseStore | UnionStoreSetting | str | None,
-        default: BaseStore,
+        default: BaseStore | None = None,
         platform: Platform | None = None,
     ) -> BaseStore:
         if isinstance(value, BaseStore):
             _res: BaseStore = value
         elif value is None:
+            if default is None:
+                raise ValueError("Value is None and no default provided")
             if not isinstance(default, BaseStore):
                 raise ValueError(f"Default must be type 'BaseStore', got {type(default)}")
             _res: BaseStore = default

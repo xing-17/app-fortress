@@ -12,6 +12,7 @@ class GlobalSetting:
     Global setting resource manager.
 
     Attributes:
+    ----------
         setting_path (Path | None):
             Global setting path
         system_file_name (str):
@@ -22,14 +23,18 @@ class GlobalSetting:
             System setting instance
 
     Methods:
+    ----------
         load(setting_path: Path | str | None = None) -> None:
             Load global setting
         get_system() -> SystemSetting:
             Get the system setting
         get_setting_path() -> Path:
             Get the setting path
+        reset() -> None:
+            Reset the global setting manager
 
-    Examples:
+    Example:
+    ----------
         >>> from app.resource._global.setting import GlobalSetting
         >>> system_setting = GlobalSetting.get_system()
         >>> setting_path = GlobalSetting.get_setting_path()

@@ -13,6 +13,7 @@ class GlobalLogStreams:
     Global LogStream resource manager.
 
     Attributes:
+    ----------
         streams (dict[str, LogStream] | None):
             Global LogStream dict, keyed by LogStream name, valued by LogStream instance
         system (LogStream | None):
@@ -21,16 +22,17 @@ class GlobalLogStreams:
             Thread lock, used to ensure thread safety
 
     Methods:
+    ----------
         load() -> None:
-            Load global LogStreams
+            Load global LogStreams from the system setting
         get_system() -> LogStream:
             Get the default LogStream
         add_stream(setting: LogSetting) -> LogStream:
-            Add a new LogStream
+            Register a new LogStream; raises if the name already exists
         get_stream(name: str, strict: bool = False) -> LogStream | None:
-            Get the LogStream with the given name
+            Get the LogStream with the given name; raises if missing and strict is True
         resolve(value: LogStream | LogSetting | str | None, default: LogStream) -> LogStream:
-            Resolve the given instance/LogSetting/name/None into a concrete LogStream instance, without registering it into the global dict
+            Resolve the given instance/setting/name/None into a concrete LogStream instance, without registering it into the global dict
         list_stream_names() -> list[str]:
             List all LogStream names
         list_streams() -> list[LogStream]:
@@ -38,7 +40,8 @@ class GlobalLogStreams:
         reset() -> None:
             Reset the global LogStream manager
 
-    Examples:
+    Example:
+    ----------
         >>> from app.resource._global.logstreams import GlobalLogStreams
         >>> system_stream = GlobalLogStreams.get_system()
         >>> all_stream_names = GlobalLogStreams.list_stream_names()
@@ -84,7 +87,7 @@ class GlobalLogStreams:
     ) -> LogStream:
         with cls._lock:
             cls._ensure_loaded()
-            _name: str = setting.name.lower()
+            _name: str = setting.name
             if _name in cls.streams:
                 raise ValueError(f"Duplicate log stream entry '{_name}'")
             try:
@@ -122,10 +125,9 @@ class GlobalLogStreams:
     ) -> LogStream | None:
         with cls._lock:
             cls._ensure_loaded()
-            _name: str = name.lower()
-            if strict and _name not in cls.streams:
-                raise ValueError(f"Log stream '{_name}' not found")
-            return cls.streams.get(_name)
+            if strict and name not in cls.streams:
+                raise ValueError(f"Log stream '{name}' not found")
+            return cls.streams.get(name)
 
     @classmethod
     def list_stream_names(cls) -> list[str]:
