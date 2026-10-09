@@ -32,10 +32,9 @@ class Paginate(BaseAccessory):
 
     """
 
-    # Inherited from BaseAccessory
-    # - id: str
-    # - logstream: LogStream | None
-    # - tags: dict[str, str]
+    # [Inherited] id: str
+    # [Inherited] logstream: LogStream | None
+    # [Inherited] tags: dict[str, str]
     page_size: int = Field(
         ...,
         description="page size (number of items per page).",

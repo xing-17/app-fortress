@@ -39,10 +39,9 @@ class Retry(BaseAccessory):
 
     """
 
-    # Inherited from BaseAccessory
-    # - id: str
-    # - logstream: LogStream | None
-    # - tags: dict[str, str]
+    # [Inherited] id: str
+    # [Inherited] logstream: LogStream | None
+    # [Inherited] tags: dict[str, str]
     max_retries: int = Field(
         default=1,
         description="[Optional] Maximum number of retry attempts.",

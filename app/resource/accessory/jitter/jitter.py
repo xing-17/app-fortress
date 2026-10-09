@@ -26,10 +26,9 @@ class Jitter(BaseAccessory):
 
     """
 
-    # Inherited from BaseAccessory
-    # - id: str
-    # - logstream: LogStream | None
-    # - tags: dict[str, str]
+    # [Inherited] id: str
+    # [Inherited] logstream: LogStream | None
+    # [Inherited] tags: dict[str, str]
     min_seconds: float = Field(
         default=0.0,
         description="The minimum number of seconds for the jitter delay, default is 0.0",

@@ -23,10 +23,9 @@ class Coolant(BaseAccessory):
 
     """
 
-    # Inherited from BaseAccessory
-    # - id: str
-    # - logstream: LogStream | None
-    # - tags: dict[str, str]
+    # [Inherited] id: str
+    # [Inherited] logstream: LogStream | None
+    # [Inherited] tags: dict[str, str]
     interval: float = Field(
         default=0.0,
         description="The cooling interval in seconds, default is 0.0.",
