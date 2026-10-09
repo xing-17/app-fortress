@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from enum import StrEnum
 from fnmatch import fnmatchcase
 
 from pydantic import Field, PrivateAttr
@@ -8,34 +9,60 @@ from pydantic import Field, PrivateAttr
 from app.resource.accessory._common._base import BaseAccessory
 
 
+class RetryResult(StrEnum):
+    """
+    Outcome of a single `Retry.run()` call.
+
+    Members:
+    -----------
+        SUCCESS:
+            Backoff delay elapsed; the caller may attempt again.
+        IGNORED:
+            Error matched an ignore pattern; skip retrying.
+        CRITICAL:
+            Error matched a critical pattern; abort.
+        EXHAUSTED:
+            No retries left.
+
+    """
+
+    CRITICAL = "CRITICAL"
+    IGNORED = "IGNORED"
+    EXHAUSTED = "EXHAUSTED"
+    SUCCESS = "SUCCESS"
+
+
 class Retry(BaseAccessory):
     """
-    Retry accessory that performs exponential backoff with configurable parameters.
+    Retry controller with error classification and exponential backoff.
+
+    Delay before retry n (0-based) is `interval * backoff_rate ** n`, rounded to 3 decimals.
 
     Args:
     -----------
-        max_retries(int):
-            Maximum number of retry attempts.
-        interval(float):
+        max_retries (int):
+            Maximum number of retries after the initial call.
+        interval (float):
             Base interval in seconds for attempt 0.
-        backoff_rate(float):
+        backoff_rate (float):
             Growth multiplier applied per retry attempt.
-        raise_on_exhausted(bool):
-            Whether to raise an exception when the maximum number of retries is reached.
-        critical_error_exprs(list[str]):
-            List of string expression patterns for critical errors.
-        ignore_error_exprs(list[str]):
-            List of string expression patterns for errors to ignore.
+        raise_on_exception (bool):
+            Raise on critical errors or exhausted retries; otherwise log a warning and return the result.
+        critical_error_exprs (list[str]):
+            Glob patterns (fnmatch, case-sensitive) matched against the error text; abort on match.
+        ignore_error_exprs (list[str]):
+            Glob patterns (fnmatch, case-sensitive) matched against the error text; skip retry on match.
 
     Methods:
     -----------
-        run(error: Exception | str | None = None) -> None:
-            Perform the backoff delay based on the current attempt count.
-            If `error` matches `critical_error_exprs`, re-raise it immediately without retrying.
-            If `error` matches `ignore_error_exprs`, return without consuming an attempt.
-            Raises RuntimeError if the maximum number of retries is reached and `raise_on_exhausted` is True.
+        run(error: Exception | str | None = None) -> RetryResult:
+            Classify the error, then sleep and consume one retry if allowed.
+            Critical takes precedence over ignored; both are checked before the retry limit.
+            Returns SUCCESS, IGNORED, CRITICAL or EXHAUSTED.
+            Raises the original exception (or RuntimeError for str/None) on CRITICAL or
+            EXHAUSTED when raise_on_exception is True.
         reset() -> None:
-            Reset the internal attempt counter back to 0.
+            Reset the retry counter for a new operation.
 
     """
 
@@ -44,74 +71,96 @@ class Retry(BaseAccessory):
     # [Inherited] tags: dict[str, str]
     max_retries: int = Field(
         default=1,
-        description="[Optional] Maximum number of retry attempts.",
+        description="[Optional] Maximum number of retries after the initial call.",
         ge=0,
     )
     interval: float = Field(
         default=5,
         description="[Optional] Base interval in seconds for attempt 0.",
         ge=0,
+        allow_inf_nan=False,
     )
     backoff_rate: float = Field(
         default=1.0,
         description="[Optional] Growth multiplier applied per retry attempt.",
         ge=0,
+        allow_inf_nan=False,
     )
-    raise_on_exhausted: bool = Field(
+    raise_on_exception: bool = Field(
         default=True,
-        description="[Optional] Whether to raise an exception when exhausted.",
+        description="[Optional] Raise on critical errors or exhausted retries.",
     )
     critical_error_exprs: list[str] = Field(
         default_factory=list,
-        description="[Optional] List of string expression patterns for critical errors.",
-    )  # example: "*error*"
+        description="[Optional] Critical error patterns matched against error text.",
+    )
     ignore_error_exprs: list[str] = Field(
         default_factory=list,
-        description="[Optional] List of string expression patterns for errors to ignore.",
-    )  # example: "*error*"
+        description="[Optional] Ignored error patterns matched against error text.",
+    )
 
     _attempt: int = PrivateAttr(default=0)
 
-    def _should_retry(
+    def _classify_error(
         self,
         error: Exception | str | None = None,
-    ) -> bool:
+    ) -> RetryResult | None:
         if error is None:
-            return True
-        _msg = str(error)
+            return None
+        _msg: str = str(error)
         if any(fnmatchcase(_msg, _p) for _p in self.critical_error_exprs):
-            self.error(f"critical error matched, abort retry: {_msg}")
-            raise RuntimeError(_msg) if isinstance(error, str) else error
+            return RetryResult.CRITICAL
         if any(fnmatchcase(_msg, _p) for _p in self.ignore_error_exprs):
-            self.debug(f"ignorable error matched, skip retry: {_msg}")
-            return False
-        return True
+            return RetryResult.IGNORED
+        return None
 
     def _delay(self) -> float:
         _duration: float = self.interval * (self.backoff_rate**self._attempt)
         return round(_duration, 3)
 
+    def _handle_failure(
+        self,
+        result: RetryResult,
+        message: str,
+        error: Exception | str | None = None,
+    ) -> RetryResult:
+        if self.raise_on_exception:
+            self.error(message)
+            if isinstance(error, Exception):
+                raise error
+            raise RuntimeError(message)
+        self.warning(message)
+        return result
+
     def run(
         self,
         error: Exception | str | None = None,
-    ) -> None:
-        if not self._should_retry(error):
-            return
-
+    ) -> RetryResult:
+        _result: RetryResult | None = self._classify_error(error)
+        if _result == RetryResult.CRITICAL:
+            return self._handle_failure(
+                result=RetryResult.CRITICAL,
+                message=f"critical error matched, abort retry: {error}",
+                error=error,
+            )
+        if _result == RetryResult.IGNORED:
+            self.debug(f"ignorable error matched, skip retry: {error}")
+            return RetryResult.IGNORED
         if self._attempt >= self.max_retries:
-            _msg = f"retry exhausted after {self._attempt} attempts"
-            if self.raise_on_exhausted:
-                self.error(_msg)
-                raise RuntimeError(_msg)
-            else:
-                self.warning(_msg)
-                return
+            _msg: str = f"retry exhausted after {self._attempt} attempts"
+            if error is not None:
+                _msg = f"{_msg}: {error}"
+            return self._handle_failure(
+                result=RetryResult.EXHAUSTED,
+                message=_msg,
+                error=error,
+            )
 
-        # Perform the backoff delay for the current attempt.
-        _seconds = self._delay()
+        _seconds: float = self._delay()
         time.sleep(_seconds)
         self._attempt += 1
-        self.debug(f"retry attempt={self._attempt} {_seconds}s OK.")
+        self.debug(f"retry attempt={self._attempt} delay={_seconds}s OK.")
+        return RetryResult.SUCCESS
 
     def reset(self) -> None:
         self._attempt = 0
