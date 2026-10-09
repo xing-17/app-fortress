@@ -174,9 +174,16 @@ class LocalAsset(BaseAsset):
             _meta_path: Path = _meta["path"]
             _meta_stat: dict[str, Any] = _meta.get("stat", {})
             _meta_stat = {k: v for k, v in _meta_stat.items() if v is not None}
+            # only extract partitions from the relative path
+            try:
+                _parts = _meta_path.relative_to(self.path).parent.parts
+                _rel_segments: list[str] = list(_parts)
+            except ValueError:
+                _rel_segments = []
             _assetfile: LocalAssetfile = LocalAssetfile(
                 path=_meta_path,
                 identity=self.identity,
+                partitions=IPartition.resolve(_rel_segments),
                 metadata=_meta_stat,
                 modified_at=_meta_stat.get("st_mtime"),
                 size=_meta_stat.get("st_size"),
@@ -211,6 +218,7 @@ class LocalAsset(BaseAsset):
         _assetfile: LocalAssetfile = LocalAssetfile(
             path=_full_path,
             identity=self.identity,
+            partitions=_ordered,
             tags=self.tags,
             _authorized=True,
         )

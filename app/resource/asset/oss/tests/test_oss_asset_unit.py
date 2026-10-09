@@ -185,12 +185,37 @@ class TestOSSAssetListObjects:
         asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="prices", _authorized=True)
         asset.list_objects(pattern="*.csv", since=1.0, until=2.0, recursive=False)
         _client.list_objects.assert_called_once_with(
-            prefix="prices",
+            prefix="prices/",
             pattern="*.csv",
             since=1.0,
             until=2.0,
             recursive=False,
         )
+
+    def test_empty_prefix_lists_from_bucket_root(self, monkeypatch):
+        _client = _fake_client()
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _client)
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", _authorized=True)
+        asset.list_objects()
+        assert _client.list_objects.call_args.kwargs["prefix"] == ""
+
+    def test_partitions_are_derived_relative_to_asset_prefix(self, monkeypatch):
+        _objects = [{"key": "vault/prices/year=2024/month=01/a.csv", "size": 1, "last_modified": 100.0}]
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client(_objects))
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="vault/prices", _authorized=True)
+        assert asset.list_objects()[0].partitions == {"year": "2024", "month": "01"}
+
+    def test_partition_like_segments_above_prefix_are_ignored(self, monkeypatch):
+        _objects = [{"key": "env=prod/prices/year=2024/a.csv", "size": 1, "last_modified": 100.0}]
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client(_objects))
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="env=prod/prices", _authorized=True)
+        assert asset.list_objects()[0].partitions == {"year": "2024"}
+
+    def test_object_directly_under_prefix_has_no_partitions(self, monkeypatch):
+        _objects = [{"key": "prices/a.csv", "size": 1, "last_modified": 100.0}]
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client(_objects))
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="prices", _authorized=True)
+        assert asset.list_objects()[0].partitions == {}
 
 
 class TestOSSAssetListAssetfiles:
@@ -202,7 +227,7 @@ class TestOSSAssetListAssetfiles:
         assert len(_files) == 1
         assert _files[0].name == "a.csv"
         _client.list_objects.assert_called_once_with(
-            prefix="prices",
+            prefix="prices/",
             pattern=asset.full_pattern,
             since=None,
             until=None,
@@ -229,6 +254,7 @@ class TestOSSAssetAssetfile:
         )
         _assetfile = asset.assetfile("data.csv", partitions={"year": "2024", "month": "01"})
         assert _assetfile.key == "prices/year=2024/month=01/data.csv"
+        assert _assetfile.partitions == {"year": "2024", "month": "01"}
 
     def test_mismatched_partition_keys_raise_value_error(self, monkeypatch):
         monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client())

@@ -158,6 +158,25 @@ class TestLocalAssetListObjects:
         _file = asset.list_objects()[0]
         assert all(v is not None for v in _file.metadata.values())
 
+    def test_partitions_are_derived_relative_to_asset_path(self, tmp_path):
+        _nested = tmp_path / "year=2024" / "month=01"
+        _nested.mkdir(parents=True)
+        (_nested / "data.csv").write_bytes(b"x")
+        asset = LocalAsset(path=tmp_path, _authorized=True)
+        assert asset.list_objects()[0].partitions == {"year": "2024", "month": "01"}
+
+    def test_partition_like_segments_above_asset_path_are_ignored(self, tmp_path):
+        _root = tmp_path / "env=prod" / "prices"
+        (_root / "year=2024").mkdir(parents=True)
+        (_root / "year=2024" / "data.csv").write_bytes(b"x")
+        asset = LocalAsset(path=_root, _authorized=True)
+        assert asset.list_objects()[0].partitions == {"year": "2024"}
+
+    def test_file_directly_under_asset_path_has_no_partitions(self, tmp_path):
+        (tmp_path / "a.csv").write_bytes(b"1")
+        asset = LocalAsset(path=tmp_path, _authorized=True)
+        assert asset.list_objects()[0].partitions == {}
+
 
 class TestLocalAssetListAssetfiles:
     def test_uses_full_pattern_and_matches_files(self, tmp_path):
@@ -199,6 +218,7 @@ class TestLocalAssetAssetfile:
         asset = LocalAsset(path=tmp_path, partitions=["year", "month"], _authorized=True)
         _assetfile = asset.assetfile("data.csv", partitions={"year": "2024", "month": "01"})
         assert _assetfile.path == tmp_path.resolve() / "year=2024/month=01/data.csv"
+        assert _assetfile.partitions == {"year": "2024", "month": "01"}
 
     def test_mismatched_partition_keys_raise_value_error(self, tmp_path):
         asset = LocalAsset(path=tmp_path, partitions=["year"], _authorized=True)

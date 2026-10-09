@@ -9,7 +9,6 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
-from app.internal.util.partition import IPartition
 from app.internal.util.prefix import IPrefix
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
@@ -55,7 +54,7 @@ class OSSAssetfile(BaseAssetfile):
         filekind (AssetFileKind):
             未显式提供时，从key的后缀推导得出
         partitions (dict[str, str]):
-            未显式提供时，从形如"key=value"的路径分段推导得出
+            由所属OSSAsset按相对于asset前缀的"key=value"目录段解析后传入，不从完整key推导
         size (int | None):
             文件大小(字节)
         modified_at (float | None):
@@ -130,15 +129,6 @@ class OSSAssetfile(BaseAssetfile):
             default=AliyunIdentity.default(),
         )
         object.__setattr__(self, "identity", _identity)
-        return self
-
-    @model_validator(mode="after")
-    def _derive_partitions(self) -> "OSSAssetfile":
-        if not self.partitions:
-            _segs: list[str] = self.key.split("/")
-            _parts: dict[str, str] = IPartition.resolve(_segs)
-            if _parts:
-                object.__setattr__(self, "partitions", _parts)
         return self
 
     @model_validator(mode="after")

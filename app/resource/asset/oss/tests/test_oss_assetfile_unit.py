@@ -95,7 +95,7 @@ class TestOSSAssetfileDeriveIdentity:
             )
 
 
-class TestOSSAssetfileDerivePartitions:
+class TestOSSAssetfilePartitions:
     def test_explicit_partitions_are_kept_as_is(self):
         assetfile = OSSAssetfile(
             bucket="my-bucket",
@@ -106,14 +106,14 @@ class TestOSSAssetfileDerivePartitions:
         )
         assert assetfile.partitions == {"year": "2024"}
 
-    def test_partitions_are_derived_from_key_equals_value_path_segments(self):
+    def test_partitions_are_not_derived_from_key(self):
         assetfile = OSSAssetfile(
             bucket="my-bucket",
             region="cn-hangzhou",
             key="year=2024/month=01/data.csv",
             _authorized=True,
         )
-        assert assetfile.partitions == {"year": "2024", "month": "01"}
+        assert assetfile.partitions == {}
 
     def test_no_partition_segments_results_in_empty_dict(self):
         assetfile = OSSAssetfile(bucket="my-bucket", region="cn-hangzhou", key="data.csv", _authorized=True)

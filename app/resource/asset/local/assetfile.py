@@ -9,7 +9,6 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
-from app.internal.util.partition import IPartition
 from app.internal.util.path import IPath
 from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
@@ -47,7 +46,7 @@ class LocalAssetfile(BaseAssetfile):
         filekind (AssetFileKind):
             Derived from the path suffix when not explicitly provided
         partitions (dict[str, str]):
-            Derived from "key=value" path segments when not explicitly provided
+            Provided by the owning LocalAsset from its relative "key=value" directories
         size (int | None):
             File size in bytes
         modified_at (float | None):
@@ -109,15 +108,6 @@ class LocalAssetfile(BaseAssetfile):
             default=LocalIdentity.default(),
         )
         object.__setattr__(self, "identity", _identity)
-        return self
-
-    @model_validator(mode="after")
-    def _derive_partitions(self) -> "LocalAssetfile":
-        if not self.partitions:
-            _segs: list[str] = str(self.path).split("/")
-            _parts: dict[str, str] = IPartition.resolve(_segs)
-            if _parts:
-                object.__setattr__(self, "partitions", _parts)
         return self
 
     @model_validator(mode="after")

@@ -188,8 +188,10 @@ class OSSAsset(BaseAsset):
         recursive: bool = True,
     ) -> list["OSSAssetfile"]:
         _files: list["OSSAssetfile"] = []
+        # add "/" at the end of the prefix to avoid matching unintended objects
+        _list_prefix: str = f"{self.prefix}/" if self.prefix else ""
         _targets: list[dict[str, Any]] = self.client.list_objects(
-            prefix=self.prefix,
+            prefix=_list_prefix,
             pattern=pattern,
             since=since,
             until=until,
@@ -205,11 +207,14 @@ class OSSAsset(BaseAsset):
                 "storage_class": _meta.get("storage_class"),
             }
             _o_meta: dict[str, Any] = {k: v for k, v in _o_meta.items() if v is not None}
+            # extract relative segments under the asset prefix
+            _rel_segments: list[str] = _meta["key"][len(_list_prefix) :].split("/")[:-1]
             _assetfile: OSSAssetfile = OSSAssetfile(
                 bucket=self.bucket,
                 region=self.region,
                 key=_meta["key"],
                 identity=self.identity,
+                partitions=IPartition.resolve(_rel_segments),
                 metadata=_o_meta,
                 modified_at=_last_modified,
                 size=_size,
@@ -238,11 +243,13 @@ class OSSAsset(BaseAsset):
         _segments: list[str] = [self.prefix, *([_rel] if _rel else []), name]
         _full_key: str = posixpath.join(*_segments)
 
+        # ensure the full key is under the asset prefix
         _assetfile: OSSAssetfile = OSSAssetfile(
             bucket=self.bucket,
             region=self.region,
             key=_full_key,
             identity=self.identity,
+            partitions=_ordered,
             tags=self.tags,
             in_vpc=self.in_vpc,
             _authorized=True,

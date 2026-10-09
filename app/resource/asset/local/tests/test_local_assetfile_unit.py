@@ -67,7 +67,7 @@ class TestLocalAssetfileDeriveIdentity:
             )
 
 
-class TestLocalAssetfileDerivePartitions:
+class TestLocalAssetfilePartitions:
     def test_explicit_partitions_are_kept_as_is(self, tmp_path):
         assetfile = LocalAssetfile(
             path=tmp_path / "a.csv",
@@ -76,10 +76,10 @@ class TestLocalAssetfileDerivePartitions:
         )
         assert assetfile.partitions == {"year": "2024"}
 
-    def test_partitions_are_derived_from_key_equals_value_path_segments(self, tmp_path):
+    def test_partitions_are_not_derived_from_path(self, tmp_path):
         _target = tmp_path / "year=2024" / "month=01" / "data.csv"
         assetfile = LocalAssetfile(path=_target, _authorized=True)
-        assert assetfile.partitions == {"year": "2024", "month": "01"}
+        assert assetfile.partitions == {}
 
     def test_no_partition_segments_results_in_empty_dict(self, tmp_path):
         assetfile = LocalAssetfile(path=tmp_path / "data.csv", _authorized=True)
