@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from pydantic import Field, model_validator
 
@@ -24,34 +24,48 @@ class LocalVault(BaseVault):
     Local vault contains a collection of local assets and associated assetfiles.
 
     Args:
-        name (str | None): Local vault name
-        path (str | Path): Local vault path
-        identity (LocalIdentity | AbstractIdentitySetting | str | None): Local vault identity
-        filesystem (Literal[AssetFilesystem.LOCAL]): Asset filesystem type, fixed as LOCAL
-        platform (Literal[Platform.LOCAL]): Asset platform type, fixed as LOCAL
-        description (str): Local vault description information
-        tags (dict[str, str]): Local vault tags
+    ----------
+        name (str | None):
+            Local vault name
+        path (str | Path):
+            Local vault path
+        identity (LocalIdentity | AbstractIdentitySetting | str | None):
+            Local vault identity
+        filesystem (Literal[AssetFilesystem.LOCAL]):
+            Asset filesystem type, fixed as LOCAL
+        platform (Literal[Platform.LOCAL]):
+            Asset platform type, fixed as LOCAL
+        description (str):
+            Local vault description information
+        tags (dict[str, str]):
+            Local vault tags
 
     Methods:
+    ----------
         from_setting(cls, setting: LocalVaultSetting) -> LocalVault:
             Create a LocalVault instance from a LocalVaultSetting object.
         asset(rel: str, filekind=None, partitions=None) -> LocalAsset:
             Create a LocalAsset scoped to a path relative to the vault, rejecting paths that escape it.
+            `partitions` declares the ordered partition keys enforced by `LocalAsset.assetfile()`.
 
     Example:
+    ----------
         >>> from app.resource.asset.local.vault import LocalVault
         >>> from app.setting._vault import LocalVaultSetting
         >>> setting = LocalVaultSetting(name="my_vault", path="/tmp/my_vault")
         >>> vault = LocalVault.from_setting(setting)
-        >>> vault.name
-        'my_vault'
 
     """
 
-    # Inherited from BaseVault
-    # - name: str | None
-    # - description: str
-    # - tags: dict[str, str]
+    # Enforced public class variables
+    filesystem: ClassVar[AssetFilesystem] = AssetFilesystem.LOCAL
+    platform: ClassVar[Platform] = Platform.LOCAL
+    default_path: ClassVar[str] = "./vault"
+
+    # Enforced instance variables
+    # [Inherited] name: str | None
+    # [Inherited] description: str
+    # [Inherited] tags: dict[str, str]
     path: str | Path | None = Field(
         default=None,
         description="[Required] Local vault path, default ./vault",
@@ -60,11 +74,6 @@ class LocalVault(BaseVault):
         default=None,
         description="[Optional] Local vault identity",
     )
-    filesystem: Literal[AssetFilesystem.LOCAL] = AssetFilesystem.LOCAL
-    platform: Literal[Platform.LOCAL] = Platform.LOCAL
-
-    # Class-level attributes
-    default_path: ClassVar[str] = "./vault"
 
     @model_validator(mode="after")
     def _derive_path(self) -> "LocalVault":
@@ -133,4 +142,5 @@ class LocalVault(BaseVault):
             partitions=partitions,
             identity=self.identity,
             tags=self.tags,
+            _authorized=True,
         )

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, ClassVar
 
 from pydantic import Field, model_validator
 
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
+from app.internal.util.partition import IPartition
 from app.internal.util.path import IPath
 from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
@@ -19,27 +20,66 @@ from app.resource.identity.local import LocalIdentity
 
 class LocalAsset(BaseAsset):
     """
-    Local asset contains a collection of local assetfiles.
+    Local asset represents a directory of local files, optionally partitioned into subdirectories.
+
+    Attributes:
+    ----------
+        uri (str):
+            Local asset URI
+        frn (str):
+            Local asset FRN
+        name (str):
+            Local asset name (directory name)
+        object_pattern (str):
+            Glob pattern matching files by filekind
+        partition_pattern (str):
+            Glob pattern matching partition subdirectories
+        full_pattern (str):
+            Combined glob pattern matching assetfiles under this asset
 
     Args:
-        path (str | Path): Local asset path
-        identity (LocalIdentity | str | None): Local asset identity
-        filesystem (Literal[AssetFilesystem.LOCAL]): Asset filesystem type, fixed as LOCAL
-        platform (Literal[Platform.LOCAL]): Asset platform type, fixed as LOCAL
-        tags (dict[str, str]): Local asset tags
+    ----------
+        path (str | Path):
+            Local asset path, must be an existing directory
+        identity (LocalIdentity | str | None):
+            Local asset identity
+        filesystem (Literal[AssetFilesystem.LOCAL]):
+            Asset filesystem type, fixed as LOCAL
+        platform (Literal[Platform.LOCAL]):
+            Asset platform type, fixed as LOCAL
+        filekind (AssetFileKind):
+            Asset file kind, default is AssetFileKind.OBJECT
+        partitions (list[str]):
+            Declared partition keys for the asset (e.g., ["year", "month"])
+        tags (dict[str, str]):
+            Local asset tags
 
     Methods:
-        list_assetfiles(since=None, until=None) -> list[LocalAssetfile]:
-            List assetfiles under the asset directory matching full_pattern, optionally filtered by modified time.
-        list_objects(pattern=None, since=None, until=None) -> list[LocalAssetfile]:
-            List assetfiles under the asset directory matching pattern, optionally filtered by modified time.
+    ----------
+        list_assetfiles(since=None, until=None, recursive=True) -> list[LocalAssetfile]:
+            List assetfiles under this asset matching full_pattern, optionally filtered by modified time.
+        list_objects(pattern=None, since=None, until=None, recursive=True) -> list[LocalAssetfile]:
+            List assetfiles under this asset matching an arbitrary pattern.
+        assetfile(name, partitions=None) -> LocalAssetfile:
+            Construct a LocalAssetfile under this asset, rejecting partitions that don't match
+            the declared keys or paths that escape the asset.
+
+    Example:
+    ----------
+        >>> vault = LocalVault.from_setting(LocalVaultSetting(name="my_vault", path="/tmp/my_vault"))
+        >>> asset = vault.asset("prices", partitions=["year", "month"])
+        >>> assetfile = asset.assetfile("data.csv", partitions={"year": "2026", "month": "01"})
 
     """
 
-    # Inherited from BaseAsset
-    # - filekind (AssetFileKind): Asset file kind, default is AssetFileKind.OBJECT
-    # - partitions (list[str]): Partition keys for the asset
-    # - tags (dict[str, str]): Asset tags
+    # Enforced public class variables
+    filesystem: ClassVar[AssetFilesystem] = AssetFilesystem.LOCAL
+    platform: ClassVar[Platform] = Platform.LOCAL
+
+    # Enforced instance variables
+    # [Inherited] filekind: AssetFileKind
+    # [Inherited] partitions: list[str]
+    # [Inherited] tags: dict[str, str]
     path: str | Path = Field(
         ...,
         description="[Required] Local asset path",
@@ -48,8 +88,6 @@ class LocalAsset(BaseAsset):
         default_factory=LocalIdentity.default,
         description="[Optional] Local asset identity",
     )
-    filesystem: Literal[AssetFilesystem.LOCAL] = AssetFilesystem.LOCAL
-    platform: Literal[Platform.LOCAL] = Platform.LOCAL
 
     @model_validator(mode="after")
     def _derive_path(self) -> "LocalAsset":
@@ -143,6 +181,39 @@ class LocalAsset(BaseAsset):
                 modified_at=_meta_stat.get("st_mtime"),
                 size=_meta_stat.get("st_size"),
                 tags=self.tags,
+                _authorized=True,
             )
             _files.append(_assetfile)
         return _files
+
+    def assetfile(
+        self,
+        name: str,
+        partitions: dict[str, str] | None = None,
+    ) -> LocalAssetfile:
+        _partitions: dict[str, str] = partitions or {}
+
+        # Ensure partitions are consistent
+        _ptn_keys: set[str] = set(_partitions.keys())
+        if _ptn_keys != set(self.partitions):
+            raise ValueError(f"Partitions must be {self.partitions}, got {list(_ptn_keys)}")
+
+        # Construct the full path for the assetfile
+        _ordered: dict[str, str] = {k: _partitions[k] for k in self.partitions}
+        _rel: Path = IPartition.to_string(_ordered)
+
+        # resolve before escape check unresolved ".." segments
+        _full_path: Path = (self.path / _rel / name).expanduser().resolve()
+        if not _full_path.is_relative_to(self.path):
+            raise ValueError(f"Assetfile path can not escape {self.path}")
+
+        # create instance
+        _assetfile: LocalAssetfile = LocalAssetfile(
+            path=_full_path,
+            identity=self.identity,
+            tags=self.tags,
+            _authorized=True,
+        )
+        if _assetfile.filekind != self.filekind:
+            raise ValueError(f"Filekind must be {self.filekind}, got {_assetfile.filekind}")
+        return _assetfile

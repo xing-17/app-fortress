@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, ClassVar
 
 from pydantic import Field, model_validator
 
@@ -19,35 +19,73 @@ from app.resource.identity.local import LocalIdentity
 
 class LocalAssetfile(BaseAssetfile):
     """
-    Local assetfile as a single file at local filesystem
+    Local assetfile represents a single file on the local filesystem.
+
+    Attributes:
+    ----------
+        uri (str):
+            Local assetfile URI
+        frn (str):
+            Local assetfile FRN
+        stem (str):
+            File name without extension
+        extension (str):
+            File extension
+        name (str):
+            File name including extension
 
     Args:
-        path (str | Path): Local assetfile path
-        partitions (dict[str, str]): Partition keys for the assetfile
-        size (int | None): Size of the assetfile in bytes
-        modified_at (float | None): Last modified timestamp of the assetfile
-        identity (LocalIdentity | str | None): Local assetfile identity
-        metadata (dict[str, Any] | None): Metadata of the assetfile
-        tags (dict[str, str]): Local assetfile tags
+    ----------
+        path (str | Path):
+            Local assetfile path
+        identity (LocalIdentity | str | None):
+            Local assetfile identity
+        filesystem (Literal[AssetFilesystem.LOCAL]):
+            Asset filesystem type, fixed as LOCAL
+        platform (Literal[Platform.LOCAL]):
+            Asset platform type, fixed as LOCAL
+        filekind (AssetFileKind):
+            Derived from the path suffix when not explicitly provided
+        partitions (dict[str, str]):
+            Derived from "key=value" path segments when not explicitly provided
+        size (int | None):
+            File size in bytes
+        modified_at (float | None):
+            File last modified timestamp
+        metadata (dict[str, Any]):
+            Raw filesystem stat metadata
+        tags (dict[str, str]):
+            Local assetfile tags
 
     Methods:
+    ----------
         read_bytes() -> bytes:
-            Read the assetfile content from local filesystem.
+            Read the file contents as bytes.
         write_bytes(data: bytes) -> None:
-            Write bytes to the assetfile, creating parent directories as needed.
+            Write bytes to the file, creating parent directories as needed.
         load() -> None:
-            Refresh size/modified_at/metadata from the underlying filesystem stat.
+            Refresh metadata, modified_at and size from the filesystem.
+
+    Example:
+    ----------
+        >>> assetfile = asset.assetfile("data.csv", partitions={"year": "2026", "month": "01"})
+        >>> assetfile.write_bytes(b"col1,col2\\n1,2\\n")
+        >>> assetfile.partitions
+        {'year': '2026', 'month': '01'}
 
     """
 
-    # Inherit from BaseAssetfile
-    # - filekind: AssetFileKind
-    # - partitions: dict[str, str]
-    # - size: int | None
-    # - modified_at: float | None
-    # - metadata: dict[str, Any]
-    # - tags: dict[str, str]
+    # Enforced public class variables
+    filesystem: ClassVar[AssetFilesystem] = AssetFilesystem.LOCAL
+    platform: ClassVar[Platform] = Platform.LOCAL
 
+    # Enforced instance variables
+    # [Inherited] filekind: AssetFileKind
+    # [Inherited] partitions: dict[str, str]
+    # [Inherited] size: int | None
+    # [Inherited] modified_at: float | None
+    # [Inherited] metadata: dict[str, Any]
+    # [Inherited] tags: dict[str, str]
     path: str | Path = Field(
         ...,
         description="[Required] Local assetfile path",
@@ -56,8 +94,6 @@ class LocalAssetfile(BaseAssetfile):
         default_factory=LocalIdentity.default,
         description="[Optional] Local assetfile identity",
     )
-    filesystem: Literal[AssetFilesystem.LOCAL] = AssetFilesystem.LOCAL
-    platform: Literal[Platform.LOCAL] = Platform.LOCAL
 
     @model_validator(mode="after")
     def _derive_path(self) -> "LocalAssetfile":
