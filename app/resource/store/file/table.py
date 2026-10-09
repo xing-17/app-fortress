@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar
 
 from pydantic import Field, model_validator
 
@@ -20,20 +20,30 @@ from app.resource.store._common._table import BaseTable
 
 class FileStoreTable(BaseTable):
     """
-    File store table backed by a single JSON file directly under its parent database's path.
+    File store table backed by a single JSON file.
 
-    Only constructible via `FileStoreDatabase.table(name)`.
+    Attributes:
+    ----------
+        storesystem (StoreSystem):
+            Store system type, fixed as FILE.
+        platform (Platform):
+            Store platform type, fixed as LOCAL.
 
     Args:
-        name (str): Table name, single path segment
-        path (Path): Table file path, derived from the parent database path and name
-        identity (LocalIdentity): Local identity associated with the table
-        storesystem (Literal[StoreSystem.FILE]): Store system type, fixed as FILE
-        platform (Literal[Platform.LOCAL]): Store platform type, fixed as LOCAL
-        tags (dict[str, str]): Table tags
-        ttl_hours (float | None): Default TTL in hours for keys written to this table
+    ----------
+        name (str):
+            Table name, single path segment
+        ttl_hours (float | None):
+            Default TTL in hours for keys written to this table
+        path (Path):
+            Table file path, derived from the parent database path and name
+        identity (LocalIdentity):
+            Local identity associated with the table
+        tags (dict[str, str]):
+            Table tags
 
     Methods:
+    ----------
         write(key: str, data: Any, strict: bool = False) -> None:
             Upsert data for key, wrapped in a {data, key, written_at, ttl} envelope.
         read(key: str | None = None, strict: bool = False) -> Any:
@@ -45,8 +55,19 @@ class FileStoreTable(BaseTable):
 
     """
 
-    storesystem: Literal[StoreSystem.FILE] = StoreSystem.FILE
-    platform: Literal[Platform.LOCAL] = Platform.LOCAL
+    # Enforced public class variables
+    storesystem: ClassVar[StoreSystem] = StoreSystem.FILE
+    platform: ClassVar[Platform] = Platform.LOCAL
+
+    # Enforced private class variables
+    # Lock registry keyed by resolved path
+    # shared by every instance pointing at the same file.
+    _locks: ClassVar[dict[Path, threading.RLock]] = {}
+    _locks_guard: ClassVar[threading.RLock] = threading.RLock()
+
+    # Enforced instance variables
+    # [Inherited] name: str
+    # [Inherited] tags: dict[str, str]
     path: Path = Field(
         ...,
         description="[NoOps] Table file path, derived from the parent database path and name",
@@ -55,10 +76,6 @@ class FileStoreTable(BaseTable):
         ...,
         description="[NoOps] Local identity associated with the table",
     )
-
-    # Lock registry keyed by resolved path, shared by every instance pointing at the same file.
-    _locks: ClassVar[dict[Path, threading.RLock]] = {}
-    _locks_guard: ClassVar[threading.RLock] = threading.RLock()
 
     @property
     def _lock(self) -> threading.RLock:
@@ -170,8 +187,3 @@ class FileStoreTable(BaseTable):
         except Exception as e:
             self._handle_io_error(exception=e, strict=strict)
             return {}
-
-    def export(self) -> dict[str, Any]:
-        _result: dict = super().export()
-        _result["identity"] = self.identity.name
-        return _result

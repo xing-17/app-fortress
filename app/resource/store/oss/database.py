@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import posixpath
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import ClassVar
 
 from pydantic import Field, model_validator
 
@@ -15,59 +15,76 @@ from app.resource.identity._common._identity import BaseIdentity
 from app.resource.identity.aliyun import AliyunIdentity
 from app.resource.store._common._database import BaseDatabase
 from app.resource.store.oss.table import OSSStoreTable
+from app.setting._identity import AliyunIdentitySetting
 
 
 class OSSStoreDatabase(BaseDatabase):
     """
-    OSS store 数据库，对应父 store 前缀下的单个子前缀。
-
-    仅可通过 `OSSStore.database(name)` 构建。
-
-    Args:
-        name (str): Database 名称，单路径段
-        bucket (str): OSS bucket 名称
-        region (str): OSS bucket 所在区域
-        prefix (str): Database 前缀, 由父存储的前缀和数据库名称派生
-        in_vpc (bool): 是否在VPC内访问OSS
-        identity (AliyunIdentity): Aliyun 身份认证
-        storesystem (Literal[StoreSystem.OSS]): Store 系统类型, 固定为 OSS
-        platform (Literal[Platform.ALIYUN]): Store 平台类型, 固定为 ALIYUN
-        tags (dict[str, str]): Database 标签
+    OSS store database backed by a single prefix under the parent store prefix.
 
     Attributes:
-        client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
+    ----------
+        storesystem (StoreSystem):
+            Store system type, fixed as OSS.
+        platform (Platform):
+            Store platform type, fixed as ALIYUN.
+        client (OSSClient):
+            OSS client resolved and cached by bucket/region/identity/in_vpc.
+
+    Args:
+    ----------
+        name (str):
+            Database name, single path segment.
+        bucket (str):
+            OSS bucket name
+        region (str):
+            OSS bucket region
+        prefix (str):
+            Database prefix, derived from the parent store prefix and name.
+        in_vpc (bool):
+            Whether to access OSS from within a VPC
+        identity (AliyunIdentity):
+            Aliyun identity associated with the database.
+        tags (dict[str, str]):
+            Database tags
 
     Methods:
-        table(name: str) -> OSSStoreTable:
-            返回指定名称的表对象。
+    ----------
         list_tables() -> list[OSSStoreTable]:
-            列举当前直接存在于该数据库下的 *.json 表。
+            Enumerate the *.json tables that currently exist directly under this database.
+        table(name: str, ttl_hours: float | None = None) -> OSSStoreTable:
+            Only entry point for building a table under this database.
         delete(name: str, strict: bool = False) -> None:
-            删除指定名称的表的 JSON 对象；如果缺失且 strict 为 True，则抛出 FileNotFoundError。
+            Delete a table's JSON object by name; raises FileNotFoundError if missing and strict is True.
 
     """
 
-    storesystem: Literal[StoreSystem.OSS] = StoreSystem.OSS
-    platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
+    # Enforced public class variables
+    storesystem: ClassVar[StoreSystem] = StoreSystem.OSS
+    platform: ClassVar[Platform] = Platform.ALIYUN
+
+    # Enforced instance variables
+    # [Inherited] name: str
+    # [Inherited] tags: dict[str, str]
     bucket: str = Field(
         ...,
-        description="[NoOps] OSS bucket 名称",
+        description="[NoOps] OSS bucket name",
     )
     region: str = Field(
         ...,
-        description="[NoOps] OSS bucket所在区域",
+        description="[NoOps] OSS bucket region",
     )
     prefix: str = Field(
         ...,
-        description="[NoOps] Database 前缀，由父 store 前缀和名称派生",
+        description="[NoOps] Database prefix, derived from the parent store prefix and name",
     )
     in_vpc: bool = Field(
         default=False,
-        description="[NoOps] 是否在VPC内访问OSS",
+        description="[NoOps] Whether to access OSS from within a VPC",
     )
-    identity: AliyunIdentity = Field(
+    identity: AliyunIdentity | AliyunIdentitySetting | str | None = Field(
         ...,
-        description="[NoOps] 与该数据库关联的 Aliyun 身份",
+        description="[NoOps] Aliyun identity associated with the database",
     )
 
     @model_validator(mode="after")
@@ -98,7 +115,7 @@ class OSSStoreDatabase(BaseDatabase):
     def list_tables(self) -> list[OSSStoreTable]:
         _tables: list[OSSStoreTable] = []
         _objects = self.client.list_objects(
-            prefix=self.prefix,
+            prefix=f"{self.prefix}/",
             pattern="*.json",
             recursive=False,
         )

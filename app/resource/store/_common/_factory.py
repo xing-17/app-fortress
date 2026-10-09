@@ -13,11 +13,20 @@ class StoreFactory:
     Factory class for store instances by storesystem type.
 
     Attributes:
+    ----------
         _registry (dict[StoreSystem, str]):
-            a mapping of store system names to their corresponding store class paths.
+            A mapping of storesystem types to their corresponding module and class paths.
+
+    Methods:
+    ----------
+        get(storesystem: StoreSystem) -> type[BaseStore]:
+            Resolve and return the store class registered for the given storesystem
+        load(setting: UnionStoreSetting) -> BaseStore:
+            Construct a store instance from a setting using the resolved class
 
     Example:
-        >>> klass = StoreFactory.get(Platform.LOCAL)
+    ----------
+        >>> klass = StoreFactory.get(StoreSystem.FILE)
         >>> instance = klass(
         ...     name="local_store",
         ...     tags={"env": "production"},

@@ -104,7 +104,7 @@ class TestOSSStoreDatabaseListTables:
         db = store.database("db")
         db.list_tables()
         assert _captured == {
-            "prefix": "store/db",
+            "prefix": "store/db/",
             "pattern": "*.json",
             "recursive": False,
         }

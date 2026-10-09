@@ -13,6 +13,7 @@ from app.resource.identity.aliyun.identity import AliyunIdentity
 from app.resource.identity.local.identity import LocalIdentity
 from app.resource.store.oss.database import OSSStoreDatabase
 from app.resource.store.oss.store import OSSStore
+from app.resource.store.oss.table import OSSStoreTable
 from app.setting._store import OSSStoreSetting
 
 
@@ -120,27 +121,12 @@ class TestOSSStoreClient:
         }
 
 
-class TestOSSStoreDeriveDatabases:
-    def test_eager_databases_empty_when_no_folders(self, monkeypatch):
-        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client(folders=[]))
-        store = OSSStore(name="s", bucket="my-bucket", region="cn-hangzhou")
-        assert store.databases == []
-
-    def test_eager_databases_populated_from_folders(self, monkeypatch):
-        monkeypatch.setattr(
-            OSSClient,
-            "get_client",
-            lambda **kwargs: _fake_client(folders=[{"bucket": "my-bucket", "prefix": "store/db_a/"}]),
-        )
-        store = OSSStore(name="s", bucket="my-bucket", region="cn-hangzhou")
-        assert [d.name for d in store.databases] == ["db_a"]
-
-    def test_databases_property_is_already_cached_right_after_construction(self, monkeypatch):
-        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _fake_client())
-        store = OSSStore(name="s", bucket="my-bucket", region="cn-hangzhou")
-        monkeypatch.setattr(OSSStore, "list_databases", MagicMock())
-        assert store.databases == []
-        store.list_databases.assert_not_called()
+class TestOSSStoreLazyListing:
+    def test_construction_does_not_list_databases(self, monkeypatch):
+        _client = _fake_client()
+        monkeypatch.setattr(OSSClient, "get_client", lambda **kwargs: _client)
+        OSSStore(name="s", bucket="my-bucket", region="cn-hangzhou")
+        _client.list_folders.assert_not_called()
 
 
 class TestOSSStoreFromSetting:
@@ -189,7 +175,7 @@ class TestOSSStoreListDatabases:
         store = OSSStore(name="s", bucket="my-bucket", region="cn-hangzhou", prefix="my/prefix")
         store.list_databases()
         assert _captured == {
-            "prefix": "my/prefix",
+            "prefix": "my/prefix/",
             "recursive": False,
         }
 
@@ -214,3 +200,11 @@ class TestOSSStoreDatabaseMethod:
         store = OSSStore(name="s", bucket="my-bucket", region="cn-hangzhou")
         with pytest.raises(ValidationError):
             store.database(bad_name)
+
+
+@pytest.mark.parametrize("klass", [OSSStore, OSSStoreDatabase, OSSStoreTable])
+def test_storesystem_and_platform_are_class_vars(klass):
+    assert "storesystem" not in klass.model_fields
+    assert "platform" not in klass.model_fields
+    assert klass.storesystem == StoreSystem.OSS
+    assert klass.platform == Platform.ALIYUN

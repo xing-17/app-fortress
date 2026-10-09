@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import Field
 
@@ -19,32 +19,35 @@ class BaseTable(
     ABC,
 ):
     """
-    Base class for store table resources, governed and derived from a parent database.
-
-    A table can only be constructed via its parent database's `table()` method, which
-    guarantees the table occupies exactly one path segment directly under the database
-    (no nested names). Tables are the only resource in the store/database/table hierarchy
-    that expose write capability; whether a `write` call behaves as an update or an append
-    is entirely up to the business layer (determined by whether it reuses or invents `key`).
+    Base class for store table resources, governed and derived from parent.
 
     Each key's stored value is wrapped in an envelope recording its write time and TTL:
     `{"data": <value>, "key": <key>, "written_at": <UTC timestamp>, "ttl": <seconds | None>}`.
     `written_at` is always a UTC POSIX timestamp. Expiry is never enforced automatically;
     callers must invoke `expire()` to actually purge expired keys.
 
-    Args:
-        name (str): Table name, must be a single path segment (no nested separators)
-        storesystem (StoreSystem): Store system
-        platform (Platform): Store platform
-        identity (BaseIdentity | AbstractIdentitySetting | str | None): Table identity
-        tags (dict[str, str]): Table tags
-        ttl_hours (float | None): Default TTL, in hours, applied to keys written to this
-            table; None (default) means written keys never expire
-
     Attributes:
-        ttl_seconds (float | None): `ttl_hours` converted to seconds, or None.
+    ----------
+        storesystem (StoreSystem):
+            Store system
+        platform (Platform):
+            Store platform
+        ttl_seconds (float | None):
+            `ttl_hours` converted to seconds, or None.
+
+    Args:
+    ----------
+    name (str):
+        Table name
+    identity (BaseIdentity | AbstractIdentitySetting | str | None):
+        Table identity
+    tags (dict[str, str]):
+        Table tags
+    ttl_hours (float | None):
+        Default TTL, in hours, applied to keys written to this table; None (default) means written keys never expire
 
     Methods:
+    ----------
         write(key: str, data: Any, strict: bool = False) -> None:
             Upsert a single key's value; content is not constrained.
         read(key: str | None = None, strict: bool = False) -> Any:
@@ -56,25 +59,19 @@ class BaseTable(
 
     """
 
+    # Enforced public class variables
+    storesystem: ClassVar[StoreSystem]
+    platform: ClassVar[Platform]
+
+    # Enforced instance variables
+    # [Inherited] tags: dict[str, str]
     name: str = Field(
         ...,
         description="[Required] Table name, single path segment governed by the parent database",
     )
-    storesystem: StoreSystem = Field(
-        ...,
-        description="[Required] Store system",
-    )
-    platform: Platform = Field(
-        ...,
-        description="[Required] Store platform",
-    )
     identity: BaseIdentity | AbstractIdentitySetting | str | None = Field(
         default=None,
         description="[Optional] Table identity",
-    )
-    tags: dict[str, str] = Field(
-        default_factory=dict,
-        description="[Optional] Table tags",
     )
     ttl_hours: float | None = Field(
         default=None,

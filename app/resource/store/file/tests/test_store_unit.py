@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 from pydantic import ValidationError
@@ -13,6 +12,7 @@ from app.resource.identity.aliyun.identity import AliyunIdentity
 from app.resource.identity.local.identity import LocalIdentity
 from app.resource.store.file.database import FileStoreDatabase
 from app.resource.store.file.store import FileStore
+from app.resource.store.file.table import FileStoreTable
 from app.setting._store import FileStoreSetting
 
 
@@ -80,23 +80,6 @@ class TestFileStoreDeriveIdentity:
             FileStore(name="s", path=str(tmp_path), identity="an_aliyun_identity")
 
 
-class TestFileStoreDeriveDatabases:
-    def test_eager_databases_empty_when_store_dir_is_empty(self, tmp_path):
-        store = FileStore(name="s", path=str(tmp_path))
-        assert store.databases == []
-
-    def test_eager_databases_populated_from_existing_subdirectories(self, tmp_path):
-        (tmp_path / "db_a").mkdir()
-        store = FileStore(name="s", path=str(tmp_path))
-        assert [d.name for d in store.databases] == ["db_a"]
-
-    def test_databases_property_is_already_cached_right_after_construction(self, monkeypatch, tmp_path):
-        store = FileStore(name="s", path=str(tmp_path))
-        monkeypatch.setattr(FileStore, "list_databases", MagicMock())
-        assert store.databases == []
-        store.list_databases.assert_not_called()
-
-
 class TestFileStoreFromSetting:
     def test_builds_store_from_setting_fields(self, tmp_path):
         _setting = FileStoreSetting(name="s", path=str(tmp_path), tags={"env": "prod"})
@@ -137,3 +120,11 @@ class TestFileStoreDatabaseMethod:
         store = FileStore(name="s", path=str(tmp_path))
         with pytest.raises(ValidationError):
             store.database(bad_name)
+
+
+@pytest.mark.parametrize("klass", [FileStore, FileStoreDatabase, FileStoreTable])
+def test_storesystem_and_platform_are_class_vars(klass):
+    assert "storesystem" not in klass.model_fields
+    assert "platform" not in klass.model_fields
+    assert klass.storesystem == StoreSystem.FILE
+    assert klass.platform == Platform.LOCAL

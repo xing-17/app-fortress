@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import posixpath
 from pathlib import PurePosixPath
-from typing import ClassVar, Literal
+from typing import ClassVar
 
-from pydantic import Field, PrivateAttr, model_validator
+from pydantic import Field, model_validator
 
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
@@ -22,38 +22,49 @@ from app.setting._store import OSSStoreSetting
 
 class OSSStore(BaseStore):
     """
-    基于阿里云对象存储服务（OSS）的 Store 实现。
-
-    Args:
-        name (str): Store 名称
-        bucket (str): OSS bucket名称
-        region (str): OSS bucket所在区域
-        prefix (str | None): OSS bucket前缀(默认store)
-        in_vpc (bool): 是否在VPC内访问OSS(默认False)
-        identity (AliyunIdentity | AbstractIdentitySetting | str | None): Aliyun身份(默认AliyunIdentity.default())
-        storesystem (Literal[StoreSystem.OSS]): Store 系统类型(固定为 StoreSystem.OSS)
-        platform (Literal[Platform.ALIYUN]): Store 平台类型(固定为 Platform.ALIYUN)
-        tags (dict[str, str]): Store标签
+    OSS store backed by Aliyun Object Storage Service.
 
     Attributes:
-        client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
-        databases (list[OSSStoreDatabase]): 当前存储下的数据库列表，懒加载并缓存。
+    ----------
+        storesystem (StoreSystem):
+            Store system type, fixed as OSS.
+        platform (Platform):
+            Store platform type, fixed as ALIYUN.
+        uri (str):
+            Store location, formatted as oss://<bucket>/<prefix>.
+        client (OSSClient):
+            OSS client resolved and cached by bucket/region/identity/in_vpc.
+
+    Args:
+    ----------
+        name (str):
+            Store name
+        bucket (str):
+            OSS bucket name
+        region (str):
+            OSS bucket region
+        prefix (str | None):
+            OSS bucket prefix, default store
+        in_vpc (bool):
+            Whether to access OSS from within a VPC, default False
+        identity (AliyunIdentity | AbstractIdentitySetting | str | None):
+            Aliyun identity associated with the OSS store
+        tags (dict[str, str]):
+            Store tags
 
     Methods:
+    ----------
         from_setting(cls, setting: OSSStoreSetting) -> OSSStore:
-            从 OSSStoreSetting 对象创建一个 OSSStore 实例。
-        database(name: str) -> OSSStoreDatabase:
-            仅此为在该存储下构建数据库的入口。
+            Create an OSSStore instance from an OSSStoreSetting object.
         list_databases() -> list[OSSStoreDatabase]:
-            列举当前存在于该存储前缀下的数据库。
-        load_databases(force: bool = False) -> list[OSSStoreDatabase]:
-            加载（并缓存）数据库列表，当 force 为 True 时重新扫描。
-        reset_databases() -> None:
-            清空缓存的数据库列表。
-        table(database: str, name: str) -> OSSStoreTable:
-            获取该存储下指定数据库中的表对象。
+            Enumerate databases that currently exist under the store prefix.
+        database(name: str) -> OSSStoreDatabase:
+            Only entry point for building a database under this store.
+        table(database: str, name: str, ttl_hours: float | None = None) -> OSSStoreTable:
+            Only entry point for building a table under a database of this store.
 
     Example:
+    ----------
         >>> from app.resource.store.oss.store import OSSStore
         >>> store = OSSStore(name="my_store", bucket="my-bucket", region="cn-hangzhou")
         >>> store.uri
@@ -61,47 +72,36 @@ class OSSStore(BaseStore):
 
     """
 
-    # 继承自 BaseStore
-    # - name: str
-    # - tags: dict[str, Any]
-    storesystem: Literal[StoreSystem.OSS] = StoreSystem.OSS
-    platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
+    # Enforced public class variables
+    storesystem: ClassVar[StoreSystem] = StoreSystem.OSS
+    platform: ClassVar[Platform] = Platform.ALIYUN
+
+    # Enforced instance variables
+    # [Inherited] name: str
+    # [Inherited] tags: dict[str, str]
     bucket: str = Field(
         ...,
-        description="[Required] OSS bucket名称",
+        description="[Required] OSS bucket name",
     )
     region: str = Field(
         ...,
-        description="[Required] OSS bucket所在区域",
+        description="[Required] OSS bucket region",
     )
     prefix: str | None = Field(
         default=None,
-        description="[Optional] OSS bucket前缀",
+        description="[Optional] OSS bucket prefix",
     )
     in_vpc: bool = Field(
         default=False,
-        description="[Optional] 是否在VPC内访问OSS",
+        description="[Optional] Whether to access OSS from within a VPC",
     )
     identity: AliyunIdentity | AbstractIdentitySetting | str | None = Field(
         default=None,
-        description="[Optional] 用于该 Aliyun 存储的身份",
+        description="[Optional] Aliyun identity associated with the OSS store",
     )
 
-    # 类级别属性
+    # Class-level attributes
     default_prefix: ClassVar[str] = "store"
-
-    # 该 store 下的数据库列表
-    _databases: list[OSSStoreDatabase] | None = PrivateAttr(default=None)
-
-    @model_validator(mode="after")
-    def _derive_identity(self) -> "OSSStore":
-        _identity: BaseIdentity = GlobalIdentities.resolve(
-            value=self.identity,
-            default=AliyunIdentity.default(),
-            platform=Platform.ALIYUN,
-        )
-        object.__setattr__(self, "identity", _identity)
-        return self
 
     @model_validator(mode="after")
     def _derive_prefix(self) -> "OSSStore":
@@ -113,8 +113,13 @@ class OSSStore(BaseStore):
         return self
 
     @model_validator(mode="after")
-    def _derive_databases(self) -> "OSSStore":
-        self.load_databases()
+    def _derive_identity(self) -> "OSSStore":
+        _identity: BaseIdentity = GlobalIdentities.resolve(
+            value=self.identity,
+            default=AliyunIdentity.default(),
+            platform=Platform.ALIYUN,
+        )
+        object.__setattr__(self, "identity", _identity)
         return self
 
     @classmethod
@@ -145,26 +150,10 @@ class OSSStore(BaseStore):
             in_vpc=self.in_vpc,
         )
 
-    @property
-    def databases(self) -> list[OSSStoreDatabase]:
-        self.load_databases()
-        return self._databases
-
-    def load_databases(
-        self,
-        force: bool = False,
-    ) -> list[OSSStoreDatabase]:
-        if force or self._databases is None:
-            self._databases = self.list_databases()
-        return self._databases
-
-    def reset_databases(self) -> None:
-        self._databases = None
-
     def list_databases(self) -> list[OSSStoreDatabase]:
         _databases: list[OSSStoreDatabase] = []
         _folders = self.client.list_folders(
-            prefix=self.prefix,
+            prefix=f"{self.prefix}/",
             recursive=False,
         )
         for _folder in _folders:
@@ -185,7 +174,7 @@ class OSSStore(BaseStore):
         self,
         name: str,
     ) -> OSSStoreDatabase:
-        return OSSStoreDatabase(
+        _database: OSSStoreDatabase = OSSStoreDatabase(
             name=name,
             bucket=self.bucket,
             region=self.region,
@@ -194,6 +183,7 @@ class OSSStore(BaseStore):
             identity=self.identity,
             _authorized=True,
         )
+        return _database
 
     def table(
         self,
@@ -202,5 +192,8 @@ class OSSStore(BaseStore):
         ttl_hours: float | None = None,
     ) -> OSSStoreTable:
         _database: OSSStoreDatabase = self.database(database)
-        _table: OSSStoreTable = _database.table(name, ttl_hours=ttl_hours)
+        _table: OSSStoreTable = _database.table(
+            name=name,
+            ttl_hours=ttl_hours,
+        )
         return _table

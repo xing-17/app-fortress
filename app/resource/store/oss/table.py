@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar
 
 from pydantic import Field, model_validator
 
@@ -19,62 +19,82 @@ from app.resource.store._common._table import BaseTable
 
 class OSSStoreTable(BaseTable):
     """
-    OSS 存储表，直接位于其父数据库前缀下的单个 JSON 对象。
-    仅可通过 `OSSStoreDatabase.table(name)` 构建。
-
-    Args:
-        name (str): Table 名称，单路径段
-        bucket (str): OSS bucket名称
-        region (str): OSS bucket所在区域
-        key (str): Table 对象的 key，由父数据库前缀和表名派生
-        in_vpc (bool): 是否在VPC内访问OSS
-        identity (AliyunIdentity): 与表关联的 Aliyun 身份
-        storesystem (Literal[StoreSystem.OSS]): 存储系统类型，固定为 OSS
-        platform (Literal[Platform.ALIYUN]): 存储平台类型，固定为 ALIYUN
-        tags (dict[str, str]): 表标签
-        ttl_hours (float | None): 写入该表的键的默认 TTL（小时）
+    OSS store table backed by a single JSON object directly under its parent database prefix.
 
     Attributes:
-        client (OSSClient): 按bucket/region/identity/in_vpc懒解析并缓存的OSS客户端实例。
+    ----------
+        storesystem (StoreSystem):
+            Store system type, fixed as OSS.
+        platform (Platform):
+            Store platform type, fixed as ALIYUN.
+        client (OSSClient):
+            OSS client resolved and cached by bucket/region/identity/in_vpc.
+
+    Args:
+    ----------
+        name (str):
+            Table name, single path segment
+        ttl_hours (float | None):
+            Default TTL in hours for keys written to this table
+        bucket (str):
+            OSS bucket name
+        region (str):
+            OSS bucket region
+        key (str):
+            Table object key, derived from the parent database prefix and name
+        in_vpc (bool):
+            Whether to access OSS from within a VPC
+        identity (AliyunIdentity):
+            Aliyun identity associated with the table
+        tags (dict[str, str]):
+            Table tags
 
     Methods:
+    ----------
         write(key: str, data: Any, strict: bool = False) -> None:
-            写入或更新指定 key 的数据，数据会被封装在 {data, key, written_at, ttl} 结构中。
+            Upsert data for key, wrapped in a {data, key, written_at, ttl} envelope.
         read(key: str | None = None, strict: bool = False) -> Any:
-            读取指定 key 的解封装数据，如果 key 为 None，则读取所有解封装数据。
+            Read the unwrapped data for key, or all unwrapped data if key is None.
         delete(key: str, strict: bool = False) -> None:
-            删除指定 key 的值；如果 key 不存在且 strict 为 True，则抛出 KeyError。
+            Delete a key's value; raises KeyError if missing and strict is True.
         expire() -> None:
-            永久移除所有 TTL 已过的键；必须显式调用。
+            Permanently remove all keys whose TTL has elapsed; must be called explicitly.
 
     """
 
-    storesystem: Literal[StoreSystem.OSS] = StoreSystem.OSS
-    platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
+    # Enforced public class variables
+    storesystem: ClassVar[StoreSystem] = StoreSystem.OSS
+    platform: ClassVar[Platform] = Platform.ALIYUN
+
+    # Enforced private class variables
+    # Lock registry keyed by (bucket, region, key)
+    # shared by every instance pointing at the same object.
+    _locks: ClassVar[dict[tuple[str, str, str], threading.RLock]] = {}
+    _locks_guard: ClassVar[threading.RLock] = threading.RLock()
+
+    # Enforced instance variables
+    # [Inherited] name: str
+    # [Inherited] tags: dict[str, str]
     bucket: str = Field(
         ...,
-        description="[NoOps] OSS bucket名称",
+        description="[NoOps] OSS bucket name",
     )
     region: str = Field(
         ...,
-        description="[NoOps] OSS bucket所在区域",
+        description="[NoOps] OSS bucket region",
     )
     key: str = Field(
         ...,
-        description="[NoOps] Table 对象的 key，由父数据库前缀和表名派生",
+        description="[NoOps] Table object key, derived from the parent database prefix and name",
     )
     in_vpc: bool = Field(
         default=False,
-        description="[NoOps] 是否在VPC内访问OSS",
+        description="[NoOps] Whether to access OSS from within a VPC",
     )
     identity: AliyunIdentity = Field(
         ...,
-        description="[NoOps] 与表关联的 Aliyun 身份",
+        description="[NoOps] Aliyun identity associated with the table",
     )
-
-    # 按 (bucket, region, key) 为键的锁注册表，指向同一对象的所有实例共享同一把锁。
-    _locks: ClassVar[dict[tuple[str, str, str], threading.RLock]] = {}
-    _locks_guard: ClassVar[threading.RLock] = threading.RLock()
 
     @property
     def _lock(self) -> threading.RLock:
@@ -138,16 +158,10 @@ class OSSStoreTable(BaseTable):
         with self._lock:
             _content = self._load_content(strict=strict)
             if key is None:
-                _result = {}
-                for _k, _v in _content.items():
-                    _result[_k] = _v.get("data")
-                return _result
+                return {_k: _v.get("data") for _k, _v in _content.items()}
             else:
                 _envelope = _content.get(key)
-                if _envelope is None:
-                    return None
-                else:
-                    return _envelope.get("data")
+                return _envelope.get("data") if _envelope is not None else None
 
     def delete(
         self,
@@ -174,8 +188,8 @@ class OSSStoreTable(BaseTable):
 
     def expire(self) -> None:
         with self._lock:
-            # 严格加载：损坏的对象必须抛出异常，不能被下面的重写操作静默清空。
-            _content = self._load_content(strict=True)
+            # Strict load: a corrupted object must raise, never be silently wiped by the rewrite below.
+            _content: dict[str, Any] = self._load_content(strict=True)
             _now: float = IClock.current_timestamp(timezone="UTC")
             _filtered: dict[str, Any] = {}
             for _k, _v in _content.items():
@@ -199,8 +213,3 @@ class OSSStoreTable(BaseTable):
         except Exception as e:
             self._handle_io_error(exception=e, strict=strict)
             return {}
-
-    def export(self) -> dict[str, Any]:
-        _result: dict = super().export()
-        _result["identity"] = self.identity.name
-        return _result

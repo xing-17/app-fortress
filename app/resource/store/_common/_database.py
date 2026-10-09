@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import ClassVar
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field
 
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
@@ -18,60 +19,49 @@ class BaseDatabase(
     ABC,
 ):
     """
-    Base class for store database resources, governed and derived from a parent store.
-
-    A database can only be constructed via its parent store's `database()` method, which
-    guarantees the database occupies exactly one path segment directly under the store
-    (no nested names). Databases have no write capability of their own; write capability
-    only exists on `BaseTable`, which in turn can only be derived from a database.
-
-    Args:
-        name (str): Database name, must be a single path segment (no nested separators)
-        storesystem (StoreSystem): Store system
-        platform (Platform): Store platform
-        identity (BaseIdentity | AbstractIdentitySetting | str | None): Database identity
-        tags (dict[str, str]): Database tags
+    Base class for store database resources, governed and derived from a parent.
 
     Attributes:
-        tables (list[BaseTable]): Lazily loaded and cached list of tables under the database.
+    ----------
+        storesystem (StoreSystem):
+            Store system
+        platform (Platform):
+            Store platform
+
+    Args:
+    ----------
+        name (str):
+            Database name
+        identity (BaseIdentity | AbstractIdentitySetting | str | None):
+            Database identity
+        tags (dict[str, str]):
+            Database tags
 
     Methods:
-        table(name: str) -> BaseTable:
-            Only entry point for building a table under this database.
+    ----------
         list_tables() -> list[BaseTable]:
             Enumerate tables that currently exist under this database.
-        load_tables(force: bool = False) -> list[BaseTable]:
-            Load (and cache) the tables list, re-scanning when force is True.
-        reset_tables() -> None:
-            Clear the cached tables list.
+        table(name: str, ttl_hours: float | None = None) -> BaseTable:
+            Only entry point for building a table under this database.
         delete(name: str, strict: bool = False) -> None:
-            Delete a table by name; raises if missing and strict is True.
+            Delete a table under this database; raises if missing and strict is True.
 
     """
 
+    # Enforced public class variables
+    storesystem: ClassVar[StoreSystem]
+    platform: ClassVar[Platform]
+
+    # Enforced instance variables
+    # [Inherited] tags: dict[str, str]
     name: str = Field(
         ...,
         description="[Required] Database name, single path segment governed by the parent store",
-    )
-    storesystem: StoreSystem = Field(
-        ...,
-        description="[Required] Store system",
-    )
-    platform: Platform = Field(
-        ...,
-        description="[Required] Store platform",
     )
     identity: BaseIdentity | AbstractIdentitySetting | str | None = Field(
         default=None,
         description="[Optional] Database identity",
     )
-    tags: dict[str, str] = Field(
-        default_factory=dict,
-        description="[Optional] Database tags",
-    )
-
-    # List of tables under database
-    _tables: list[BaseTable] | None = PrivateAttr(default=None)
 
     @property
     def frn(self) -> str:
@@ -84,22 +74,6 @@ class BaseDatabase(
                 f"name={self.name}",
             ]
         )
-
-    @property
-    def tables(self) -> list[BaseTable]:
-        self.load_tables()
-        return self._tables
-
-    def load_tables(
-        self,
-        force: bool = False,
-    ) -> list[BaseTable]:
-        if force or self._tables is None:
-            self._tables = self.list_tables()
-        return self._tables
-
-    def reset_tables(self) -> None:
-        self._tables = None
 
     @abstractmethod
     def list_tables(self) -> list[BaseTable]: ...

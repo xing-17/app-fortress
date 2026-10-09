@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import ClassVar
 
-from pydantic import Field, PrivateAttr, model_validator
+from pydantic import Field, model_validator
 
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
@@ -14,45 +14,57 @@ from app.resource.identity._common._identity import BaseIdentity
 from app.resource.identity.local import LocalIdentity
 from app.resource.store._common._database import BaseDatabase
 from app.resource.store.file.table import FileStoreTable
+from app.setting._identity import LocalIdentitySetting
 
 
 class FileStoreDatabase(BaseDatabase):
     """
-    File store database backed by a single directory directly under its parent store's path.
+    File store database backed by a single directory.
 
-    Only constructible via `FileStore.database(name)`.
+    Attributes:
+    ----------
+        storesystem (StoreSystem):
+            Store system type, fixed as FILE.
+        platform (Platform):
+            Store platform type, fixed as LOCAL.
 
     Args:
-        name (str): Database name, single path segment
-        path (Path): Database directory path, derived from the parent store path and name
-        identity (LocalIdentity): Local identity associated with the database
-        storesystem (Literal[StoreSystem.FILE]): Store system type, fixed as FILE
-        platform (Literal[Platform.LOCAL]): Store platform type, fixed as LOCAL
-        tags (dict[str, str]): Database tags
+    ----------
+        name (str):
+            Database name, single path segment.
+        path (Path):
+            Database directory path, derived from the parent store path and name.
+        identity (LocalIdentity):
+            Local identity associated with the database.
+        tags (dict[str, str]):
+            Database tags
 
     Methods:
-        table(name: str) -> FileStoreTable:
-            Only entry point for building a table under this database.
+    ----------
         list_tables() -> list[FileStoreTable]:
             Enumerate the *.json tables that currently exist directly under this database.
+        table(name: str, ttl_hours: float | None = None) -> FileStoreTable:
+            Only entry point for building a table under this database.
         delete(name: str, strict: bool = False) -> None:
             Delete a table's JSON file by name; raises FileNotFoundError if missing and strict is True.
 
     """
 
-    storesystem: Literal[StoreSystem.FILE] = StoreSystem.FILE
-    platform: Literal[Platform.LOCAL] = Platform.LOCAL
+    # Enforced public class variables
+    storesystem: ClassVar[StoreSystem] = StoreSystem.FILE
+    platform: ClassVar[Platform] = Platform.LOCAL
+
+    # Enforced instance variables
+    # [Inherited] name: str
+    # [Inherited] tags: dict[str, str]
     path: Path = Field(
         ...,
         description="[NoOps] Database directory path, derived from the parent store path and name",
     )
-    identity: LocalIdentity = Field(
+    identity: LocalIdentity | LocalIdentitySetting | str | None = Field(
         ...,
         description="[NoOps] Local identity associated with the database",
     )
-
-    # List of tables under database
-    _tables: list[FileStoreTable] | None = PrivateAttr(default=None)
 
     @model_validator(mode="after")
     def _derive_path(self) -> "FileStoreDatabase":

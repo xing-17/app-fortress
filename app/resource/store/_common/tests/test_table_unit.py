@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 from pydantic import ValidationError
@@ -12,6 +12,9 @@ from app.resource.store._common._table import BaseTable
 
 class _ConcreteTable(BaseTable):
     # BaseTable is abstract (write/read/delete/expire); a trivial subclass exercises its shared logic.
+    storesystem: ClassVar[StoreSystem] = StoreSystem.FILE
+    platform: ClassVar[Platform] = Platform.LOCAL
+
     def write(self, key: str, data: Any, strict: bool = False) -> None:
         raise NotImplementedError
 
@@ -27,6 +30,9 @@ class _ConcreteTable(BaseTable):
 
 class _IncompleteTable(BaseTable):
     # Only implements two of the three abstract methods; must still fail to instantiate.
+    storesystem: ClassVar[StoreSystem] = StoreSystem.FILE
+    platform: ClassVar[Platform] = Platform.LOCAL
+
     def write(self, key: str, data: Any, strict: bool = False) -> None:
         raise NotImplementedError
 
@@ -35,7 +41,7 @@ class _IncompleteTable(BaseTable):
 
 
 def _make_table(**overrides) -> _ConcreteTable:
-    _kwargs = dict(name="tbl", storesystem=StoreSystem.FILE, platform=Platform.LOCAL, _authorized=True)
+    _kwargs = dict(name="tbl", _authorized=True)
     _kwargs.update(overrides)
     return _ConcreteTable(**_kwargs)
 
@@ -43,15 +49,15 @@ def _make_table(**overrides) -> _ConcreteTable:
 class TestBaseTableGovernedConstruction:
     def test_cannot_instantiate_base_table_directly(self):
         with pytest.raises(TypeError):
-            BaseTable(name="tbl", storesystem=StoreSystem.FILE, platform=Platform.LOCAL, _authorized=True)
+            BaseTable(name="tbl", _authorized=True)
 
     def test_subclass_missing_abstract_methods_cannot_instantiate(self):
         with pytest.raises(TypeError):
-            _IncompleteTable(name="tbl", storesystem=StoreSystem.FILE, platform=Platform.LOCAL, _authorized=True)
+            _IncompleteTable(name="tbl", _authorized=True)
 
     def test_missing_authorized_flag_raises_validation_error(self):
         with pytest.raises(ValidationError):
-            _ConcreteTable(name="tbl", storesystem=StoreSystem.FILE, platform=Platform.LOCAL)
+            _ConcreteTable(name="tbl")
 
     def test_authorized_true_succeeds(self):
         table = _make_table()

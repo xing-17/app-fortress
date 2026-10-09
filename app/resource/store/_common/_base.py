@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import Field, model_validator
 
@@ -17,22 +17,39 @@ class BaseStoreResource(
     ABC,
 ):
     """
-    Shared field/behavior mixin for the store/database/table hierarchy.
+    Shared base class for store resources.
 
     Args:
-        name (str): Resource name
-        storesystem (StoreSystem): Store system
-        platform (Platform): Store platform
-        identity (BaseIdentity | AbstractIdentitySetting | str | None): Resource identity
-        tags (dict[str, str]): Resource tags
+    ----------
+        storesystem (StoreSystem):
+            Store system type
+        platform (Platform):
+            Specifies the store operating platform
+        name (str):
+            Resource name
+        identity (BaseIdentity | AbstractIdentitySetting | str | None):
+            Resource identity
+        tags (dict[str, str]):
+            Resource tags
+
+    Methods:
+    ----------
+        export() -> dict[str, Any]:
+            Export the resource as a dictionary
 
     """
 
+    # Enforced public class variables
+    storesystem: ClassVar[StoreSystem]
+    platform: ClassVar[Platform]
+
+    # Enforced instance variables
     name: str = Field(...)
-    storesystem: StoreSystem = Field(...)
-    platform: Platform = Field(...)
     identity: BaseIdentity | AbstractIdentitySetting | str | None = Field(default=None)
-    tags: dict[str, str] = Field(default_factory=dict)
+    tags: dict[str, str] = Field(
+        default_factory=dict,
+        description="[Optional] Resource tags",
+    )
 
     def _handle_io_error(
         self,
@@ -60,6 +77,7 @@ class GovernedStoreResource(BaseStoreResource, ABC):
     Base class for resources that must be constructed via a parent resource's factory
     method (BaseDatabase/BaseTable), guarded by a sentinel `_authorized` kwarg plus a
     single-path-segment `name` check (no `/`, `\\`, `.` or `..`).
+
     """
 
     @model_validator(mode="before")

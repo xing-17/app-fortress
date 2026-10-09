@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import ClassVar
 
-from pydantic import Field, PrivateAttr, model_validator
+from pydantic import Field, model_validator
 
 from app.internal.constant.platform import Platform
 from app.internal.constant.storesystem import StoreSystem
@@ -23,32 +23,37 @@ class FileStore(BaseStore):
     """
     File store backed by the local filesystem.
 
-    Args:
-        name (str): Store name
-        path (str | Path | None): File store path, default ./store
-        identity (LocalIdentity | AbstractIdentitySetting | str | None): Local identity associated with the file store
-        storesystem (Literal[StoreSystem.FILE]): Store system type, fixed as FILE
-        platform (Literal[Platform.LOCAL]): Store platform type, fixed as LOCAL
-        tags (dict[str, str]): Store tags
-
     Attributes:
-        databases (list[FileStoreDatabase]): Lazily loaded and cached list of databases under the store.
+    ----------
+        storesystem (StoreSystem):
+            Store system type, fixed as FILE.
+        platform (Platform):
+            Store platform type, fixed as LOCAL.
+
+    Args:
+    ----------
+        name (str):
+            Store name
+        path (str | Path | None):
+            File store path, default ./store
+        identity (LocalIdentity | AbstractIdentitySetting | str | None):
+            Local identity associated with the file store
+        tags (dict[str, str]):
+            Store tags
 
     Methods:
+    ----------
         from_setting(cls, setting: FileStoreSetting) -> FileStore:
             Create a FileStore instance from a FileStoreSetting object.
-        database(name: str) -> FileStoreDatabase:
-            Only entry point for building a database under this store.
         list_databases() -> list[FileStoreDatabase]:
             Enumerate databases that currently exist under the store path.
-        load_databases(force: bool = False) -> list[FileStoreDatabase]:
-            Load (and cache) the databases list, re-scanning when force is True.
-        reset_databases() -> None:
-            Clear the cached databases list.
-        table(database: str, name: str) -> FileStoreTable:
-            Retrieve a table under the specified database in this store.
+        database(name: str) -> FileStoreDatabase:
+            Only entry point for building a database under this store.
+        table(database: str, name: str, ttl_hours: float | None = None) -> FileStoreTable:
+            Only entry point for building a table under a database of this store.
 
     Example:
+    ----------
         >>> from app.resource.store.file.store import FileStore
         >>> store = FileStore(name="my_store", path="/tmp/my_store")
         >>> store.name
@@ -56,35 +61,24 @@ class FileStore(BaseStore):
 
     """
 
-    # Inherited from BaseStore
-    # - name: str
-    # - tags: dict[str, Any]
-    storesystem: Literal[StoreSystem.FILE] = StoreSystem.FILE
-    platform: Literal[Platform.LOCAL] = Platform.LOCAL
+    # Enforced public class variables
+    storesystem: ClassVar[StoreSystem] = StoreSystem.FILE
+    platform: ClassVar[Platform] = Platform.LOCAL
+
+    # Enforced instance variables
+    # [Inherited] name: str
+    # [Inherited] tags: dict[str, str]
     path: Path | str | None = Field(
         default=None,
         description="[Optional] File store path",
     )
     identity: LocalIdentity | AbstractIdentitySetting | str | None = Field(
         default=None,
-        description="[NoOps] Local identity associated with the DuckDB store",
+        description="[NoOps] Local identity associated with the file store",
     )
 
     # Class-level attributes
     default_path: ClassVar[str] = "./store/"
-
-    # List of databases under file store
-    _databases: list[FileStoreDatabase] | None = PrivateAttr(default=None)
-
-    @model_validator(mode="after")
-    def _derive_identity(self) -> "FileStore":
-        _identity: BaseIdentity = GlobalIdentities.resolve(
-            value=self.identity,
-            default=LocalIdentity.default(),
-            platform=Platform.LOCAL,
-        )
-        object.__setattr__(self, "identity", _identity)
-        return self
 
     @model_validator(mode="after")
     def _derive_path(self) -> "FileStore":
@@ -99,8 +93,13 @@ class FileStore(BaseStore):
         return self
 
     @model_validator(mode="after")
-    def _derive_databases(self) -> "FileStore":
-        self.load_databases()
+    def _derive_identity(self) -> "FileStore":
+        _identity: BaseIdentity = GlobalIdentities.resolve(
+            value=self.identity,
+            default=LocalIdentity.default(),
+            platform=Platform.LOCAL,
+        )
+        object.__setattr__(self, "identity", _identity)
         return self
 
     @classmethod
@@ -114,22 +113,6 @@ class FileStore(BaseStore):
             identity=setting.identity,
             tags=setting.tags,
         )
-
-    @property
-    def databases(self) -> list[FileStoreDatabase]:
-        self.load_databases()
-        return self._databases
-
-    def load_databases(
-        self,
-        force: bool = False,
-    ) -> list[FileStoreDatabase]:
-        if force or self._databases is None:
-            self._databases = self.list_databases()
-        return self._databases
-
-    def reset_databases(self) -> None:
-        self._databases = None
 
     def list_databases(self) -> list[FileStoreDatabase]:
         _databases: list[FileStoreDatabase] = []
@@ -166,5 +149,8 @@ class FileStore(BaseStore):
         ttl_hours: float | None = None,
     ) -> FileStoreTable:
         _database: FileStoreDatabase = self.database(database)
-        _table: FileStoreTable = _database.table(name, ttl_hours=ttl_hours)
+        _table: FileStoreTable = _database.table(
+            name=name,
+            ttl_hours=ttl_hours,
+        )
         return _table
