@@ -28,38 +28,52 @@ from app.resource.identity.aliyun import AliyunIdentity
 
 class OSSClient:
     """
-    Aliyun OSS Tea SDK 客户端,
-
-    Args:
-        bucket (str): OSS bucket 名称
-        region (str): OSS bucket 区域
-        identity (AliyunIdentity): 用于认证 OSS 的阿里云身份
-        in_vpc (bool): 是否使用 VPC 内网 endpoint(默认 False)
+    Aliyun OSS Tea SDK 客户端。
 
     Attributes:
-        client (OSSTeaClient): 懒加载并缓存的 Tea SDK 客户端实例，凭证按需实时获取以支持刷新。
+    ----------
+        client (OSSTeaClient):
+            懒加载并缓存的 Tea SDK 客户端实例，凭证按需实时获取以支持刷新
+
+    Args:
+    ----------
+        bucket (str):
+            OSS bucket 名称
+        region (str):
+            OSS bucket 区域
+        identity (AliyunIdentity):
+            用于认证 OSS 的阿里云身份
+        in_vpc (bool):
+            是否使用 VPC 内网 endpoint，默认 False
 
     Methods:
+    ----------
         get_client(bucket, region, identity, in_vpc=False) -> OSSClient:
-            按 (bucket, region, identity) 从进程级 LRU 缓存中获取或创建实例。
-        write_bytes(key: str, data: bytes) -> None:
+            按 (bucket, region, in_vpc, identity) 从进程级 LRU 缓存中获取或创建实例。
+        write_bytes(key, data) -> None:
             将原始字节写入指定 key 的对象。
-        read_bytes(key: str) -> bytes:
+        read_bytes(key) -> bytes:
             从指定 key 的对象中读取原始字节；key 不存在时抛出 FileNotFoundError。
-        list_objects(prefix, pattern=None, since=None, until=None, recursive=True) -> list[dict]:
+        list_objects(prefix="", pattern=None, since=None, until=None, recursive=True) -> list[dict[str, Any]]:
             列出指定前缀下的对象元数据，分页获取所有结果，可按 glob 模式/修改时间过滤。
-        list_folders(prefix, pattern=None, recursive=True) -> list[dict]:
-            列出指定前缀下的“文件夹”（common prefix），recursive 控制是否递归子层级。
-        get_object(key: str) -> dict:
+        list_folders(prefix="", pattern=None, recursive=True) -> list[dict[str, Any]]:
+            列出指定前缀下的"文件夹"（common prefix），recursive 控制是否递归子层级。
+        get_object(key) -> dict[str, Any] | None:
             获取单个对象的元数据；key 不存在时抛出 FileNotFoundError。
-        delete_object(key: str) -> None:
+        delete_object(key) -> None:
             删除指定 key 的对象(OSS 语义上删除不存在的 key 不会报错)。
         reset() -> None:
             清空进程级实例缓存(主要用于测试隔离)。
 
+    Example:
+    ----------
+        >>> identity = AliyunIdentity.default()
+        >>> client = OSSClient.get_client(bucket="my-bucket", region="cn-hangzhou", identity=identity)
+        >>> client.write_bytes("path/to/key", b"hello world")
+
     """
 
-    _cache: OrderedDict[tuple[str, str, str], "OSSClient"] = OrderedDict()
+    _cache: OrderedDict[tuple[str, str, bool, str], "OSSClient"] = OrderedDict()
     _cache_lock = threading.RLock()
     _cache_max_size: int = 20
 
@@ -71,7 +85,7 @@ class OSSClient:
         identity: AliyunIdentity,
         in_vpc: bool = False,
     ) -> "OSSClient":
-        _key = (bucket, region, identity.sha256())
+        _key = (bucket, region, in_vpc, identity.sha256())
         with cls._cache_lock:
             _hit: OSSClient | None = cls._cache.get(_key)
             if _hit is not None:

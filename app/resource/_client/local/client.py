@@ -14,17 +14,20 @@ class LocalObjectClient:
     Local filesystem object management.
 
     Methods:
-        write_bytes(path: Path, data: bytes) -> None:
+    ----------
+        write_bytes(path, data) -> None:
             Write raw bytes to path, creating parent directories as needed.
-        read_bytes(path: Path) -> bytes:
+        read_bytes(path) -> bytes:
             Read raw bytes from path.
         list_objects(path, pattern=None, since=None, until=None, recursive=True) -> list[dict[str, Any]]:
             List files under path (directories are excluded), optionally filtered by pattern/modified time.
             When recursive is False, only direct children of path are listed.
         list_folders(path, pattern=None, recursive=True) -> list[dict[str, Any]]:
             List subdirectories under path. When recursive is False, only direct children of path are listed.
-        get_object(path: Path) -> dict[str, Any]:
+        get_object(path) -> dict[str, Any]:
             Return path and stat metadata for a single filesystem entry.
+        delete_object(path) -> None:
+            Delete path if it is a file, or recursively delete its contents if it is a directory.
 
     """
 

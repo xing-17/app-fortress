@@ -118,6 +118,14 @@ class TestOSSClientGetClient:
         second = OSSClient.get_client(bucket="my-bucket", region="cn-hangzhou", identity=_make_identity("identity-b"))
         assert first is not second
 
+    def test_different_in_vpc_yields_different_instance(self):
+        identity = _make_identity()
+        public = OSSClient.get_client(bucket="my-bucket", region="cn-hangzhou", identity=identity, in_vpc=False)
+        internal = OSSClient.get_client(bucket="my-bucket", region="cn-hangzhou", identity=identity, in_vpc=True)
+        assert public is not internal
+        assert public.endpoint == "oss-cn-hangzhou.aliyuncs.com"
+        assert internal.endpoint == "oss-cn-hangzhou-internal.aliyuncs.com"
+
     def test_in_vpc_is_passed_through_to_new_instance(self):
         result = OSSClient.get_client(bucket="my-bucket", region="cn-hangzhou", identity=_make_identity(), in_vpc=True)
         assert result.in_vpc is True
