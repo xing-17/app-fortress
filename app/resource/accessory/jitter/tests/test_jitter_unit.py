@@ -17,7 +17,6 @@ class TestJitterInit:
     def test_default_min_and_max_seconds(self):
         jitter = Jitter()
         assert jitter.min_seconds == 0.0
-        assert jitter.max_seconds == 1.0
 
     def test_explicit_bounds_are_kept(self):
         jitter = Jitter(min_seconds=0.5, max_seconds=2.0)

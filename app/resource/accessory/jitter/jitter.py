@@ -32,12 +32,12 @@ class Jitter(BaseAccessory):
     # - tags: dict[str, str]
     min_seconds: float = Field(
         default=0.0,
-        description="The minimum number of seconds for the jitter delay.",
+        description="The minimum number of seconds for the jitter delay, default is 0.0",
         ge=0,  # must be greater than or equal to 0
     )
     max_seconds: float = Field(
-        default=1.0,
-        description="The maximum number of seconds for the jitter delay.",
+        default=0.5,
+        description="The maximum number of seconds for the jitter delay, default is 0.5",
         ge=0,  # must be greater than or equal to 0
     )
 

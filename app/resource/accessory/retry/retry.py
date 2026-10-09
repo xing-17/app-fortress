@@ -50,7 +50,7 @@ class Retry(BaseAccessory):
     )
     interval: float = Field(
         default=5,
-        description="Base interval in seconds for attempt 0.",
+        description="[Optional] Base interval in seconds for attempt 0.",
         ge=0,
     )
     backoff_rate: float = Field(
