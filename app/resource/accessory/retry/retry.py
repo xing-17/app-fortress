@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
 from enum import StrEnum
 from fnmatch import fnmatchcase
 
@@ -9,27 +10,74 @@ from pydantic import Field, PrivateAttr
 from app.resource.accessory._common._base import BaseAccessory
 
 
-class RetryResult(StrEnum):
+class RetryAction(StrEnum):
     """
     Outcome of a single `Retry.run()` call.
 
     Members:
     -----------
-        SUCCESS:
+        RETRY:
             Backoff delay elapsed; the caller may attempt again.
-        IGNORED:
+        SKIP:
             Error matched an ignore pattern; skip retrying.
-        CRITICAL:
+        ABORT:
             Error matched a critical pattern; abort.
-        EXHAUSTED:
-            No retries left.
+        GIVE_UP:
+            No retries left; give up.
 
     """
 
-    CRITICAL = "CRITICAL"
-    IGNORED = "IGNORED"
-    EXHAUSTED = "EXHAUSTED"
-    SUCCESS = "SUCCESS"
+    ABORT = "ABORT"
+    SKIP = "SKIP"
+    GIVE_UP = "GIVE_UP"
+    RETRY = "RETRY"
+
+
+class Attempt:
+    """
+    Attempt object within a retry object.
+
+    Attributes:
+    ----------
+        done (bool):
+            Indicates whether this attempt has completed (either successfully or not).
+
+    Args:
+    ----------
+        retry (Retry):
+            The parent retry object managing this attempt.
+
+    Methods:
+    ----------
+        __enter__() -> Attempt:
+            Enter the runtime context related to this attempt.
+        __exit__(exc_type, exc_value, tb) -> bool:
+            Exit the runtime context, handling the error classification and retry logic.
+
+    """
+
+    def __init__(
+        self,
+        retry: Retry,
+    ) -> None:
+        self._retry = retry
+        self.done = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        if not isinstance(exc_value, Exception):
+            # if none: success;
+            # if Exception: re-raise as is
+            self.done = exc_value is None
+            return False
+        else:
+            # if RETRY: can retry again
+            # if SKIP / GIVE_UP / ABORT: stop retrying
+            _res: RetryAction = self._retry.run(error=exc_value)
+            self.done = _res != RetryAction.RETRY
+            return True
 
 
 class Retry(BaseAccessory):
@@ -55,12 +103,12 @@ class Retry(BaseAccessory):
 
     Methods:
     -----------
-        run(error: Exception | str | None = None) -> RetryResult:
+        run(error: Exception | str | None = None) -> RetryAction:
             Classify the error, then sleep and consume one retry if allowed.
             Critical takes precedence over ignored; both are checked before the retry limit.
-            Returns SUCCESS, IGNORED, CRITICAL or EXHAUSTED.
-            Raises the original exception (or RuntimeError for str/None) on CRITICAL or
-            EXHAUSTED when raise_on_exception is True.
+            Returns RETRY, SKIP, ABORT or GIVE_UP.
+            Raises the original exception (or RuntimeError for str/None) on ABORT or
+            GIVE_UP when raise_on_exception is True.
         reset() -> None:
             Reset the retry counter for a new operation.
 
@@ -104,14 +152,14 @@ class Retry(BaseAccessory):
     def _classify_error(
         self,
         error: Exception | str | None = None,
-    ) -> RetryResult | None:
+    ) -> RetryAction | None:
         if error is None:
             return None
         _msg: str = str(error)
         if any(fnmatchcase(_msg, _p) for _p in self.critical_error_exprs):
-            return RetryResult.CRITICAL
+            return RetryAction.ABORT
         if any(fnmatchcase(_msg, _p) for _p in self.ignore_error_exprs):
-            return RetryResult.IGNORED
+            return RetryAction.SKIP
         return None
 
     def _delay(self) -> float:
@@ -120,10 +168,10 @@ class Retry(BaseAccessory):
 
     def _handle_failure(
         self,
-        result: RetryResult,
+        result: RetryAction,
         message: str,
         error: Exception | str | None = None,
-    ) -> RetryResult:
+    ) -> RetryAction:
         if self.raise_on_exception:
             self.error(message)
             if isinstance(error, Exception):
@@ -135,23 +183,23 @@ class Retry(BaseAccessory):
     def run(
         self,
         error: Exception | str | None = None,
-    ) -> RetryResult:
-        _result: RetryResult | None = self._classify_error(error)
-        if _result == RetryResult.CRITICAL:
+    ) -> RetryAction:
+        _result: RetryAction | None = self._classify_error(error)
+        if _result == RetryAction.ABORT:
             return self._handle_failure(
-                result=RetryResult.CRITICAL,
+                result=RetryAction.ABORT,
                 message=f"critical error matched, abort retry: {error}",
                 error=error,
             )
-        if _result == RetryResult.IGNORED:
+        if _result == RetryAction.SKIP:
             self.debug(f"ignorable error matched, skip retry: {error}")
-            return RetryResult.IGNORED
+            return RetryAction.SKIP
         if self._attempt >= self.max_retries:
             _msg: str = f"retry exhausted after {self._attempt} attempts"
             if error is not None:
                 _msg = f"{_msg}: {error}"
             return self._handle_failure(
-                result=RetryResult.EXHAUSTED,
+                result=RetryAction.GIVE_UP,
                 message=_msg,
                 error=error,
             )
@@ -160,7 +208,15 @@ class Retry(BaseAccessory):
         time.sleep(_seconds)
         self._attempt += 1
         self.debug(f"retry attempt={self._attempt} delay={_seconds}s OK.")
-        return RetryResult.SUCCESS
+        return RetryAction.RETRY
+
+    def attempts(self) -> Iterator["Attempt"]:
+        self.reset()
+        while True:
+            _attempt = Attempt(self)
+            yield _attempt
+            if _attempt.done:
+                return
 
     def reset(self) -> None:
         self._attempt = 0
