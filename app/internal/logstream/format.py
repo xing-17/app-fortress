@@ -7,8 +7,8 @@ from typing import Any
 from app.internal.logstream.event import LogEvent
 
 _COLOR_CONFIG = {
-    "DEBUG": "\x1b[36m",  # Cyan
-    "INFO": "\x1b[38;5;244m",  # Gray
+    "DEBUG": "\x1b[38;5;244m",  # grey
+    "INFO": "\x1b[36m",  # Cyan
     "WARNING": "\x1b[38;5;208m",  # Orange
     "ERROR": "\x1b[31m",  # Red
     "CRITICAL": "\x1b[35m",  # Purple
