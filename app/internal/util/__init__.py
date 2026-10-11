@@ -8,6 +8,7 @@ from app.internal.util.id import IID
 from app.internal.util.partition import IPartition
 from app.internal.util.path import IPath
 from app.internal.util.prefix import IPrefix
+from app.internal.util.stopwatch import IStopwatch
 from app.internal.util.timezone import ITimezone
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "IPartition",
     "IPath",
     "IPrefix",
+    "IStopwatch",
 ]
