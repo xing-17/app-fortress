@@ -38,12 +38,14 @@ class IDataframe(IAbstractUtility):
     def to_parquet_bytes(
         df: pl.DataFrame,
         compression: str = "zstd",
+        metadata: dict[str, str] | None = None,
     ) -> tuple[bytes, str]:
         with BytesIO() as buf:
             df.write_parquet(
                 buf,
                 compression=compression,
                 use_pyarrow=False,
+                metadata=metadata,
             )
             _result: bytes = buf.getvalue()
             _dna = hashlib.sha256(_result).hexdigest()[:32]
