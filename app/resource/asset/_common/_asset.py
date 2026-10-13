@@ -123,13 +123,13 @@ class BaseAsset(
     ) -> list[BaseAssetfile]: ...
 
     def _non_override_tags(self) -> dict[str, str]:
-        return {
-            "platform": self.platform,
-            "filesystem": self.filesystem,
-            "filekind": self.filekind,
-        }
+        _res: dict[str, str] = super()._non_override_tags()
+        _res["filekind"] = self.filekind
+        return _res
 
     def export(self) -> dict[str, Any]:
         _res: dict[str, Any] = super().export()
-        _res["identity"] = getattr(self.identity, "name", None)
+        _res["uri"] = self.uri
+        _res["name"] = self.name
+        _res["full_pattern"] = self.full_pattern
         return _res

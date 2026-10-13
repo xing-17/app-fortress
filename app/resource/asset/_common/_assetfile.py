@@ -18,6 +18,10 @@ class BaseAssetfile(
 
     Attributes:
     ----------
+        filesystem (AssetFilesystem):
+            Asset filesystem type
+        platform (Platform):
+            Asset operating platform
         uri (str):
             Asset URI (e.g., "scheme://bucket/key")
         frn (str):
@@ -31,10 +35,6 @@ class BaseAssetfile(
 
     Args:
     ----------
-        filesystem (AssetFilesystem):
-            Asset filesystem type
-        platform (Platform):
-            Asset operating platform
         filekind (AssetFileKind):
             Asset file kind
         partitions (dict[str, str]):
@@ -91,6 +91,10 @@ class BaseAssetfile(
 
     @property
     @abstractmethod
+    def uri(self) -> str: ...
+
+    @property
+    @abstractmethod
     def stem(self) -> str: ...
 
     @property
@@ -116,4 +120,12 @@ class BaseAssetfile(
     def _non_override_tags(self) -> dict[str, str]:
         _res: dict[str, str] = super()._non_override_tags()
         _res["filekind"] = self.filekind
+        return _res
+
+    def export(self) -> dict[str, Any]:
+        _res: dict[str, Any] = super().export()
+        _res["uri"] = self.uri
+        _res["name"] = self.name
+        _res["stem"] = self.stem
+        _res["extension"] = self.extension
         return _res
