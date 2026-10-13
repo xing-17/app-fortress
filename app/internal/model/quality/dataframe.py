@@ -8,7 +8,6 @@ from pydantic import Field, model_validator
 from app.internal.abstract.domain import IAbstractDomain
 from app.internal.util.clock import IClock
 from app.internal.util.dataframe import IDataframe
-from app.internal.util.id import IID
 
 # a (0.0, 0.0) pair marks "no rows" placeholders; every other pair must sum to 1.0
 _RATE_PAIR_TOLERANCE = 1e-9
@@ -130,7 +129,6 @@ class DataframeQuality(IAbstractDomain):
     Dataframe-level data quality report aggregating column-level quality metrics.
 
     Args:
-        id (str): The unique identifier for the dataset quality record.
         width (int): The number of columns in the dataset.
         height (int): The number of rows in the dataset.
         is_empty (bool): Indicates whether the dataset is empty (i.e., has no rows or columns).
@@ -140,15 +138,11 @@ class DataframeQuality(IAbstractDomain):
         columns (list[ColumnQuality]): The quality metrics of the columns in the dataset.
 
     Methods:
-        from_df(cls, df: pl.DataFrame) -> DataframeQuality:
+        from_frame(cls, df: pl.DataFrame) -> DataframeQuality:
             Compute a DataframeQuality report from a polars DataFrame.
 
     """
 
-    id: str = Field(
-        default_factory=lambda: IID.generate_id(length=16, prefix="quality"),
-        description="The unique identifier for the dataset quality record.",
-    )
     width: int = Field(
         default=0,
         description="The number of columns in the dataset.",
@@ -218,7 +212,7 @@ class DataframeQuality(IAbstractDomain):
         return self
 
     @classmethod
-    def from_df(
+    def from_frame(
         cls,
         df: pl.DataFrame,
     ) -> "DataframeQuality":

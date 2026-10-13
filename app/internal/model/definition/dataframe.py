@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
 import polars as pl
 from pydantic import Field, model_validator
 
 from app.internal.abstract.domain import IAbstractDomain
 from app.internal.util.clock import IClock
 from app.internal.util.dataframe import IDataframe
-from app.internal.util.id import IID
 
 
 class ColumnDefinition(IAbstractDomain):
@@ -14,6 +16,7 @@ class ColumnDefinition(IAbstractDomain):
     Column-level schema definition for a single column in a dataset.
 
     Args:
+    ---------
         name (str): The name of the column in the dataset.
         type (str): The data type of the column in the dataset.
 
@@ -34,20 +37,21 @@ class DataframeDefinition(IAbstractDomain):
     Dataframe-level schema definition aggregating column-level definitions.
 
     Args:
-        id (str): The unique identifier for the dataset definition.
-        created_at (float | None): The creation timestamp of the dataset definition, in UTC.
-        columns (list[ColumnDefinition]): The columns of the dataset for this definition.
+    ---------
+        created_at (float | None):
+            The creation timestamp of the dataset definition, in UTC.
+        columns (list[ColumnDefinition]):
+            The columns of the dataset for this definition.
+        fingerprint (str | None):
+            The fingerprint of the dataset definition, derived from its columns.
 
     Methods:
-        from_df(cls, df: pl.DataFrame) -> DataframeDefinition:
+    ---------
+        from_frame(cls, df: pl.DataFrame) -> DataframeDefinition:
             Build a DataframeDefinition from a polars DataFrame's columns.
 
     """
 
-    id: str = Field(
-        default_factory=lambda: IID.generate_id(length=16, prefix="def"),
-        description="The unique identifier for the dataset definition.",
-    )
     created_at: float | None = Field(
         default=None,
         description="The creation timestamp of the dataset definition, in UTC.",
@@ -55,6 +59,10 @@ class DataframeDefinition(IAbstractDomain):
     columns: list[ColumnDefinition] = Field(
         default_factory=list,
         description="The columns of the dataset for this definition.",
+    )
+    fingerprint: str | None = Field(
+        default=None,
+        description="The fingerprint of the dataset definition, derived from its columns.",
     )
 
     @model_validator(mode="after")
@@ -70,8 +78,24 @@ class DataframeDefinition(IAbstractDomain):
         object.__setattr__(self, "columns", _sorted)
         return self
 
+    @model_validator(mode="after")
+    def _derive_fingerprint(self) -> DataframeDefinition:
+        if not self.fingerprint:
+            _col_objs: list[ColumnDefinition] = self.columns
+            _col_objs = sorted(_col_objs, key=lambda c: c.name)
+            _cols: dict[str, str] = {col.name: col.type for col in _col_objs}
+            _string: str = json.dumps(
+                _cols,
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            _encoded: bytes = _string.encode("utf-8")
+            _fp: str = hashlib.sha256(_encoded).hexdigest()
+            object.__setattr__(self, "fingerprint", _fp)
+        return self
+
     @classmethod
-    def from_df(
+    def from_frame(
         cls,
         df: pl.DataFrame,
     ) -> DataframeDefinition:
