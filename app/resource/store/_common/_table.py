@@ -124,6 +124,13 @@ class BaseTable(
     ) -> None: ...
 
     @abstractmethod
+    def write_batch(
+        self,
+        items: dict[str, dict[str, Any]],
+        strict: bool = False,
+    ) -> None: ...
+
+    @abstractmethod
     def read(
         self,
         key: str | None = None,

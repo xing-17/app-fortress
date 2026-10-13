@@ -22,7 +22,10 @@ class _ConcreteTable(BaseTable):
     def write(self, key: str, data: Any, strict: bool = False) -> None:
         raise NotImplementedError
 
-    def read(self, key: str, strict: bool = False) -> Any:
+    def write_batch(self, data: dict[str, Any], strict: bool = False) -> None:
+        raise NotImplementedError
+
+    def read(self, items: dict[str, dict[str, Any]], strict: bool = False) -> None:
         raise NotImplementedError
 
     def delete(self, key: str, strict: bool = False) -> None:

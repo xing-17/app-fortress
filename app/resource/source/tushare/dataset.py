@@ -96,7 +96,7 @@ class TushareDataset(BaseDataset):
     )
     retry: ClassVar[Retry] = Retry(  # Default retry configuration
         max_retries=3,
-        interval=1,
+        interval=30,
         backoff_rate=1.0,
     )
 

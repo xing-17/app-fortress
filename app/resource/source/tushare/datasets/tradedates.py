@@ -38,6 +38,16 @@ class TradedateDataset(TushareDataset):
         page_size=5000,
         end_page=10,
     )
+    # [Inherited] jitter: ClassVar[Jitter]
+    # [Inherited] coolant: ClassVar[Coolant]
+    # [Inherited] retry: ClassVar[Retry]
+
+    origin: ClassVar[list[str]] = [
+        "exchange",
+        "cal_date",
+        "is_open",
+        "pretrade_date",
+    ]
 
     def transform(
         self,

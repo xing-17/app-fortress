@@ -165,6 +165,26 @@ class OSSStoreTable(BaseTable):
             except Exception as e:
                 self._handle_io_error(exception=e, strict=strict)
 
+    def write_batch(
+        self,
+        items: dict[str, dict[str, Any]],
+        strict: bool = False,
+    ) -> None:
+        with self._lock:
+            try:
+                _content = self._load_content(strict=True)
+            except Exception as e:
+                self._handle_io_error(exception=e, strict=strict)
+                return
+            for key, data in items.items():
+                _content[key] = self._wrap(key=key, data=data)
+            try:
+                _stringfied: str = json.dumps(_content, ensure_ascii=False)
+                _bytes: bytes = _stringfied.encode("utf-8")
+                self.client.write_bytes(self.key, _bytes)
+            except Exception as e:
+                self._handle_io_error(exception=e, strict=strict)
+
     def read(
         self,
         key: str | None = None,
