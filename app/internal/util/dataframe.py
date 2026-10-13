@@ -39,7 +39,7 @@ class IDataframe(IAbstractUtility):
         df: pl.DataFrame,
         compression: str = "zstd",
         metadata: dict[str, str] | None = None,
-    ) -> tuple[bytes, str]:
+    ) -> bytes:
         with BytesIO() as buf:
             df.write_parquet(
                 buf,
@@ -47,6 +47,12 @@ class IDataframe(IAbstractUtility):
                 use_pyarrow=False,
                 metadata=metadata,
             )
-            _result: bytes = buf.getvalue()
-            _dna = hashlib.sha256(_result).hexdigest()[:32]
-            return _result, _dna
+            return buf.getvalue()
+
+    @staticmethod
+    def to_fingerprint(data: bytes | memoryview, length: int | None = None) -> str:
+        _res: str = hashlib.sha256(data).hexdigest()
+        if length is not None:
+            if length > 0 and length < len(_res):
+                _res = _res[:length]
+        return _res
