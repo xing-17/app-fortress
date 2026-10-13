@@ -62,7 +62,7 @@ class TushareSession(IAbstractDomain):
 
     @model_validator(mode="after")
     def _derive_ttl_seconds(self) -> TushareSession:
-        object.__setattr__(self, "_ttl_seconds", self.ttl_hours * 3600)
+        self._ttl_seconds = self.ttl_hours * 3600
         return self
 
     def is_expired(self) -> bool:
