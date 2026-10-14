@@ -100,26 +100,15 @@ class TushareDataset(BaseDataset):
         backoff_rate=1.0,
     )
 
-    # Enforced private class variables
-    # [Inherited] _table_qual_name: str
-    # [Inherited] _table_qual_ttl_hours: int | None
-    # [Inherited] _table_def_name: str
-    # [Inherited] _table_def_ttl_hours: int | None
-    # [Inherited] _table_files_name: str
-    # [Inherited] _table_files_ttl_hours: int | None
-
     # Enforced instance variables
-    session: TushareSession = Field(
-        ...,
-        description="Tushare session for API calls.",
-    )
     # [Inherited] asset: BaseAsset
     # [Inherited] database: BaseDatabase
     # [Inherited] log_stream: LogStream
     # [Inherited] tags: dict[str, str]
-    # [Inherited] _table_def: BaseTable
-    # [Inherited] _table_qual: BaseTable
-    # [Inherited] _table_files: BaseTable
+    session: TushareSession = Field(
+        ...,
+        description="Tushare session for API calls.",
+    )
 
     def _check_session(self) -> bool:
         if not self.session:
