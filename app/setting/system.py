@@ -9,6 +9,7 @@ from app.setting._identity import UnionIdentitySetting
 from app.setting._log import LogSetting
 from app.setting._source import UnionSourceSetting
 from app.setting._store import UnionStoreSetting
+from app.setting._vault import UnionVaultSetting
 
 
 class SystemLogSetting(LogSetting):
@@ -16,8 +17,8 @@ class SystemLogSetting(LogSetting):
     System-level log setting with a fixed name and file path.
 
     Attributes:
-        name (Literal["system"]): 固定为 "system"
-        file_path (Literal["./.logs/system"]): 固定为 "./.logs/system"
+        name (Literal["system"]): fixed as "system"
+        file_path (Literal["./.logs/system"]): fixed as "./.logs/system"
 
     """
 
@@ -27,57 +28,59 @@ class SystemLogSetting(LogSetting):
 
 class SystemSetting(IAbstractSetting):
     """
-    Fortress系统设置
+    Fortress system setting.
 
     Attributes:
-        name (str): 系统名称
-        alias (str): 系统别名
-        version (str): 系统版本
-        timezone (str | None): 系统时区
-        log (SystemLogSetting): 系统日志配置
-        identities (list[UnionIdentitySetting]): 系统身份配置
-        stores (list[UnionStoreSetting]): 系统元数据存储配置
-        vaults (list[UnionVaultSetting]): 系统资产库配置
-        sources (list[UnionSourceSetting]): 系统数据源配置
+        name (str): System name
+        alias (str): System alias
+        version (str): System version
+        timezone (str | None): System timezone
+        log (SystemLogSetting): System log configuration
+        identities (list[UnionIdentitySetting]): System identity configurations
+        stores (list[UnionStoreSetting]): System metadata store configurations
+        vaults (list[UnionVaultSetting]): System asset vault configurations
+        sources (list[UnionSourceSetting]): System data source configurations
 
     """
 
     # Plain attributes
     name: str = Field(
         default="fortress",
-        description="[Optional] 系统名称",
+        description="[Optional] System name",
     )
     alias: str = Field(
         default="伽蓝",
-        description="[Optional] 系统别名",
+        description="[Optional] System alias",
     )
+
+    # System-level configuration attributes
     version: str = Field(
         default="0.0.1",
-        description="[Optional] 系统版本",
+        description="[Optional] System version",
     )
     timezone: str | None = Field(
         default=None,
-        description="[Optional] 系统时区",
+        description="[Optional] System timezone",
     )
 
     # Nested attributes
-    log: SystemLogSetting = Field(
+    log: LogSetting = Field(
         default_factory=SystemLogSetting,
-        description="[Optional] 系统日志配置",
+        description="[Optional] System log configuration",
     )
     identities: list[UnionIdentitySetting] = Field(
         default_factory=list,
-        description="[Optional] 系统身份配置",
+        description="[Optional] System identity configurations",
     )
     stores: list[UnionStoreSetting] = Field(
         default_factory=list,
-        description="[Optional] 系统元数据存储配置",
+        description="[Optional] System metadata store configurations",
     )
-    # vaults: list[UnionVaultSetting] = Field(
-    #     default_factory=list,
-    #     description="[Optional] 系统资产库配置",
-    # )
+    vaults: list[UnionVaultSetting] = Field(
+        default_factory=list,
+        description="[Optional] System asset vault configurations",
+    )
     sources: list[UnionSourceSetting] = Field(
         default_factory=list,
-        description="[Optional] 系统数据源配置",
+        description="[Optional] System data source configurations",
     )

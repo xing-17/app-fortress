@@ -8,12 +8,13 @@ from ._identity import (
 from ._log import LogSetting
 from ._source import (
     ABSSourceSetting,
+    NSWVGSourceSetting,
     TushareSourceSetting,
     UnionSourceSetting,
 )
 from ._store import (
-    AliyunStoreSetting,
-    LocalStoreSetting,
+    FileStoreSetting,
+    OSSStoreSetting,
     UnionStoreSetting,
 )
 from ._vault import (
@@ -21,7 +22,10 @@ from ._vault import (
     OSSVaultSetting,
     UnionVaultSetting,
 )
-from .system import SystemSetting
+from .system import (
+    SystemLogSetting,
+    SystemSetting,
+)
 
 __all__ = [
     "AliyunIdentitySetting",
@@ -29,13 +33,15 @@ __all__ = [
     "UnionIdentitySetting",
     "LogSetting",
     "ABSSourceSetting",
+    "NSWVGSourceSetting",
     "TushareSourceSetting",
     "UnionSourceSetting",
-    "AliyunStoreSetting",
-    "LocalStoreSetting",
+    "OSSStoreSetting",
+    "FileStoreSetting",
     "UnionStoreSetting",
     "LocalVaultSetting",
     "OSSVaultSetting",
     "UnionVaultSetting",
+    "SystemLogSetting",
     "SystemSetting",
 ]

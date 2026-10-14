@@ -7,35 +7,44 @@ from pydantic import Field
 from app.internal.abstract.setting import IAbstractTaggedSetting
 from app.internal.constant.aliyunidentitytype import AliyunIdentityType
 from app.internal.constant.platform import Platform
+from app.internal.util.frn import IFrn
 
 
 class AbstractIdentitySetting(IAbstractTaggedSetting):
     """
-    抽象Identity设置
+    Abstract identity setting
 
     Attributes:
-        name (str): Identity名称
-        platform (str): Identity平台类型
-        tags (dict[str, str]): Identity标签
+    ----------
+        name (str): Identity name
+        platform (Platform): Identity platform type
+        tags (dict[str, str]): Identity tags
 
     """
 
     name: str = Field(
         ...,
-        description="[Required] Identity名称",
+        description="[Required] Identity name",
     )
     platform: Platform = Field(
         ...,
-        description="[discriminator] Identity平台类型",
+        description="[discriminator] Identity platform type",
     )
     tags: dict[str, str] = Field(
         default_factory=dict,
-        description="[Optional] Identity标签",
+        description="[Optional] Identity tags",
     )
 
     @property
     def frn(self) -> str:
-        return f"setting:identity:platform={self.platform}:name={self.name}"
+        return IFrn.resolve(
+            [
+                "setting",
+                "identity",
+                f"platform={self.platform}",
+                f"name={self.name}",
+            ]
+        )
 
     def _non_override_tags(self) -> dict[str, str]:
         return {
@@ -49,6 +58,7 @@ class AliyunIdentitySetting(AbstractIdentitySetting):
     阿里云Identity设置
 
     Attributes:
+    ----------
         name (str): Identity名称
         type (AliyunIdentityType): 阿里云Identity类型
         access_key_id (str | None): 阿里云Access Key ID
@@ -100,6 +110,7 @@ class LocalIdentitySetting(AbstractIdentitySetting):
     Local Identity setting
 
     Attributes:
+    ----------
         name (str): Identity name
         tags (dict[str, str]): Identity tags
 

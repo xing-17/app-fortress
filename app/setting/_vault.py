@@ -7,6 +7,12 @@ from pydantic import Field
 from app.internal.abstract.setting import IAbstractTaggedSetting
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.internal.util.frn import IFrn
+from app.setting._identity import (
+    AbstractIdentitySetting,
+    AliyunIdentitySetting,
+    LocalIdentitySetting,
+)
 
 
 class AbstractVaultSetting(IAbstractTaggedSetting):
@@ -14,6 +20,7 @@ class AbstractVaultSetting(IAbstractTaggedSetting):
     An asset vault contains a collection of assets and associated assetfile.
 
     Attributes:
+    ----------
         name (str): Asset vault name
         filesystem (AssetFilesystem): Asset vault filesystem type
         platform (Platform): Asset vault operating platform
@@ -34,9 +41,9 @@ class AbstractVaultSetting(IAbstractTaggedSetting):
         ...,
         description="[Required] Asset platform type",
     )
-    identity: str | None = Field(
+    identity: AbstractIdentitySetting | str | None = Field(
         default=None,
-        description="[Optional] OSS identity for the asset",
+        description="[Optional] identity for the asset",
     )
     description: str = Field(
         default="",
@@ -49,7 +56,15 @@ class AbstractVaultSetting(IAbstractTaggedSetting):
 
     @property
     def frn(self) -> str:
-        return f"setting:vault:platform={self.platform}:filesystem={self.filesystem}:name={self.name}"
+        return IFrn.resolve(
+            [
+                "setting",
+                "vault",
+                f"platform={self.platform}",
+                f"filesystem={self.filesystem}",
+                f"name={self.name}",
+            ]
+        )
 
     def _non_override_tags(self) -> dict[str, str]:
         return {
@@ -64,6 +79,7 @@ class LocalVaultSetting(AbstractVaultSetting):
     Local vault contains a collection of local assets and associated assetfile.
 
     Attributes:
+    ----------
         name (str): Asset vault name
         path (str): Local path to a list of assets
         platform (Literal[Platform.LOCAL]): Asset platform type, fixed as LOCAL
@@ -77,12 +93,15 @@ class LocalVaultSetting(AbstractVaultSetting):
     # Inherited from AbstractVaultSetting
     # - platform: Platform
     # - filesystem: AssetFilesystem
-    # - identity: str | None
     # - description: str
     # - tags: dict[str, str]
     path: str = Field(
         ...,
         description="[Required] Local path to a list of assets",
+    )
+    identity: LocalIdentitySetting | str | None = Field(
+        default=None,
+        description="[Optional] Local identity for the asset",
     )
     platform: Literal[Platform.LOCAL] = Platform.LOCAL
     filesystem: Literal[AssetFilesystem.LOCAL] = AssetFilesystem.LOCAL
@@ -93,6 +112,7 @@ class OSSVaultSetting(AbstractVaultSetting):
     OSS资产库，包含一组OSS资产及其关联的资产文件。
 
     Attributes:
+    ----------
         name (str): 资产库名称
         bucket (str): OSS桶名称
         region (str): 资产所在的OSS区域
@@ -109,7 +129,6 @@ class OSSVaultSetting(AbstractVaultSetting):
     # Inherited from AbstractVaultSetting
     # - platform: Platform
     # - filesystem: AssetFilesystem
-    # - identity: str | None
     # - description: str | None
     # - tags: dict[str, str]
     bucket: str = Field(
@@ -127,6 +146,10 @@ class OSSVaultSetting(AbstractVaultSetting):
     in_vpc: bool = Field(
         default=False,
         description="[Optional] 是否在VPC内访问OSS",
+    )
+    identity: AliyunIdentitySetting | str | None = Field(
+        default=None,
+        description="[Optional] 阿里云身份用于资产访问",
     )
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
     filesystem: Literal[AssetFilesystem.OSS] = AssetFilesystem.OSS

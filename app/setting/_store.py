@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Literal, Union
 
 from pydantic import Field
 
 from app.internal.abstract.setting import IAbstractTaggedSetting
 from app.internal.constant.platform import Platform
+from app.internal.constant.storesystem import StoreSystem
+from app.internal.util.frn import IFrn
+from app.setting._identity import (
+    AbstractIdentitySetting,
+    AliyunIdentitySetting,
+    LocalIdentitySetting,
+)
 
 
 class AbstractStoreSetting(IAbstractTaggedSetting):
@@ -13,7 +20,9 @@ class AbstractStoreSetting(IAbstractTaggedSetting):
     Abstract store setting
 
     Attributes:
+    ----------
         name (str): Store name
+        storesystem (StoreSystem): Store system type
         platform (Platform): Store platform
         tags (dict[str, str]): Store tags
 
@@ -23,9 +32,17 @@ class AbstractStoreSetting(IAbstractTaggedSetting):
         ...,
         description="[Required] Store name",
     )
+    storesystem: StoreSystem = Field(
+        ...,
+        description="[discriminator] Store system",
+    )
     platform: Platform = Field(
         ...,
-        description="[discriminator] Store platform",
+        description="[Required] Store platform",
+    )
+    identity: AbstractIdentitySetting | str | None = Field(
+        default=None,
+        description="[Optional] identity for the store",
     )
     tags: dict[str, str] = Field(
         default_factory=dict,
@@ -34,94 +51,107 @@ class AbstractStoreSetting(IAbstractTaggedSetting):
 
     @property
     def frn(self) -> str:
-        return f"setting:store:platform={self.platform}:name={self.name}"
+        return IFrn.resolve(
+            [
+                "setting",
+                "store",
+                f"platform={self.platform}",
+                f"storesystem={self.storesystem}",
+                f"name={self.name}",
+            ]
+        )
 
     def _non_override_tags(self) -> dict[str, str]:
         return {
+            "storesystem": self.storesystem,
             "platform": self.platform,
             "name": self.name,
         }
 
 
-class LocalStoreSetting(AbstractStoreSetting):
+class FileStoreSetting(AbstractStoreSetting):
     """
-    Local store setting
+    File store setting
 
     Attributes:
+    ----------
         name (str): Store name
-        platform (Platform): Store platform
-        identity (str | None): Local store identity
-        path (str | None): Local store path
-        config (dict[str, Any] | None): Local store configuration
+        storesystem (Literal[StoreSystem.FILE]): fixed as StoreSystem.FILE
+        platform (Literal[Platform.LOCAL]): fixed as Platform.LOCAL
+        path (str | None): File store path
+        identity (str | None): File store identity
         tags (dict[str, str]): Store tags
 
     """
 
     # Inherited from AbstractStoreSetting
     # -- name: str
+    # -- storesystem: StoreSystem
     # -- platform: Platform
     # -- tags: dict[str, str]
+    storesystem: Literal[StoreSystem.FILE] = StoreSystem.FILE
     platform: Literal[Platform.LOCAL] = Platform.LOCAL
     path: str | None = Field(
         default=None,
-        description="[Optional] Local store path",
+        description="[Optional] File store path",
     )
-    config: dict[str, Any] | None = Field(
+    identity: LocalIdentitySetting | str | None = Field(
         default=None,
-        description="[Optional] Local store configuration",
-    )
-    identity: str | None = Field(
-        default=None,
-        description="[Optional] Local store identity",
+        description="[Optional] File store identity",
     )
 
 
-class AliyunStoreSetting(AbstractStoreSetting):
+class OSSStoreSetting(AbstractStoreSetting):
     """
-    阿里云存储设置
+    OSS store 配置
 
     Attributes:
-        name (str): 阿里云存储数据库名称
-        platform (Platform): 存储平台
-        instance (str): 阿里云OTS实例名称
-        region (str): 阿里云region
-        in_vpc (bool): 存储是否处于VPC内
-        endpoint (str | None): 存储的Endpoint地址
-        identity (str | None): 存储所使用的Identity名称
-        tags (dict[str, str]): 存储标签
+    ----------
+        name (str): Store 名称
+        storesystem (Literal[StoreSystem.OSS]): 固定为 StoreSystem.OSS
+        platform (Literal[Platform.ALIYUN]): 固定为 Platform.ALIYUN
+        bucket (str): OSS bucket 名称
+        region (str): OSS bucket 所在区域
+        prefix (str | None): OSS bucket 前缀
+        in_vpc (bool): 是否在 VPC 内访问 OSS
+        identity (str | None): OSS store 身份认证
+        tags (dict[str, str]): Store 标签
 
     """
 
     # Inherited from AbstractStoreSetting
     # -- name: str
+    # -- storesystem: StoreSystem
+    # -- platform: Platform
     # -- tags: dict[str, str]
+    storesystem: Literal[StoreSystem.OSS] = StoreSystem.OSS
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
-    instance: str = Field(
+    bucket: str = Field(
         ...,
-        description="[Required] 阿里云OTS实例名称",
+        description="[Required] OSS bucket 名称",
     )
     region: str = Field(
         ...,
-        description="[Required] 阿里云region",
+        description="[Required] OSS bucket 所在区域",
+    )
+    prefix: str | None = Field(
+        default=None,
+        description="[Optional] OSS bucket 前缀",
     )
     in_vpc: bool = Field(
         default=False,
-        description="[Optional] 存储是否处于VPC内",
+        description="[Optional] 是否在 VPC 内访问 OSS",
     )
-    endpoint: str | None = Field(
+    identity: AliyunIdentitySetting | str | None = Field(
         default=None,
-        description="[Optional] 存储的Endpoint地址",
-    )
-    identity: str | None = Field(
-        default=None,
-        description="[Optional] 存储所使用的Identity名称",
+        description="[Optional] OSS store 身份认证",
     )
 
 
 UnionStoreSetting = Annotated[
     Union[
-        LocalStoreSetting,
-        AliyunStoreSetting,
+        FileStoreSetting,
+        OSSStoreSetting,
     ],
-    Field(discriminator="platform"),
+    Field(discriminator="storesystem"),
 ]
