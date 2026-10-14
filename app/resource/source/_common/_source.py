@@ -20,8 +20,10 @@ from app.resource._global.logstreams import GlobalLogStreams
 from app.resource._global.stores import GlobalStores
 from app.resource._global.vaults import GlobalVaults
 from app.resource.asset._common._vault import BaseVault
+from app.resource.asset.local.vault import LocalVault
 from app.resource.source._common._dataset import BaseDataset
 from app.resource.store._common._store import BaseStore
+from app.resource.store.file.store import FileStore
 from app.setting._log import LogSetting
 from app.setting._source import UnionSourceSetting
 from app.setting._store import AbstractStoreSetting
@@ -112,13 +114,13 @@ class BaseSource(
         default=None,
         description="[Optional] Source description.",
     )
-    vault: BaseVault | AbstractVaultSetting | str = Field(
-        ...,
-        description="[Required] Source landing vault",
+    vault: BaseVault | AbstractVaultSetting | str | None = Field(
+        default=None,
+        description="[Optional] Source landing vault",
     )
-    store: BaseStore | AbstractStoreSetting | str = Field(
-        ...,
-        description="[Required] Source semi-structured data store",
+    store: BaseStore | AbstractStoreSetting | str | None = Field(
+        default=None,
+        description="[Optional] Source semi-structured data store",
     )
     log_stream: LogStream | LogSetting | str | None = Field(
         default=None,
@@ -133,13 +135,19 @@ class BaseSource(
 
     @model_validator(mode="after")
     def _derive_vault(self) -> "BaseSource":
-        _vault: BaseVault = GlobalVaults.resolve(self.vault)
+        _vault: BaseVault = GlobalVaults.resolve(
+            value=self.vault,
+            default=LocalVault(name="source", path="./vault/source/"),
+        )
         object.__setattr__(self, "vault", _vault)
         return self
 
     @model_validator(mode="after")
     def _derive_store(self) -> "BaseSource":
-        _store: BaseStore = GlobalStores.resolve(self.store)
+        _store: BaseStore = GlobalStores.resolve(
+            value=self.store,
+            default=FileStore(name="source", path="./store/source/"),
+        )
         object.__setattr__(self, "store", _store)
         return self
 

@@ -21,12 +21,6 @@ class TestSourceInit:
         assert isinstance(_source.log_stream, LogStream)
         assert _source.log_stream.name == "my_src"
 
-    def test_missing_vault_or_store_raises(self, vault, store):
-        with pytest.raises(ValueError):
-            FakeSource(name="src", store=store)
-        with pytest.raises(ValueError):
-            FakeSource(name="src", vault=vault)
-
     def test_unknown_vault_name_raises(self, store, monkeypatch):
         monkeypatch.setattr(
             "app.resource._global.vaults.GlobalVaults.vaults",
