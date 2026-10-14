@@ -7,6 +7,8 @@ from app.internal.constant.logformatoption import LogFormatOption
 from app.internal.constant.logleveloption import LogLevelOption
 from app.internal.util.frn import IFrn
 
+LOG_NAME_PATTERN: str = r"^[A-Za-z0-9_]+$"
+
 
 class LogSetting(IAbstractTaggedSetting):
     """
@@ -30,6 +32,7 @@ class LogSetting(IAbstractTaggedSetting):
     name: str = Field(
         default="default",
         description="[Optional] Log name",
+        pattern=LOG_NAME_PATTERN,
     )
     level: LogLevelOption | str | None = Field(
         default=LogLevelOption.INFO,

@@ -9,6 +9,9 @@ from app.internal.constant.computeruntime import ComputeRuntime
 from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
 from app.setting._identity import AliyunIdentitySetting
+from app.setting._store import UnionStoreSetting
+
+COMPUTE_NAME_PATTERN: str = r"^[A-Za-z0-9_]+$"
 
 
 class AbstractComputeSetting(IAbstractTaggedSetting):
@@ -21,13 +24,15 @@ class AbstractComputeSetting(IAbstractTaggedSetting):
         runtime (ComputeRuntime): Compute runtime type
         platform (Platform): Compute operating platform
         description (str): Compute description information
+        store (UnionStoreSetting | str | None): Store configuration or name or default store
         tags (dict[str, str]): Compute tags
 
     """
 
     name: str = Field(
         ...,
-        description="[Required] Compute name",
+        description="[Required] Compute name, only letters, digits and underscores",
+        pattern=COMPUTE_NAME_PATTERN,
     )
     runtime: ComputeRuntime = Field(
         ...,
@@ -40,6 +45,10 @@ class AbstractComputeSetting(IAbstractTaggedSetting):
     description: str = Field(
         default="",
         description="[Optional] description of the compute",
+    )
+    store: UnionStoreSetting | str | None = Field(
+        default=None,
+        description="[Optional] Store configuration or name for the run records of the compute",
     )
     tags: dict[str, str] = Field(
         default_factory=dict,
@@ -77,12 +86,14 @@ class PyEntrypointComputeSetting(AbstractComputeSetting):
         platform (Literal[Platform.LOCAL]): Compute platform, fixed as LOCAL
         runtime (Literal[ComputeRuntime.PYENTRYPOINT]): Compute runtime, fixed as PYENTRYPOINT
         description (str): Compute description information
+        store (UnionStoreSetting | str | None): Store configuration or name for the run records
         tags (dict[str, str]): Compute tags
 
     """
 
     # Inherited from AbstractComputeSetting
     # - description: str
+    # - store: UnionStoreSetting | str | None
     # - tags: dict[str, str]
     entrypoint: str = Field(
         ...,
@@ -104,16 +115,18 @@ class FCComputeSetting(AbstractComputeSetting):
         qualifier (str): 函数版本或别名 (默认LATEST)
         in_vpc (bool): 是否在VPC内访问FC (默认False)
         timeout_seconds (float): 同步调用的读取超时秒数 (默认600)
-        identity (str | None): 调用函数所使用的阿里云 Identity
+        identity (AliyunIdentitySetting | str | None): 调用函数所使用的阿里云 Identity
         platform (Literal[Platform.ALIYUN]): 平台类型，固定为ALIYUN
         runtime (Literal[ComputeRuntime.FC]): 运行时类型，固定为FC
         description (str): 描述信息
+        store (UnionStoreSetting | str | None): 记录运行结果的Store配置或名称
         tags (dict[str, str]): 标签
 
     """
 
     # Inherited from AbstractComputeSetting
     # - description: str
+    # - store: UnionStoreSetting | str | None
     # - tags: dict[str, str]
     function_name: str = Field(
         ...,

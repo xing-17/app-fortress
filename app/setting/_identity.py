@@ -9,10 +9,12 @@ from app.internal.constant.aliyunidentitytype import AliyunIdentityType
 from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
 
+IDENTITY_NAME_PATTERN: str = r"^[A-Za-z0-9_]+$"
+
 
 class AbstractIdentitySetting(IAbstractTaggedSetting):
     """
-    Abstract identity setting
+    Abstract identity setting.
 
     Attributes:
     ----------
@@ -25,6 +27,7 @@ class AbstractIdentitySetting(IAbstractTaggedSetting):
     name: str = Field(
         ...,
         description="[Required] Identity name",
+        pattern=IDENTITY_NAME_PATTERN,
     )
     platform: Platform = Field(
         ...,
@@ -74,7 +77,6 @@ class AliyunIdentitySetting(AbstractIdentitySetting):
     # Inherited from AbstractIdentitySetting
     # -- name: str
     # -- tags: dict[str, str]
-    platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
     type: AliyunIdentityType = Field(
         default=AliyunIdentityType.CHAIN,
         description="[Optional] 阿里云Identity类型",
@@ -103,6 +105,7 @@ class AliyunIdentitySetting(AbstractIdentitySetting):
         default=None,
         description="[Optional] 阿里云region环境变量名",
     )
+    platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
 
 
 class LocalIdentitySetting(AbstractIdentitySetting):

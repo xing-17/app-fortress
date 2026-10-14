@@ -14,6 +14,8 @@ from app.setting._identity import (
     LocalIdentitySetting,
 )
 
+STORE_NAME_PATTERN: str = r"^[A-Za-z0-9_]+$"
+
 
 class AbstractStoreSetting(IAbstractTaggedSetting):
     """
@@ -24,6 +26,7 @@ class AbstractStoreSetting(IAbstractTaggedSetting):
         name (str): Store name
         storesystem (StoreSystem): Store system type
         platform (Platform): Store platform
+        identity (AbstractIdentitySetting | str | None): Identity configuration or name for the store
         tags (dict[str, str]): Store tags
 
     """
@@ -31,6 +34,7 @@ class AbstractStoreSetting(IAbstractTaggedSetting):
     name: str = Field(
         ...,
         description="[Required] Store name",
+        pattern=STORE_NAME_PATTERN,
     )
     storesystem: StoreSystem = Field(
         ...,
@@ -79,7 +83,7 @@ class FileStoreSetting(AbstractStoreSetting):
         storesystem (Literal[StoreSystem.FILE]): fixed as StoreSystem.FILE
         platform (Literal[Platform.LOCAL]): fixed as Platform.LOCAL
         path (str | None): File store path
-        identity (str | None): File store identity
+        identity (LocalIdentitySetting | str | None): File store identity
         tags (dict[str, str]): Store tags
 
     """
@@ -114,7 +118,7 @@ class OSSStoreSetting(AbstractStoreSetting):
         region (str): OSS bucket 所在区域
         prefix (str | None): OSS bucket 前缀
         in_vpc (bool): 是否在 VPC 内访问 OSS
-        identity (str | None): OSS store 身份认证
+        identity (AliyunIdentitySetting | str | None): OSS store 身份认证
         tags (dict[str, str]): Store 标签
 
     """

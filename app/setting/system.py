@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import Field
 
 from app.internal.abstract.setting import IAbstractSetting
+from app.setting._compute import UnionComputeSetting
 from app.setting._identity import UnionIdentitySetting
 from app.setting._log import LogSetting
 from app.setting._source import UnionSourceSetting
@@ -35,11 +36,12 @@ class SystemSetting(IAbstractSetting):
         alias (str): System alias
         version (str): System version
         timezone (str | None): System timezone
-        log (SystemLogSetting): System log configuration
+        log (LogSetting): System log configuration, defaults to SystemLogSetting
         identities (list[UnionIdentitySetting]): System identity configurations
         stores (list[UnionStoreSetting]): System metadata store configurations
         vaults (list[UnionVaultSetting]): System asset vault configurations
         sources (list[UnionSourceSetting]): System data source configurations
+        computes (list[UnionComputeSetting]): System compute configurations
 
     """
 
@@ -83,4 +85,8 @@ class SystemSetting(IAbstractSetting):
     sources: list[UnionSourceSetting] = Field(
         default_factory=list,
         description="[Optional] System data source configurations",
+    )
+    computes: list[UnionComputeSetting] = Field(
+        default_factory=list,
+        description="[Optional] System compute configurations",
     )

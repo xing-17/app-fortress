@@ -14,6 +14,8 @@ from app.setting._identity import (
     LocalIdentitySetting,
 )
 
+VAULT_NAME_PATTERN: str = r"^[A-Za-z0-9_]+$"
+
 
 class AbstractVaultSetting(IAbstractTaggedSetting):
     """
@@ -24,6 +26,7 @@ class AbstractVaultSetting(IAbstractTaggedSetting):
         name (str): Asset vault name
         filesystem (AssetFilesystem): Asset vault filesystem type
         platform (Platform): Asset vault operating platform
+        identity (AbstractIdentitySetting | str | None): Identity configuration or name for asset access
         description (str): Asset vault description information
         tags (dict[str, str]): Asset tags
 
@@ -32,6 +35,7 @@ class AbstractVaultSetting(IAbstractTaggedSetting):
     name: str = Field(
         ...,
         description="[Required] Asset vault name",
+        pattern=VAULT_NAME_PATTERN,
     )
     filesystem: AssetFilesystem = Field(
         ...,
@@ -84,7 +88,7 @@ class LocalVaultSetting(AbstractVaultSetting):
         path (str): Local path to a list of assets
         platform (Literal[Platform.LOCAL]): Asset platform type, fixed as LOCAL
         filesystem (Literal[AssetFilesystem.LOCAL]): Asset filesystem type, fixed as LOCAL
-        identity (str | None): OSS identity for the asset access
+        identity (LocalIdentitySetting | str | None): Local identity for the asset access
         description (str): Asset description information
         tags (dict[str, str]): Asset vault tags
 
@@ -118,7 +122,7 @@ class OSSVaultSetting(AbstractVaultSetting):
         region (str): 资产所在的OSS区域
         prefix (str): 资产的OSS前缀
         in_vpc (bool): 是否在VPC内访问OSS (默认False)
-        identity (str | None): 资产访问所使用的OSS Identity
+        identity (AliyunIdentitySetting | str | None): 资产访问所使用的阿里云Identity
         platform (Literal[Platform.ALIYUN]): 资产平台类型，固定为ALIYUN
         filesystem (Literal[AssetFilesystem.OSS]): 资产文件系统类型，固定为OSS
         description (str): 资产库描述信息
@@ -129,7 +133,7 @@ class OSSVaultSetting(AbstractVaultSetting):
     # Inherited from AbstractVaultSetting
     # - platform: Platform
     # - filesystem: AssetFilesystem
-    # - description: str | None
+    # - description: str
     # - tags: dict[str, str]
     bucket: str = Field(
         ...,

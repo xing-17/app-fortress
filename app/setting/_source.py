@@ -11,6 +11,8 @@ from app.setting._log import LogSetting
 from app.setting._store import UnionStoreSetting
 from app.setting._vault import UnionVaultSetting
 
+SOURCE_NAME_PATTERN: str = r"^[A-Za-z0-9_]+$"
+
 
 class AbstractSourceSetting(IAbstractTaggedSetting):
     """
@@ -31,6 +33,7 @@ class AbstractSourceSetting(IAbstractTaggedSetting):
     name: str = Field(
         ...,
         description="[Required] The name of the data source.",
+        pattern=SOURCE_NAME_PATTERN,
     )
     provider: SourceProvider = Field(
         ...,
