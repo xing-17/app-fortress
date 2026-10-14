@@ -7,7 +7,8 @@ class LogLevelOption(StrEnum):
     """
     Log level Options
 
-    Attributes:
+    Values:
+    ----------
         DEBUG: str = "DEBUG" debug level
         INFO: str = "INFO" info level
         WARNING: str = "WARNING" warning level

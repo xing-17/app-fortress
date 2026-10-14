@@ -7,7 +7,8 @@ class Platform(StrEnum):
     """
     Enumeration of supported platforms.
 
-    Attributes:
+    Values:
+    ----------
         LOCAL: str = "local" local platform
         ALIYUN: str = "aliyun" Aliyun platform
 

@@ -7,7 +7,8 @@ class GeoCountry(StrEnum):
     """
     Geographic country codes.
 
-    Attributes:
+    Values:
+    ----------
         CN: China.
         AU: Australia.
         GLOBAL: Global.

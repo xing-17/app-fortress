@@ -8,8 +8,9 @@ class AssetFilesystem(StrEnum):
     Enumeration of supported storage platforms for assets.
 
     Values:
+    ----------
         LOCAL: Local file system storage.
-        OSS: Alibaba Cloud OOS.
+        OSS: Alibaba Cloud OSS.
 
     """
 

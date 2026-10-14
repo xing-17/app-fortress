@@ -3,6 +3,8 @@ from __future__ import annotations
 from .aliyunidentitytype import AliyunIdentityType
 from .assetfilekind import AssetFileKind
 from .assetfilesystem import AssetFilesystem
+from .computeruntime import ComputeRuntime
+from .computestatus import ComputeStatus
 from .frequencyoption import FrequencyOption
 from .geocountry import GeoCountry
 from .logformatoption import LogFormatOption
@@ -15,6 +17,8 @@ __all__ = [
     "AliyunIdentityType",
     "AssetFileKind",
     "AssetFilesystem",
+    "ComputeRuntime",
+    "ComputeStatus",
     "GeoCountry",
     "LogFormatOption",
     "LogLevelOption",

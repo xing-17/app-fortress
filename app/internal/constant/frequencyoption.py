@@ -7,7 +7,8 @@ class FrequencyOption(StrEnum):
     """
     Frequency Options
 
-    Attributes:
+    Values:
+    ----------
         SECOND: str = "SECOND" per-second frequency
         MINUTE: str = "MINUTE" per-minute frequency
         HOUR: str = "HOUR" per-hour frequency

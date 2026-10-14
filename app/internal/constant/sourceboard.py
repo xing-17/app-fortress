@@ -7,7 +7,8 @@ class SourceBoard(StrEnum):
     """
     Source boards for different categories.
 
-    Attributes:
+    Values:
+    ----------
         FINANCE (str): Finance-related source board.
         MACRO (str): Macro Economic-related source board.
         HOUSING (str): Housing-related source board.

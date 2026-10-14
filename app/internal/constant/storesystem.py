@@ -8,6 +8,7 @@ class StoreSystem(StrEnum):
     Enumeration of supported store systems
 
     Values:
+    ----------
         FILE: JSON file-based store system
         OSS: Aliyun Object Storage Service-based store system
 
