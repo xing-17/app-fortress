@@ -13,6 +13,7 @@ class ComputeStatus(StrEnum):
         STARTED: The job is still executing
         SUCCEEDED: The job finished without raising
         FAILED: The job raised or its process died
+        CANCELLED: The job was cancelled
         UNKNOWN: The runtime cannot report the status, the Run record in the store is the truth
 
     """
@@ -21,4 +22,5 @@ class ComputeStatus(StrEnum):
     STARTED = "started"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    CANCELLED = "cancelled"
     UNKNOWN = "unknown"

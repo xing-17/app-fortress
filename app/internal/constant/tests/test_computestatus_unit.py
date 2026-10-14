@@ -20,11 +20,14 @@ class TestComputeStatusValues:
     def test_failed_value(self):
         assert ComputeStatus.FAILED == "failed"
 
+    def test_cancelled_value(self):
+        assert ComputeStatus.CANCELLED == "cancelled"
+
     def test_unknown_value(self):
         assert ComputeStatus.UNKNOWN == "unknown"
 
     def test_members_count(self):
-        assert len(ComputeStatus) == 5
+        assert len(ComputeStatus) == 6
 
 
 class TestComputeStatusBehaviour:
