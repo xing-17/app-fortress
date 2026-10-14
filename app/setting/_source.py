@@ -47,13 +47,13 @@ class AbstractSourceSetting(IAbstractTaggedSetting):
         default=None,
         description="[Optional] The log configuration for the data source.",
     )
-    vault: UnionVaultSetting | str = Field(
-        ...,
-        description="[Required] The vault configuration for the data source.",
+    vault: UnionVaultSetting | str | None = Field(
+        default=None,
+        description="[Optional] The vault configuration for the data source.",
     )
-    store: UnionStoreSetting | str = Field(
-        ...,
-        description="[Required] The store configuration for the data source.",
+    store: UnionStoreSetting | str | None = Field(
+        default=None,
+        description="[Optional] The store configuration for the data source.",
     )
     tags: dict[str, str] = Field(
         default_factory=dict,

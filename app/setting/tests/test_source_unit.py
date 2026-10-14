@@ -53,12 +53,6 @@ class TestAbstractSourceBehavior:
         assert _s.description == ""
         assert _s.log is None
 
-    def test_name_vault_and_store_are_required(self):
-        with pytest.raises(ValidationError):
-            ABSSourceSetting(name="s")
-        with pytest.raises(ValidationError):
-            ABSSourceSetting(vault="v", store="st")
-
     def test_vault_accepts_name_or_nested_setting(self):
         assert ABSSourceSetting(**_BASE).vault == "v"
         _local = ABSSourceSetting(name="s", store="st", vault={"name": "v", "filesystem": "local", "path": "./v"})
@@ -76,12 +70,6 @@ class TestAbstractSourceBehavior:
             name="s", vault="v", store={"name": "st", "storesystem": "oss", "bucket": "b", "region": "r"}
         )
         assert isinstance(_oss.store, OSSStoreSetting)
-
-    def test_vault_and_store_none_are_rejected(self):
-        with pytest.raises(ValidationError):
-            ABSSourceSetting(name="s", vault=None, store="st")
-        with pytest.raises(ValidationError):
-            ABSSourceSetting(name="s", vault="v", store=None)
 
     def test_nested_vault_with_unknown_filesystem_is_rejected(self):
         with pytest.raises(ValidationError):
