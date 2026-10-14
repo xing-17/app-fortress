@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from ._compute import (
+    FCComputeSetting,
+    PyEntrypointComputeSetting,
+    UnionComputeSetting,
+)
 from ._identity import (
     AliyunIdentitySetting,
     LocalIdentitySetting,
@@ -28,6 +33,9 @@ from .system import (
 )
 
 __all__ = [
+    "FCComputeSetting",
+    "PyEntrypointComputeSetting",
+    "UnionComputeSetting",
     "AliyunIdentitySetting",
     "LocalIdentitySetting",
     "UnionIdentitySetting",
