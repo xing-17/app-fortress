@@ -5,6 +5,7 @@ import pytest
 from app.resource._global.identities import GlobalIdentities
 from app.resource._global.logstreams import GlobalLogStreams
 from app.resource._global.setting import GlobalSetting
+from app.resource._global.sources import GlobalSources
 from app.resource._global.stores import GlobalStores
 from app.resource._global.vaults import GlobalVaults
 
@@ -16,10 +17,12 @@ def _reset_global_state():
     GlobalIdentities.reset()
     GlobalStores.reset()
     GlobalVaults.reset()
+    GlobalSources.reset()
     GlobalLogStreams.reset()
     yield
     GlobalSetting.reset()
     GlobalIdentities.reset()
     GlobalStores.reset()
     GlobalVaults.reset()
+    GlobalSources.reset()
     GlobalLogStreams.reset()
