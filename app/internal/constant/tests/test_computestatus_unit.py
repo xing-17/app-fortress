@@ -8,14 +8,11 @@ from app.internal.constant.computestatus import ComputeStatus
 
 
 class TestComputeStatusValues:
-    def test_not_started_value(self):
-        assert ComputeStatus.NOT_STARTED == "not_started"
-
     def test_started_value(self):
         assert ComputeStatus.STARTED == "started"
 
-    def test_succeeded_value(self):
-        assert ComputeStatus.SUCCEEDED == "succeeded"
+    def test_completed_value(self):
+        assert ComputeStatus.COMPLETED == "completed"
 
     def test_failed_value(self):
         assert ComputeStatus.FAILED == "failed"
@@ -27,7 +24,7 @@ class TestComputeStatusValues:
         assert ComputeStatus.UNKNOWN == "unknown"
 
     def test_members_count(self):
-        assert len(ComputeStatus) == 6
+        assert len(ComputeStatus) == 5
 
 
 class TestComputeStatusBehaviour:
