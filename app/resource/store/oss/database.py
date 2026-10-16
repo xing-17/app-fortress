@@ -53,7 +53,7 @@ class OSSStoreDatabase(BaseDatabase):
     ----------
         list_tables() -> list[OSSStoreTable]:
             Enumerate the *.json tables that currently exist directly under this database.
-        table(name: str, ttl_hours: float | None = None) -> OSSStoreTable:
+        table(name: str, ttl_hours: float | None = None, max_items: int | None = None) -> OSSStoreTable:
             Only entry point for building a table under this database.
         delete(name: str, strict: bool = False) -> None:
             Delete a table's JSON object by name; raises FileNotFoundError if missing and strict is True.
@@ -150,6 +150,7 @@ class OSSStoreDatabase(BaseDatabase):
         self,
         name: str,
         ttl_hours: float | None = None,
+        max_items: int | None = None,
     ) -> OSSStoreTable:
         return OSSStoreTable(
             name=name,
@@ -159,6 +160,7 @@ class OSSStoreDatabase(BaseDatabase):
             in_vpc=self.in_vpc,
             identity=self.identity,
             ttl_hours=ttl_hours,
+            max_items=max_items,
             _authorized=True,
         )
 

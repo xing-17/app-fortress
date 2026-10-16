@@ -42,7 +42,7 @@ class BaseDatabase(
     ----------
         list_tables() -> list[BaseTable]:
             Enumerate tables that currently exist under this database.
-        table(name: str, ttl_hours: float | None = None) -> BaseTable:
+        table(name: str, ttl_hours: float | None = None, max_items: int | None = None) -> BaseTable:
             Only entry point for building a table under this database.
         delete(name: str, strict: bool = False) -> None:
             Delete a table under this database; raises if missing and strict is True.
@@ -76,6 +76,7 @@ class BaseDatabase(
         self,
         name: str,
         ttl_hours: float | None = None,
+        max_items: int | None = None,
     ) -> BaseTable: ...
 
     @abstractmethod

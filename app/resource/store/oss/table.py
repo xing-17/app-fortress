@@ -37,6 +37,8 @@ class OSSStoreTable(BaseTable):
             Table name, single path segment
         ttl_hours (float | None):
             Default TTL in hours for keys written to this table
+        max_items (int | None):
+            Maximum number of keys kept in this table; oldest by written_at are dropped on write, None means unlimited
         bucket (str):
             OSS bucket name
         region (str):
@@ -158,6 +160,7 @@ class OSSStoreTable(BaseTable):
                 self._handle_io_error(exception=e, strict=strict)
                 return
             _content[key] = self._wrap(key=key, data=data)
+            self._evict(_content)
             try:
                 _stringfied: str = json.dumps(_content, ensure_ascii=False)
                 _bytes: bytes = _stringfied.encode("utf-8")
@@ -178,6 +181,7 @@ class OSSStoreTable(BaseTable):
                 return
             for key, data in items.items():
                 _content[key] = self._wrap(key=key, data=data)
+            self._evict(_content)
             try:
                 _stringfied: str = json.dumps(_content, ensure_ascii=False)
                 _bytes: bytes = _stringfied.encode("utf-8")

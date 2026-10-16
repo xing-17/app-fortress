@@ -44,7 +44,7 @@ class FileStoreDatabase(BaseDatabase):
     ----------
         list_tables() -> list[FileStoreTable]:
             Enumerate the *.json tables that currently exist directly under this database.
-        table(name: str, ttl_hours: float | None = None) -> FileStoreTable:
+        table(name: str, ttl_hours: float | None = None, max_items: int | None = None) -> FileStoreTable:
             Only entry point for building a table under this database.
         delete(name: str, strict: bool = False) -> None:
             Delete a table's JSON file by name; raises FileNotFoundError if missing and strict is True.
@@ -121,12 +121,14 @@ class FileStoreDatabase(BaseDatabase):
         self,
         name: str,
         ttl_hours: float | None = None,
+        max_items: int | None = None,
     ) -> FileStoreTable:
         return FileStoreTable(
             name=name,
             path=self.path / f"{name}.json",
             identity=self.identity,
             ttl_hours=ttl_hours,
+            max_items=max_items,
             _authorized=True,
         )
 

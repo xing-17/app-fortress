@@ -47,7 +47,7 @@ class BaseStore(
             Enumerate databases that currently exist under this store.
         database(name: str) -> BaseDatabase:
             Only entry point for building a database under this store.
-        table(database: str, name: str, ttl_hours: float | None = None) -> BaseTable:
+        table(database: str, name: str, ttl_hours: float | None = None, max_items: int | None = None) -> BaseTable:
             Only entry point for building a table under a database of this store.
 
     """
@@ -99,4 +99,5 @@ class BaseStore(
         database: str,
         name: str,
         ttl_hours: float | None = None,
+        max_items: int | None = None,
     ) -> BaseTable: ...

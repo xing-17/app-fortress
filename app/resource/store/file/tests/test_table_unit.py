@@ -240,3 +240,51 @@ class TestFileStoreTableExpire:
         tbl.path.write_text("not valid json")
         with pytest.raises(json.JSONDecodeError):
             tbl.expire()
+
+
+class TestFileStoreTableMaxItems:
+    @staticmethod
+    def _tick(monkeypatch):
+        from app.internal.util.clock import IClock
+
+        _counter = iter(range(1, 10_000))
+        monkeypatch.setattr(IClock, "current_timestamp", lambda timezone=None: float(next(_counter)))
+
+    def test_max_items_defaults_to_none_and_keeps_all(self, tmp_path, monkeypatch):
+        self._tick(monkeypatch)
+        tbl = FileStore(name="s", path=str(tmp_path)).database("db").table("tbl", max_items=None)
+        for i in range(5):
+            tbl.write(f"k{i}", i)
+        assert tbl.max_items is None
+        assert len(tbl.read()) == 5
+
+    def test_write_drops_oldest_beyond_max_items(self, tmp_path, monkeypatch):
+        self._tick(monkeypatch)
+        tbl = FileStore(name="s", path=str(tmp_path)).database("db").table("tbl", max_items=2)
+        tbl.write("k1", 1)
+        tbl.write("k2", 2)
+        tbl.write("k3", 3)
+        assert tbl.read() == {"k2": 2, "k3": 3}
+
+    def test_updating_existing_key_does_not_evict_and_refreshes_age(self, tmp_path, monkeypatch):
+        self._tick(monkeypatch)
+        tbl = FileStore(name="s", path=str(tmp_path)).database("db").table("tbl", max_items=2)
+        tbl.write("k1", 1)
+        tbl.write("k2", 2)
+        tbl.write("k1", 10)
+        assert tbl.read() == {"k1": 10, "k2": 2}
+        tbl.write("k3", 3)
+        assert tbl.read() == {"k1": 10, "k3": 3}
+
+    def test_write_batch_keeps_newest_items(self, tmp_path, monkeypatch):
+        self._tick(monkeypatch)
+        tbl = FileStore(name="s", path=str(tmp_path)).database("db").table("tbl", max_items=2)
+        tbl.write("old", 0)
+        tbl.write_batch({"a": 1, "b": 2})
+        assert tbl.read() == {"a": 1, "b": 2}
+
+    def test_write_batch_larger_than_max_items_keeps_latest_entries(self, tmp_path, monkeypatch):
+        self._tick(monkeypatch)
+        tbl = FileStore(name="s", path=str(tmp_path)).database("db").table("tbl", max_items=2)
+        tbl.write_batch({"a": 1, "b": 2, "c": 3})
+        assert tbl.read() == {"b": 2, "c": 3}

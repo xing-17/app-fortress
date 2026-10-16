@@ -97,3 +97,35 @@ class TestBaseTableTtlHours:
     def test_non_positive_value_raises_validation_error(self, bad_ttl):
         with pytest.raises(ValidationError):
             _make_table(ttl_hours=bad_ttl)
+
+
+class TestBaseTableMaxItems:
+    def test_default_is_none(self):
+        assert _make_table().max_items is None
+
+    def test_positive_value_is_accepted(self):
+        assert _make_table(max_items=3).max_items == 3
+
+    @pytest.mark.parametrize("bad_value", [0, -1])
+    def test_non_positive_value_raises_validation_error(self, bad_value):
+        with pytest.raises(ValidationError):
+            _make_table(max_items=bad_value)
+
+    def test_evict_without_max_items_keeps_everything(self):
+        _content = {f"k{i}": {"written_at": float(i)} for i in range(5)}
+        _make_table()._evict(_content)
+        assert len(_content) == 5
+
+    def test_evict_drops_oldest_by_written_at(self):
+        _content = {
+            "new": {"written_at": 30.0},
+            "old": {"written_at": 10.0},
+            "mid": {"written_at": 20.0},
+        }
+        _make_table(max_items=2)._evict(_content)
+        assert set(_content) == {"new", "mid"}
+
+    def test_evict_within_limit_is_noop(self):
+        _content = {"a": {"written_at": 1.0}, "b": {"written_at": 2.0}}
+        _make_table(max_items=2)._evict(_content)
+        assert set(_content) == {"a", "b"}

@@ -49,7 +49,7 @@ class FileStore(BaseStore):
             Enumerate databases that currently exist under the store path.
         database(name: str) -> FileStoreDatabase:
             Only entry point for building a database under this store.
-        table(database: str, name: str, ttl_hours: float | None = None) -> FileStoreTable:
+        table(database: str, name: str, ttl_hours: float | None = None, max_items: int | None = None) -> FileStoreTable:
             Only entry point for building a table under a database of this store.
 
     Example:
@@ -147,10 +147,12 @@ class FileStore(BaseStore):
         database: str,
         name: str,
         ttl_hours: float | None = None,
+        max_items: int | None = None,
     ) -> FileStoreTable:
         _database: FileStoreDatabase = self.database(database)
         _table: FileStoreTable = _database.table(
             name=name,
             ttl_hours=ttl_hours,
+            max_items=max_items,
         )
         return _table

@@ -47,11 +47,13 @@ class BaseTable(
         Table tags
     ttl_hours (float | None):
         Default TTL, in hours, applied to keys written to this table; must be > 0, None (default) means written keys never expire
+    max_items (int | None):
+        Maximum number of keys allowed in the table; must be > 0, None (default) means unlimited
 
     Methods:
     ----------
         write(key: str, data: Any, strict: bool = False) -> None:
-            Upsert a single key's value; content is not constrained.
+            Upsert a single key's value; content is not constrained. Oldest keys by written_at are dropped beyond max_items.
         read(key: str | None = None, strict: bool = False) -> Any:
             Read a single key's value, or the entire content if key is None.
         delete(key: str, strict: bool = False) -> None:
@@ -80,6 +82,11 @@ class BaseTable(
         gt=0,
         description="[Optional] Default TTL in hours for keys written to this table, must be > 0; None means never expire",
     )
+    max_items: int | None = Field(
+        default=None,
+        gt=0,
+        description="[Optional] Maximum number of keys allowed in the table, must be > 0; None means unlimited",
+    )
 
     @property
     @abstractmethod
@@ -103,6 +110,19 @@ class BaseTable(
             "written_at": _now,
             "ttl": self.ttl_seconds,
         }
+
+    def _evict(
+        self,
+        content: dict[str, Any],
+    ) -> None:
+        if self.max_items is None or len(content) <= self.max_items:
+            return
+        _oldest_first = sorted(
+            content,
+            key=lambda _k: content[_k].get("written_at", 0.0),
+        )
+        for _k in _oldest_first[: len(content) - self.max_items]:
+            del content[_k]
 
     @staticmethod
     def _is_expired(

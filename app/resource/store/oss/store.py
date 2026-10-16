@@ -60,7 +60,7 @@ class OSSStore(BaseStore):
             Enumerate databases that currently exist under the store prefix.
         database(name: str) -> OSSStoreDatabase:
             Only entry point for building a database under this store.
-        table(database: str, name: str, ttl_hours: float | None = None) -> OSSStoreTable:
+        table(database: str, name: str, ttl_hours: float | None = None, max_items: int | None = None) -> OSSStoreTable:
             Only entry point for building a table under a database of this store.
 
     Example:
@@ -190,10 +190,12 @@ class OSSStore(BaseStore):
         database: str,
         name: str,
         ttl_hours: float | None = None,
+        max_items: int | None = None,
     ) -> OSSStoreTable:
         _database: OSSStoreDatabase = self.database(database)
         _table: OSSStoreTable = _database.table(
             name=name,
             ttl_hours=ttl_hours,
+            max_items=max_items,
         )
         return _table
