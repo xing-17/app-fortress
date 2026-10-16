@@ -96,6 +96,7 @@ class TreeFormat(logging.Formatter):
         _serial.pop("msg")
         _serial.pop("level")
         _serial.pop("created_at")
+        _serial.pop("tags", None)
         _empty_vals = [None, {}, []]
         _serial: dict[str, Any] = {k: v for k, v in _serial.items() if v not in _empty_vals}
         lines = [_header]
