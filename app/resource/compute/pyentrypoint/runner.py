@@ -51,6 +51,7 @@ def invoke(
 
 
 def main(argv: list[str]) -> int:
+    """Subprocess entry: run `<entrypoint> <payload_path> <result_path>` and write the outcome JSON."""
     _ep, _payload_path, _res_path = argv
     try:
         with open(_payload_path, encoding="utf-8") as _f:

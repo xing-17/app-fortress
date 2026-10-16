@@ -39,6 +39,12 @@ class TestPyEntrypointComputeSetting:
         assert _s.description == ""
         assert _s.tags["name"] == "c"
 
+    def test_max_run_records_defaults_and_must_be_positive(self):
+        assert PyEntrypointComputeSetting(name="c", entrypoint="a.b:f").max_run_records == 200
+        assert PyEntrypointComputeSetting(name="c", entrypoint="a.b:f", max_run_records=3).max_run_records == 3
+        with pytest.raises(ValidationError):
+            PyEntrypointComputeSetting(name="c", entrypoint="a.b:f", max_run_records=0)
+
     def test_requires_name_and_entrypoint(self):
         with pytest.raises(ValidationError):
             PyEntrypointComputeSetting(name="c")
@@ -62,6 +68,7 @@ class TestFCComputeSetting:
         assert _s.runtime == ComputeRuntime.FC
         assert _s.platform == Platform.ALIYUN
         assert _s.qualifier == "LATEST"
+        assert _s.max_workers == 8
         assert _s.in_vpc is False
         assert _s.timeout_seconds == 600
         assert _s.identity is None

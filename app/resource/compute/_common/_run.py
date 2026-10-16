@@ -49,6 +49,8 @@ class ComputeRun(IAbstractDomain):
 
     Methods:
     ----------
+        submit(external_id: str) -> None:
+            Record the runtime's id, the status stays STARTED.
         fail(error: Exception | str | None = None) -> None:
             Mark the run as failed with the given error.
         cancel() -> None:

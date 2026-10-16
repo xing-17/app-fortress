@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from ._compute import BaseCompute
-from ._factory import ComputeFactory
-from ._run import ComputeRun
+from app.resource.compute._common._compute import BaseCompute
+from app.resource.compute._common._factory import ComputeFactory
+from app.resource.compute._common._run import ComputeRun
 
 __all__ = [
-    "ComputeFactory",
     "BaseCompute",
     "ComputeRun",
+    "ComputeFactory",
 ]

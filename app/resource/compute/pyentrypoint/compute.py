@@ -11,14 +11,18 @@ import threading
 from pathlib import Path
 from typing import Any, ClassVar
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field, PrivateAttr, model_validator
 
 from app.internal.constant.computeruntime import ComputeRuntime
 from app.internal.constant.platform import Platform
+from app.resource._global.identities import GlobalIdentities
 from app.resource.compute._common._compute import BaseCompute
 from app.resource.compute._common._run import ComputeRun
 from app.resource.compute.pyentrypoint import runner
+from app.resource.identity._common._identity import BaseIdentity
+from app.resource.identity.local.identity import LocalIdentity
 from app.setting._compute import PyEntrypointComputeSetting
+from app.setting._identity import AbstractIdentitySetting
 
 _STDERR_TAIL_CHARS: int = 2000
 _TERMINATE_TIMEOUT: float = 5.0
@@ -39,6 +43,13 @@ class _Process:
             The running subprocess.
         workdir (Path):
             The temporary working directory for exchanging data with the subprocess.
+
+    Methods:
+    ----------
+        terminate() -> None:
+            Terminate the subprocess if still running, then release the working directory.
+        finish() -> dict[str, Any]:
+            Read the outcome of the exited subprocess, then release the working directory.
 
     """
 
@@ -118,17 +129,25 @@ class PyEntrypointCompute(BaseCompute):
             Compute platform, fixed as Platform.LOCAL
         frn (str):
             Compute FRN (Fortress resource identifier)
+        table (BaseTable):
+            Run record table in the store
 
     Args:
     ----------
         name (str):
             Compute name
         entrypoint (str):
-            Importable function in `package.module:function` form
+            Importable function in `package.module:function` form, called as `function(payload=...)`
         description (str):
             Compute description information
+        max_run_records (int):
+            Maximum number of run records to keep
         store (BaseStore | AbstractStoreSetting | str | None):
             Store holding the run records
+        log_stream (LogStream | LogSetting | str | None):
+            Compute log stream
+        identity (LocalIdentity | AbstractIdentitySetting | str | None):
+            Local vault identity, defaults to LocalIdentity.default()
         tags (dict[str, str]):
             Compute tags
 
@@ -136,12 +155,18 @@ class PyEntrypointCompute(BaseCompute):
     ----------
         from_setting(cls, setting: PyEntrypointComputeSetting) -> PyEntrypointCompute:
             Create a PyEntrypointCompute from a PyEntrypointComputeSetting.
-        execute(payload: dict[str, Any] | None = None) -> ComputeRun:
+        execute(payload: dict[str, Any] | None = None, raise_on_error: bool = False) -> ComputeRun:
             Run the entrypoint in the current process, record and return the run.
-        submit(payload: dict[str, Any] | None = None) -> ComputeRun:
-            Run the entrypoint in a subprocess and return the run immediately.
+        submit(payload: dict[str, Any] | None = None, raise_on_error: bool = False) -> ComputeRun:
+            Run the entrypoint in a subprocess and return the STARTED run immediately.
         refresh(run: ComputeRun | str) -> ComputeRun:
             Update the run to COMPLETED or FAILED once the subprocess has exited.
+        lookup(id: str) -> ComputeRun | None:
+            Read a recorded run.
+        list_runs(status: ComputeStatus | None = None, limit: int | None = None) -> list[ComputeRun]:
+            List recorded runs, newest first.
+        export() -> dict[str, Any]:
+            Export as a dictionary.
 
     Example:
     ----------
@@ -158,15 +183,31 @@ class PyEntrypointCompute(BaseCompute):
     # Enforced instance variables
     # [Inherited] name: str
     # [Inherited] description: str
+    # [Inherited] store: BaseStore | AbstractStoreSetting | str | None
+    # [Inherited] log_stream: LogStream | LogSetting | str | None
     # [Inherited] tags: dict[str, str]
     entrypoint: str = Field(
         ...,
         description="[Required] Importable function in `package.module:function` form",
     )
+    identity: LocalIdentity | AbstractIdentitySetting | str | None = Field(
+        default=None,
+        description="[Optional] Local vault identity",
+    )
 
     # Enforced private instance variables
     _processes: dict[str, _Process] = PrivateAttr(default_factory=dict)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
+
+    @model_validator(mode="after")
+    def _derive_identity(self) -> "PyEntrypointCompute":
+        _identity: BaseIdentity = GlobalIdentities.resolve(
+            value=self.identity,
+            default=LocalIdentity.default(),
+            platform=Platform.LOCAL,
+        )
+        object.__setattr__(self, "identity", _identity)
+        return self
 
     @classmethod
     def from_setting(
@@ -178,6 +219,8 @@ class PyEntrypointCompute(BaseCompute):
             entrypoint=setting.entrypoint,
             description=setting.description,
             store=setting.store,
+            log_stream=setting.log,
+            identity=setting.identity,
             max_run_records=setting.max_run_records,
             tags=setting.tags,
         )
@@ -249,7 +292,7 @@ class PyEntrypointCompute(BaseCompute):
         run: ComputeRun | str,
     ) -> ComputeRun:
         # poll and record under one lock
-        # so concurrent refreshes cannot record conflicting outcomes
+        # so concurrent refreshes cant record conflicting outcomes
         with self._lock:
             return super().refresh(run)
 
@@ -259,11 +302,11 @@ class PyEntrypointCompute(BaseCompute):
     ) -> ComputeRun:
         _proc: _Process | None = self._get_process(run)
         if _proc is None:
-            # a stale run object may already have been finished by an earlier refresh
             _stored: ComputeRun | None = self.lookup(run.id)
             if _stored is not None and _stored.is_finished:
                 return _stored
-            # no entry means this instance never spawned it, or it was lost across a restart
+            # no entry means this instance never spawned it
+            # or it was lost across a restart
             run.fail(error="Process not found")
             return run
 

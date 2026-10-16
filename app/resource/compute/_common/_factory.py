@@ -15,7 +15,7 @@ class ComputeFactory:
     Attributes:
     ----------
         _registry (dict[ComputeRuntime, str]):
-            A mapping of runtime types to their corresponding module and class paths.
+            A mapping of runtime types to their `module:class` paths, imported lazily.
 
     Methods:
     ----------
@@ -23,6 +23,13 @@ class ComputeFactory:
             Resolve and return the compute class registered for the given runtime
         load(setting: UnionComputeSetting) -> BaseCompute:
             Construct a compute instance from a setting using the resolved class
+
+    Raises:
+    ----------
+        ValueError:
+            When no compute is registered for the runtime
+        TypeError:
+            When the registered target is not a subclass of BaseCompute
 
     Example:
     ----------

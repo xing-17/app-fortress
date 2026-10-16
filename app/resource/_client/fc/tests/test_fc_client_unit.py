@@ -121,41 +121,38 @@ class TestFCClientLazyClient:
 
 
 class TestFCClientInvoke:
-    def test_sync_invoke_returns_body_and_request_id(self):
+    def test_returns_parsed_body_and_request_id(self):
         _client, _tea = _client_with(_response(b'{"ok": true}', {"X-Fc-Request-Id": "req-1"}))
         _result = _client.invoke("fn", b"{}")
-        assert _result == {"request_id": "req-1", "status_code": 200, "body": b'{"ok": true}'}
+        assert _result == {"request_id": "req-1", "status_code": 200, "body": {"ok": True}, "error": None}
 
-    def test_sync_invoke_sets_sync_header_and_payload(self):
+    def test_sets_sync_header_and_payload(self):
         _client, _tea = _client_with(_response())
         _client.invoke("fn", b'{"a": 1}', qualifier="prod")
-        _name, _request, _headers, _ = _tea.invoke_function_with_options.call_args.args
-        assert _name == "fn"
-        assert _request.qualifier == "prod"
-        assert _request.body.read() == b'{"a": 1}'
-        assert _headers.x_fc_invocation_type == "Sync"
-
-    def test_async_invoke_sets_async_header(self):
-        _client, _tea = _client_with(_response(b"", {"x-fc-request-id": "req-2"}, status_code=202))
-        _result = _client.invoke("fn", b"{}", asynchronous=True)
-        assert _tea.invoke_function_with_options.call_args.args[2].x_fc_invocation_type == "Async"
-        assert _result["request_id"] == "req-2"
-        assert _result["status_code"] == 202
+        _kwargs = _tea.invoke_function_with_options.call_args.kwargs
+        assert _kwargs["function_name"] == "fn"
+        assert _kwargs["request"].qualifier == "prod"
+        assert _kwargs["request"].body.read() == b'{"a": 1}'
+        assert _kwargs["headers"].x_fc_invocation_type == "Sync"
 
     def test_timeout_is_passed_as_read_timeout_milliseconds(self):
         _client, _tea = _client_with(_response())
         _client.invoke("fn", b"{}", timeout_seconds=1.5)
-        assert _tea.invoke_function_with_options.call_args.args[3].read_timeout == 1500
+        assert _tea.invoke_function_with_options.call_args.kwargs["runtime"].read_timeout == 1500
 
-    def test_function_error_header_raises_runtime_error(self):
-        _client, _ = _client_with(_response(b"boom", {"X-Fc-Error-Type": "FunctionError"}))
-        with pytest.raises(RuntimeError, match="boom"):
-            _client.invoke("fn", b"{}")
+    def test_error_message_header_is_returned(self):
+        _client, _ = _client_with(_response(b"{}", {"X-Fc-Error-Message": "boom"}))
+        assert _client.invoke("fn", b"{}")["error"] == "boom"
 
-    def test_missing_body_returns_empty_bytes(self):
+    @pytest.mark.parametrize("body", [b"", b"not json"])
+    def test_empty_or_invalid_body_is_empty_dict(self, body):
+        _client, _ = _client_with(_response(body))
+        assert _client.invoke("fn", b"{}")["body"] == {}
+
+    def test_missing_body_is_empty_dict(self):
         _resp = InvokeFunctionResponse(headers={}, status_code=200, body=None)
         _client, _ = _client_with(_resp)
-        assert _client.invoke("fn", b"{}")["body"] == b""
+        assert _client.invoke("fn", b"{}")["body"] == {}
 
     def test_sdk_exceptions_propagate(self):
         _client, _tea = _client_with(_response())

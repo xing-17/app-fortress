@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import io
+import json
 import threading
 from collections import OrderedDict
 from typing import Any
 
 from alibabacloud_fc20230330.client import Client as FCTeaClient
-from alibabacloud_fc20230330.models import InvokeFunctionHeaders, InvokeFunctionRequest
+from alibabacloud_fc20230330.models import (
+    InvokeFunctionHeaders,
+    InvokeFunctionRequest,
+    InvokeFunctionResponse,
+)
 from alibabacloud_tea_openapi.utils_models import Config as FCTeaConfig
 from darabonba.runtime import RuntimeOptions
 
@@ -35,8 +40,8 @@ class FCClient:
     ----------
         get_client(region, identity, in_vpc=False) -> FCClient:
             按 (region, in_vpc, identity) 从进程级 LRU 缓存中获取或创建实例。
-        invoke(function_name, payload, qualifier="LATEST", asynchronous=False, timeout_seconds=None) -> dict[str, Any]:
-            调用函数；同步调用在函数抛错时抛出 RuntimeError，异步调用只返回受理结果。
+        invoke(function_name, payload, qualifier="LATEST", timeout_seconds=None) -> dict[str, Any]:
+            调用函数；同步调用在函数抛错时抛出 RuntimeError，异步调用只返回受理结果，task_id 仅异步调用使用。
         reset() -> None:
             清空进程级实例缓存(主要用于测试隔离)。
 
@@ -51,10 +56,6 @@ class FCClient:
     _cache: OrderedDict[tuple[str, bool, str], "FCClient"] = OrderedDict()
     _cache_lock = threading.RLock()
     _cache_max_size: int = 20
-
-    # FC 在函数抛错时仍返回 200，错误类型只出现在这个响应头
-    _error_header: str = "x-fc-error-type"
-    _request_id_header: str = "x-fc-request-id"
 
     @classmethod
     def get_client(
@@ -124,44 +125,45 @@ class FCClient:
         function_name: str,
         payload: bytes,
         qualifier: str = "LATEST",
-        asynchronous: bool = False,
         timeout_seconds: float | None = None,
     ) -> dict[str, Any]:
-        _fc_name: str = function_name
-        _headers: InvokeFunctionHeaders = InvokeFunctionHeaders(
-            x_fc_invocation_type="Async" if asynchronous else "Sync",
-        )
-        _request: InvokeFunctionRequest = InvokeFunctionRequest(
-            body=io.BytesIO(payload),
-            qualifier=qualifier,
-        )
+        _name: str = function_name
         _runtime: RuntimeOptions = RuntimeOptions()
         if timeout_seconds is not None:
             _runtime.read_timeout = int(timeout_seconds * 1000)
-
-        _response = self.client.invoke_function_with_options(
-            _fc_name,
-            _request,
-            _headers,
-            _runtime,
+        _res: InvokeFunctionResponse = self.client.invoke_function_with_options(
+            function_name=_name,
+            request=InvokeFunctionRequest(
+                body=io.BytesIO(payload),
+                qualifier=qualifier,
+            ),
+            headers=InvokeFunctionHeaders(
+                x_fc_invocation_type="Sync",
+            ),
+            runtime=_runtime,
         )
-        _resp_headers: dict[str, str] = {}
-        for k, v in (_response.headers or {}).items():
-            _resp_headers[str(k).lower()] = v
 
-        if _response.body is not None:
-            _body: bytes = _response.body.read()
+        # normalize response headers
+        _headers: dict[str, str] = {}
+        for k, v in (_res.headers or {}).items():
+            _headers[str(k).lower()] = v
+
+        # Read the response body if it exists
+        if _res.body is not None:
+            _body: bytes = _res.body.read()
         else:
-            _body: bytes = b""
+            _body: bytes = b"{}"
+        try:
+            _content: dict = json.loads(_body) if _body else {}
+        except json.JSONDecodeError:
+            _content = {}
 
-        if self._error_header in _resp_headers:
-            _detail: str = _body.decode("utf-8", errors="replace")
-            _header_value: str = _resp_headers[self._error_header]
-            raise RuntimeError(f"FC function '{_fc_name}' failed ({_header_value}): {_detail}")
-
-        _request_id: str | None = _resp_headers.get(self._request_id_header)
+        _status_code: int = _res.status_code
+        _request_id: str | None = _headers.get("x-fc-request-id")
+        _error: str | None = _headers.get("x-fc-error-message")
         return {
             "request_id": _request_id,
-            "status_code": _response.status_code,
-            "body": _body,
+            "status_code": _status_code,
+            "body": _content,
+            "error": _error,
         }
