@@ -126,25 +126,24 @@ class PyEntrypointComputeSetting(AbstractComputeSetting):
 
 class FCComputeSetting(AbstractComputeSetting):
     """
-    Alibaba Cloud Function Compute (FC 3.0) compute, calls a deployed function through InvokeFunction.
+    阿里云函数计算(FC 3.0)计算资源，通过 InvokeFunction 调用已部署的函数。
 
     Attributes:
     ----------
-        name (str): Compute name
-        function_name (str): FC function name
-        region (str): Region of the FC function
-        qualifier (str): Function version or alias, defaults to LATEST
-        in_vpc (bool): Whether to reach FC from inside the VPC, defaults to False
-        timeout_seconds (float): Read timeout of an invocation in seconds, defaults to 600
-        max_workers (int): Maximum number of concurrent local invocations of submit, defaults to 8
-        identity (AliyunIdentitySetting | str | None): Aliyun identity configuration or name
-        platform (Literal[Platform.ALIYUN]): Compute platform, fixed as ALIYUN
-        runtime (Literal[ComputeRuntime.FC]): Compute runtime, fixed as FC
-        description (str): Compute description information
-        max_run_records (int): Maximum number of run records to keep
-        store (UnionStoreSetting | str | None): Store configuration or name for the run records
-        log (LogSetting | str | None): Log configuration or name
-        tags (dict[str, str]): Compute tags
+        name (str): 计算资源名称
+        function_name (str): FC 函数名称
+        region (str): FC 函数所在区域
+        qualifier (str): 函数版本或别名 (默认LATEST)
+        in_vpc (bool): 是否在VPC内访问FC (默认False)
+        timeout_seconds (float): 调用的读取超时秒数 (默认600)
+        max_workers (int): submit 的本地最大并发调用数 (默认8)
+        identity (AliyunIdentitySetting | str | None): 调用函数所使用的阿里云 Identity
+        platform (Literal[Platform.ALIYUN]): 平台类型，固定为ALIYUN
+        runtime (Literal[ComputeRuntime.FC]): 运行时类型，固定为FC
+        description (str): 描述信息
+        max_run_records (int | None): 最大保留的运行记录数 (可选)
+        store (UnionStoreSetting | str | None): 记录运行结果的Store配置或名称
+        tags (dict[str, str]): 标签
 
     """
 
@@ -156,33 +155,33 @@ class FCComputeSetting(AbstractComputeSetting):
     # - max_run_records: int
     function_name: str = Field(
         ...,
-        description="[Required] FC function name",
+        description="[Required] FC 函数名称",
     )
     region: str = Field(
         ...,
-        description="[Required] Region of the FC function",
+        description="[Required] FC 函数所在区域",
     )
     qualifier: str = Field(
         default="LATEST",
-        description="[Optional] Function version or alias",
+        description="[Optional] 函数版本或别名",
     )
     in_vpc: bool = Field(
         default=False,
-        description="[Optional] Whether to reach FC from inside the VPC",
+        description="[Optional] 是否在VPC内访问FC",
     )
     timeout_seconds: float = Field(
         default=600,
-        description="[Optional] Read timeout of an invocation in seconds",
+        description="[Optional] 调用的读取超时秒数",
         gt=0,
     )
     max_workers: int = Field(
         default=8,
-        description="[Optional] Maximum number of concurrent local invocations of submit",
+        description="[Optional] submit 的本地最大并发调用数",
         ge=1,
     )
     identity: AliyunIdentitySetting | str | None = Field(
         default=None,
-        description="[Optional] Aliyun identity configuration or name used to invoke the function",
+        description="[Optional] 阿里云身份用于调用函数",
     )
     platform: Literal[Platform.ALIYUN] = Platform.ALIYUN
     runtime: Literal[ComputeRuntime.FC] = ComputeRuntime.FC
