@@ -25,6 +25,7 @@ class AbstractSourceSetting(IAbstractTaggedSetting):
         provider (SourceProvider): The data provider for the source.
         description (str): The description of the data source.
         log (LogSetting | None): The log configuration for the data source.
+        provision_path (Path | str | None): The provision path for manual downloads.
         vault (UnionVaultSetting | str): The vault configuration or name.
         store (UnionStoreSetting | str): The store configuration or name.
         tags (dict[str, str]): The tags associated with the data source.
@@ -47,6 +48,10 @@ class AbstractSourceSetting(IAbstractTaggedSetting):
     log: LogSetting | None = Field(
         default=None,
         description="[Optional] The log configuration for the data source.",
+    )
+    provision_path: Path | str | None = Field(
+        default=None,
+        description="[Optional] The provision path for manual downloads.",
     )
     vault: UnionVaultSetting | str | None = Field(
         default=None,
