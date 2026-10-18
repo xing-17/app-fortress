@@ -23,7 +23,7 @@ class TestUnionSourceSetting:
     def test_dispatches_on_provider(self):
         _adapter = TypeAdapter(UnionSourceSetting)
         assert isinstance(_adapter.validate_python({**_BASE, "provider": "abs"}), ABSSourceSetting)
-        assert isinstance(_adapter.validate_python({**_BASE, "provider": "nsw_vg"}), NSWVGSourceSetting)
+        assert isinstance(_adapter.validate_python({**_BASE, "provider": "nswvg"}), NSWVGSourceSetting)
         assert isinstance(_adapter.validate_python({**_BASE, "provider": "tushare", "key": "k"}), TushareSourceSetting)
 
     def test_unknown_provider_is_rejected(self):
@@ -40,7 +40,7 @@ class TestAbstractSourceBehavior:
         ("cls", "provider"),
         [
             (ABSSourceSetting, SourceProvider.ABS),
-            (NSWVGSourceSetting, SourceProvider.NSW_VG),
+            (NSWVGSourceSetting, SourceProvider.NSWVG),
         ],
     )
     def test_provider_is_fixed(self, cls, provider):
@@ -82,7 +82,7 @@ class TestAbstractSourceBehavior:
 
     def test_frn(self):
         assert ABSSourceSetting(**_BASE).frn == "setting:source:provider=abs:name=s"
-        assert NSWVGSourceSetting(**_BASE).frn == "setting:source:provider=nsw_vg:name=s"
+        assert NSWVGSourceSetting(**_BASE).frn == "setting:source:provider=nswvg:name=s"
 
     def test_user_tags_cannot_override_reserved_tags(self):
         _s = ABSSourceSetting(**_BASE, tags={"name": "fake", "provider": "fake", "env": "prod"})

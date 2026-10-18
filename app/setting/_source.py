@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated, Literal, Union
 
 from pydantic import Field
@@ -121,7 +122,16 @@ class NSWVGSourceSetting(AbstractSourceSetting):
     # -- description: str
     # -- log: LogSetting | None
     # -- tags: dict[str, str]
-    provider: Literal[SourceProvider.NSW_VG] = SourceProvider.NSW_VG
+    provider: Literal[SourceProvider.NSWVG] = SourceProvider.NSWVG
+    timeout_seconds: float = Field(
+        default=60.0,
+        description="[Optional] The timeout for the NSW VG client in seconds.",
+        gt=0,
+    )
+    provision_path: Path | str | None = Field(
+        default=None,
+        description="[Optional] The provision path for manual downloads.",
+    )
 
 
 class TushareSourceSetting(AbstractSourceSetting):
