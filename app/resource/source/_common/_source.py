@@ -5,6 +5,7 @@ import inspect
 import pkgutil
 import threading
 from abc import ABC, abstractmethod
+from pathlib import Path
 from types import ModuleType
 from typing import Any, ClassVar
 
@@ -119,6 +120,10 @@ class BaseSource(
         default=None,
         description="[Optional] Source description.",
     )
+    provision_path: Path | str | None = Field(
+        default=None,
+        description="[Optional] The provision path for manual downloads.",
+    )
     vault: BaseVault | AbstractVaultSetting | str | None = Field(
         default=None,
         description="[Optional] Source landing vault",
@@ -139,10 +144,20 @@ class BaseSource(
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
     @model_validator(mode="after")
+    def _derive_provision_path(self) -> "BaseSource":
+        if self.provision_path is None:
+            _path: str = f"./.local/provision/source/{self.name}"
+        else:
+            _path = str(self.provision_path)
+        _path: Path = Path(_path).expanduser().resolve()
+        object.__setattr__(self, "provision_path", Path(_path))
+        return self
+
+    @model_validator(mode="after")
     def _derive_vault(self) -> "BaseSource":
         _vault: BaseVault = GlobalVaults.resolve(
             value=self.vault,
-            default=LocalVault(name="source", path="./vault/source/"),
+            default=LocalVault.default(name="source"),
         )
         object.__setattr__(self, "vault", _vault)
         return self
@@ -151,7 +166,7 @@ class BaseSource(
     def _derive_store(self) -> "BaseSource":
         _store: BaseStore = GlobalStores.resolve(
             value=self.store,
-            default=FileStore(name="source", path="./store/source/"),
+            default=FileStore.default(name="source"),
         )
         object.__setattr__(self, "store", _store)
         return self
