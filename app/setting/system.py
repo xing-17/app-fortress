@@ -19,12 +19,12 @@ class SystemLogSetting(LogSetting):
 
     Attributes:
         name (Literal["system"]): fixed as "system"
-        file_path (Literal["./.logs/system"]): fixed as "./.logs/system"
+        file_path (Literal["./.local/.logs/system"]): fixed as "./.local/.logs/system"
 
     """
 
     name: Literal["system"] = "system"
-    file_path: Literal["./.logs/system"] = "./.logs/system"
+    file_path: Literal["./.local/.logs/system"] = "./.local/.logs/system"
 
 
 class SystemSetting(IAbstractSetting):

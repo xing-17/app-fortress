@@ -55,7 +55,7 @@ class TestSystemLogSetting:
     def test_fixed_name_and_file_path(self):
         _s = SystemLogSetting()
         assert _s.name == "system"
-        assert _s.file_path == "./.logs/system"
+        assert _s.file_path == "./.local/.logs/system"
 
     def test_name_cannot_be_changed(self):
         with pytest.raises(ValidationError):
