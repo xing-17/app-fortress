@@ -16,7 +16,7 @@ class SourceProvider(StrEnum):
     """
 
     TUSHARE = "tushare"
-    NSW_VG = "nsw_vg"
+    NSWVG = "nswvg"
     ABS = "abs"
 
 
@@ -33,3 +33,18 @@ class SourceProviderType(StrEnum):
 
     ORG = "org"
     GOV = "gov"
+
+
+class SourceFetchType(StrEnum):
+    """
+    Source fetch type.
+
+    Values:
+    ----------
+        AUTOMATIC: Automatically fetch the source.
+        PROVISION: Provision the source manually.
+
+    """
+
+    AUTOMATIC: str = "automatic"
+    PROVISION: str = "provision"

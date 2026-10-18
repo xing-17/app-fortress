@@ -11,6 +11,9 @@ class TestSourceProviderValues:
     def test_tushare_value(self):
         assert SourceProvider.TUSHARE == "tushare"
 
+    def test_nswvg_value(self):
+        assert SourceProvider.NSWVG == "nswvg"
+
     def test_abs_value(self):
         assert SourceProvider.ABS == "abs"
 
