@@ -13,7 +13,11 @@ from pydantic import Field, PrivateAttr, model_validator
 from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.geocountry import GeoCountry
 from app.internal.constant.sourceboard import SourceBoard
-from app.internal.constant.sourceprovider import SourceProvider, SourceProviderType
+from app.internal.constant.sourceprovider import (
+    SourceFetchType,
+    SourceProvider,
+    SourceProviderType,
+)
 from app.internal.logstream import LogStream
 from app.internal.util.frn import IFrn
 from app.resource._global.logstreams import GlobalLogStreams
@@ -97,6 +101,7 @@ class BaseSource(
     type: ClassVar[SourceProviderType]
     board: ClassVar[SourceBoard]
     country: ClassVar[GeoCountry]
+    fetch_type: ClassVar[SourceFetchType]
 
     # ---------- Enforced PRIVATE class variables ----------
     _datasets_module: ClassVar[str]
@@ -255,6 +260,7 @@ class BaseSource(
         _res["type"] = str(self.type)
         _res["board"] = str(self.board)
         _res["country"] = str(self.country)
+        _res["fetch_type"] = str(self.fetch_type)
         _res["vault"] = self.vault.export()
         _res["store"] = self.store.export()
         _res["log_stream"] = self.log_stream.export()

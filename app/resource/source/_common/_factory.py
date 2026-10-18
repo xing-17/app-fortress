@@ -39,6 +39,7 @@ class SourceFactory:
     # Registry mapping provider to corresponding source class paths.
     _registry: dict[SourceProvider, str] = {
         SourceProvider.TUSHARE: "app.resource.source.tushare.source:TushareSource",
+        SourceProvider.NSW_VG: "app.resource.source.nsw_vg.source:NSWVGSource",
     }
 
     @classmethod

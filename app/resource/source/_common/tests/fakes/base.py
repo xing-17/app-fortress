@@ -8,7 +8,7 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.frequencyoption import FrequencyOption
 from app.internal.constant.geocountry import GeoCountry
 from app.internal.constant.sourceboard import SourceBoard
-from app.internal.constant.sourceprovider import SourceProvider, SourceProviderType
+from app.internal.constant.sourceprovider import SourceFetchType, SourceProvider, SourceProviderType
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.source._common._dataset import BaseDataset
 from app.resource.source._common._source import BaseSource
@@ -38,6 +38,7 @@ class FakeSource(BaseSource):
     type: ClassVar[SourceProviderType] = SourceProviderType.ORG
     board: ClassVar[SourceBoard] = SourceBoard.FINANCE
     country: ClassVar[GeoCountry] = GeoCountry.CN
+    fetch_type: ClassVar[SourceFetchType] = SourceFetchType.AUTOMATIC
     _datasets_module: ClassVar[str] = f"{_DATASETS_PKG}.ok"
 
     @classmethod
