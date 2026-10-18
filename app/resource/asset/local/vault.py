@@ -60,7 +60,7 @@ class LocalVault(BaseVault):
     # Enforced public class variables
     filesystem: ClassVar[AssetFilesystem] = AssetFilesystem.LOCAL
     platform: ClassVar[Platform] = Platform.LOCAL
-    default_path: ClassVar[str] = "./vault"
+    default_path: ClassVar[str] = "./.local/vault"
 
     # Enforced instance variables
     # [Inherited] name: str | None
@@ -96,6 +96,16 @@ class LocalVault(BaseVault):
         )
         object.__setattr__(self, "identity", _identity)
         return self
+
+    @classmethod
+    def default(
+        cls,
+        name: str,
+    ) -> LocalVault:
+        return cls(
+            name=name,
+            path=Path(cls.default_path) / name,
+        )
 
     @classmethod
     def from_setting(

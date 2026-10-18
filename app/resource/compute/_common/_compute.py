@@ -128,8 +128,8 @@ class BaseCompute(
     @model_validator(mode="after")
     def _derive_store(self) -> "BaseCompute":
         _store: BaseStore = GlobalStores.resolve(
-            self.store,
-            default=FileStore(name="compute", path="./store/"),
+            value=self.store,
+            default=FileStore.default(name="compute"),
         )
         object.__setattr__(self, "store", _store)
         return self

@@ -43,7 +43,7 @@ class TestFileStoreInit:
     def test_default_path_is_relative_store_dir_and_created(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         store = FileStore(name="s")
-        assert store.path == (tmp_path / "store").resolve()
+        assert store.path == (tmp_path / ".local" / "store").resolve()
         assert store.path.is_dir()
 
 
