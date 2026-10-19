@@ -16,6 +16,7 @@ dependencies = [
     "pyyaml",
     "polars",
     "duckdb",
+    "requests",
 
     # ---------- Source Dependencies ----------
     "tushare"
@@ -24,6 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 aliyun = [
     "alibabacloud-oss-v2",
+    "alibabacloud-fc20230330",
     "alibabacloud-tea-openapi",
     "alibabacloud-credentials>=1.0,<2"
 ]

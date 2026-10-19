@@ -2,6 +2,7 @@
 .store/local/*
 .test/*
 system.yaml
+.local/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
