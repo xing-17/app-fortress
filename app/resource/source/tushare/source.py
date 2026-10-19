@@ -6,7 +6,11 @@ from pydantic import Field, PrivateAttr, model_validator
 
 from app.internal.constant.geocountry import GeoCountry
 from app.internal.constant.sourceboard import SourceBoard
-from app.internal.constant.sourceprovider import SourceProvider, SourceProviderType
+from app.internal.constant.sourceprovider import (
+    SourceFetchType,
+    SourceProvider,
+    SourceProviderType,
+)
 from app.resource.asset._common._asset import BaseAsset
 from app.resource.source._common._source import BaseSource
 from app.resource.source.tushare.dataset import TushareDataset
@@ -38,6 +42,8 @@ class TushareSource(BaseSource):
             Source name, e.g. "prod_tushare"
         description (str):
             Source description, default is "Tushare CN trading and financial data source."
+        provision_path (str):
+            Path for provisioning the source, e.g. ".local/provision/source/tushare/"
         vault (BaseVault | AbstractVaultSetting | str):
             Source landing vault, resolved through GlobalVaults
         store (BaseStore | AbstractStoreSetting | str):
@@ -66,8 +72,10 @@ class TushareSource(BaseSource):
     type: ClassVar[SourceProviderType] = SourceProviderType.ORG
     board: ClassVar[SourceBoard] = SourceBoard.FINANCE
     country: ClassVar[GeoCountry] = GeoCountry.CN
+    fetch_type: ClassVar[SourceFetchType] = SourceFetchType.AUTOMATIC
 
     # Enforced private class variables
+    # [Inherited] _provision_path: ClassVar[str]
     _datasets_module: ClassVar[str] = "app.resource.source.tushare.datasets"
 
     # Enforced public instance variables
