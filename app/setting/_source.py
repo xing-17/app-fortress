@@ -24,8 +24,8 @@ class AbstractSourceSetting(IAbstractTaggedSetting):
         name (str): The name of the data source.
         provider (SourceProvider): The data provider for the source.
         description (str): The description of the data source.
-        log (LogSetting | None): The log configuration for the data source.
         provision_path (Path | str | None): The provision path for manual downloads.
+        log (LogSetting | None): The log configuration for the data source.
         vault (UnionVaultSetting | str): The vault configuration or name.
         store (UnionStoreSetting | str): The store configuration or name.
         tags (dict[str, str]): The tags associated with the data source.
@@ -92,6 +92,7 @@ class ABSSourceSetting(AbstractSourceSetting):
     ----------
         name (str): The name of the data source.
         description (str): The description of the data source.
+        provision_path (Path | str | None): The provision path for manual downloads.
         log (LogSetting | None): The log configuration for the data source.
         vault (UnionVaultSetting | str): The vault configuration or name.
         store (UnionStoreSetting | str): The store configuration or name.
@@ -102,7 +103,10 @@ class ABSSourceSetting(AbstractSourceSetting):
     # Inherited from AbstractSourceSetting
     # -- name: str
     # -- description: str
+    # -- provision_path: Path | str | None
     # -- log: LogSetting | None
+    # -- vault: UnionVaultSetting | str
+    # -- store: UnionStoreSetting | str
     # -- tags: dict[str, str]
     provider: Literal[SourceProvider.ABS] = SourceProvider.ABS
 
@@ -115,6 +119,7 @@ class NSWVGSourceSetting(AbstractSourceSetting):
     ----------
         name (str): The name of the data source.
         description (str): The description of the data source.
+        provision_path (Path | str | None): The provision path for manual downloads.
         log (LogSetting | None): The log configuration for the data source.
         vault (UnionVaultSetting | str): The vault configuration or name.
         store (UnionStoreSetting | str): The store configuration or name.
@@ -125,18 +130,12 @@ class NSWVGSourceSetting(AbstractSourceSetting):
     # Inherited from AbstractSourceSetting
     # -- name: str
     # -- description: str
+    # -- provision_path: Path | str | None
+    # -- vault: UnionVaultSetting | str
+    # -- store: UnionStoreSetting | str
     # -- log: LogSetting | None
     # -- tags: dict[str, str]
     provider: Literal[SourceProvider.NSWVG] = SourceProvider.NSWVG
-    timeout_seconds: float = Field(
-        default=60.0,
-        description="[Optional] The timeout for the NSW VG client in seconds.",
-        gt=0,
-    )
-    provision_path: Path | str | None = Field(
-        default=None,
-        description="[Optional] The provision path for manual downloads.",
-    )
 
 
 class TushareSourceSetting(AbstractSourceSetting):

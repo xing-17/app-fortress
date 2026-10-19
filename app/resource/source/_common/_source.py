@@ -106,6 +106,7 @@ class BaseSource(
 
     # ---------- Enforced PRIVATE class variables ----------
     _datasets_module: ClassVar[str]
+    _provision_base_path: ClassVar[Path] = Path("./.local/provision/source")
 
     # --------------------------------------------------
     # Instance variables section
@@ -146,9 +147,9 @@ class BaseSource(
     @model_validator(mode="after")
     def _derive_provision_path(self) -> "BaseSource":
         if self.provision_path is None:
-            _path: str = f"./.local/provision/source/{self.name}"
+            _path: Path = self._provision_base_path / self.name
         else:
-            _path = str(self.provision_path)
+            _path: Path = Path(self.provision_path)
         _path: Path = Path(_path).expanduser().resolve()
         object.__setattr__(self, "provision_path", Path(_path))
         return self

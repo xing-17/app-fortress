@@ -161,7 +161,7 @@ class TestGlobalSourcesListSources:
     def test_list_sources_filters_by_provider(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch, _tushare_setting("a", tmp_path))
         assert len(GlobalSources.list_sources(provider=SourceProvider.TUSHARE)) == 1
-        assert GlobalSources.list_sources(provider=SourceProvider.NSW_VG) == []
+        assert GlobalSources.list_sources(provider=SourceProvider.NSWVG) == []
 
     def test_list_sources_returns_independent_snapshot(self, monkeypatch, tmp_path):
         _patch_system(monkeypatch, _tushare_setting("a", tmp_path))
