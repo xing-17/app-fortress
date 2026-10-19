@@ -78,7 +78,7 @@ class FileStore(BaseStore):
     )
 
     # Class-level attributes
-    default_path: ClassVar[str] = "./.local/store/"
+    default_path: ClassVar[str] = "./local/store/"
 
     @model_validator(mode="after")
     def _derive_path(self) -> "FileStore":

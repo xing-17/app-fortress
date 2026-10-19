@@ -26,7 +26,7 @@ class TestLocalVaultInit:
     def test_creates_default_path_when_not_specified(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         vault = LocalVault()
-        assert vault.path == (tmp_path / ".local" / "vault").resolve()
+        assert vault.path == (tmp_path / "local" / "vault").resolve()
         assert vault.path.is_dir()
 
     def test_explicit_path_is_resolved_and_created(self, tmp_path):

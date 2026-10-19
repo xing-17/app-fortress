@@ -48,7 +48,7 @@ class NSWVGSource(BaseSource):
         description (str):
             Source description, default is "NSW Valuer General data source for properties."
         provision_path (Path | str | None):
-            Path holding the manually downloaded files, e.g. ".local/provision/source/nswvg/"
+            Path holding the manually downloaded files, e.g. "local/provision/source/nswvg/"
         vault (BaseVault | AbstractVaultSetting | str):
             Source landing vault, resolved through GlobalVaults
         store (BaseStore | AbstractStoreSetting | str):

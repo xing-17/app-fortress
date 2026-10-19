@@ -106,7 +106,7 @@ class BaseSource(
 
     # ---------- Enforced PRIVATE class variables ----------
     _datasets_module: ClassVar[str]
-    _provision_base_path: ClassVar[Path] = Path("./.local/provision/source")
+    _provision_base_path: ClassVar[Path] = Path("./local/provision/source")
 
     # --------------------------------------------------
     # Instance variables section

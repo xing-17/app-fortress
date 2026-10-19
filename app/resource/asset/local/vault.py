@@ -60,7 +60,7 @@ class LocalVault(BaseVault):
     # Enforced public class variables
     filesystem: ClassVar[AssetFilesystem] = AssetFilesystem.LOCAL
     platform: ClassVar[Platform] = Platform.LOCAL
-    default_path: ClassVar[str] = "./.local/vault"
+    default_path: ClassVar[str] = "./local/vault"
 
     # Enforced instance variables
     # [Inherited] name: str | None

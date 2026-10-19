@@ -43,7 +43,7 @@ class TushareSource(BaseSource):
         description (str):
             Source description, default is "Tushare CN trading and financial data source."
         provision_path (str):
-            Path for provisioning the source, e.g. ".local/provision/source/tushare/"
+            Path for provisioning the source, e.g. "local/provision/source/tushare/"
         vault (BaseVault | AbstractVaultSetting | str):
             Source landing vault, resolved through GlobalVaults
         store (BaseStore | AbstractStoreSetting | str):
