@@ -46,4 +46,8 @@ class DRALimits(IAbstractDomain):
         ge=16,
         description="Memory limit of the engine, only covers buffer-managed operators, default is 1024",
     )
-    threads: int = Field(default=2, ge=1, description="Worker threads of the engine, default is 2")
+    threads: int = Field(
+        default=2,
+        ge=1,
+        description="Worker threads of the engine, default is 2",
+    )

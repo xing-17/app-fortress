@@ -73,7 +73,9 @@ class DRASession:
             _checked[_name] = (_source, _dataset, _scope, _glob, _mount)
         self._scopes = {name: c[2] for name, c in _checked.items()}
 
-        self._con = self._connect(sorted(set(self._scopes.values())), [c[4] for c in _checked.values()])
+        _sorted_scopes = sorted(set(self._scopes.values()))
+        _checked_mounts = [c[4] for c in _checked.values()]
+        self._con = self._connect(_sorted_scopes, _checked_mounts)
         try:
             for _name, (_source, _dataset, _, _glob, _mount) in _checked.items():
                 self._mount(_name, _source, _dataset, _glob, _mount)
@@ -174,10 +176,12 @@ class DRASession:
             _con.execute("LOAD httpfs")
             for _i, _m in enumerate(_s3):
                 _con.execute(self._secret_sql(f"dra_s3_{_i}", _m))
-        # No spilling: with external access off the engine aborts the process when it cleans up its temp dir.
+        # No spilling: with external access off the engine
+        # aborts the process when it cleans up its temp dir.
         _con.execute("SET temp_directory=''")
         _dirs = ", ".join(DRAGuard.stringify_sql(s) for s in scopes)
-        # Order matters: allowed_directories can not be set once external access is off or the config is locked.
+        # Order matters: allowed_directories can not be set
+        # once external access is off or the config is locked.
         _con.execute(f"SET allowed_directories=[{_dirs}]")
         _con.execute("SET enable_external_access=false")
         _con.execute("SET autoinstall_known_extensions=false")
@@ -218,7 +222,8 @@ class DRASession:
         glob: str,
         mount: DRAMount,
     ) -> None:
-        # Declared partitions come from the directory names, as VARCHAR, the SQL casts what it needs.
+        # Declared partitions come from the directory names,
+        # as VARCHAR, the SQL casts what it needs.
         if mount.partitions:
             _options = "hive_partitioning=true, hive_types_autocast=false"
         else:
