@@ -48,6 +48,8 @@ class OSSClient:
 
     Methods:
     ----------
+        resolve_endpoint(region, in_vpc=False) -> str:
+            根据 region 和 in_vpc 参数解析 OSS endpoint。
         get_client(bucket, region, identity, in_vpc=False) -> OSSClient:
             按 (bucket, region, in_vpc, identity) 从进程级 LRU 缓存中获取或创建实例。
         write_bytes(key, data) -> None:
