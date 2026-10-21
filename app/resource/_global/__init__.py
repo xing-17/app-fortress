@@ -5,13 +5,14 @@ from .logstreams import GlobalLogStreams
 from .setting import GlobalSetting
 from .stores import GlobalStores
 from .vaults import GlobalVaults
-from .sources import GlobalSources
 
+# GlobalSources is not exported: 
+#   it imports app.resource.source -> store.file, 
+#   which imports app.resource._global.identities, a circular import.
 __all__ = [
     "GlobalIdentities",
     "GlobalLogStreams",
     "GlobalSetting",
     "GlobalStores",
     "GlobalVaults",
-    "GlobalSources",
 ]
