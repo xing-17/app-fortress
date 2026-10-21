@@ -4,6 +4,7 @@ from typing import ClassVar
 
 from app.internal.constant.platform import Platform
 from app.resource.identity._common._identity import BaseIdentity
+from app.resource.identity.local.secret import LocalSecret
 from app.setting._identity import LocalIdentitySetting
 
 
@@ -25,6 +26,8 @@ class LocalIdentity(BaseIdentity):
     ----------
         from_setting(cls, settings: LocalIdentitySetting) -> LocalIdentity:
             creates a LocalIdentity instance from a LocalIdentitySetting object.
+        as_secret() -> LocalSecret:
+            returns an empty secret, local access needs none.
         describe() -> str:
             returns the description of the Access.
 
@@ -59,3 +62,6 @@ class LocalIdentity(BaseIdentity):
     @classmethod
     def default(cls) -> LocalIdentity:
         return cls(name="local_default_identity")
+
+    def as_secret(self) -> LocalSecret:
+        return LocalSecret()

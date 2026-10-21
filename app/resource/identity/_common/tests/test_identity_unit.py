@@ -8,7 +8,12 @@ from pydantic import ValidationError
 
 from app.internal.constant.platform import Platform
 from app.resource.identity._common._identity import BaseIdentity
+from app.resource.identity._common._secret import BaseSecret
 from app.setting._identity import LocalIdentitySetting
+
+
+class _ConcreteSecret(BaseSecret):
+    platform: ClassVar[Platform] = Platform.LOCAL
 
 
 class _ConcreteIdentity(BaseIdentity):
@@ -26,6 +31,9 @@ class _ConcreteIdentity(BaseIdentity):
     @classmethod
     def default(cls) -> _ConcreteIdentity:
         return cls(name="default_identity")
+
+    def as_secret(self) -> _ConcreteSecret:
+        return _ConcreteSecret()
 
 
 class TestBaseIdentityInit:

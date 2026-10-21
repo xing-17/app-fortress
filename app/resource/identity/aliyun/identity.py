@@ -14,6 +14,7 @@ from app.internal.constant.aliyunidentitytype import AliyunIdentityType
 from app.internal.constant.platform import Platform
 from app.internal.util.environ import IEnviron
 from app.resource.identity._common._identity import BaseIdentity
+from app.resource.identity.aliyun.secret import AliyunSecret
 from app.setting._identity import AliyunIdentitySetting
 
 
@@ -49,6 +50,8 @@ class AliyunIdentity(BaseIdentity):
             从AliyunIdentitySetting创建AliyunIdentity实例。
         get_credential() -> CredentialModel:
             获取Aliyun身份的凭证信息，底层CredentialClient按身份缓存复用并自行刷新临时凭证。
+        as_secret() -> AliyunSecret:
+            实时获取凭证并转换为AliyunSecret，密钥以SecretStr持有，可能访问网络，不要缓存返回值。
         describe() -> str:
             返回Access的描述信息，敏感信息会被掩码。
         sha256() -> str:
@@ -153,6 +156,14 @@ class AliyunIdentity(BaseIdentity):
                 self._credential_clients[_key] = _client
         _cred: CredentialModel = _client.get_credential()
         return _cred
+
+    def as_secret(self) -> AliyunSecret:
+        _cred: CredentialModel = self.get_credential()
+        return AliyunSecret(
+            access_key_id=_cred.access_key_id,
+            access_key_secret=_cred.access_key_secret,
+            security_token=_cred.security_token or None,
+        )
 
     def _mask_attr(
         self,
