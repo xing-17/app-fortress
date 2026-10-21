@@ -5,6 +5,7 @@ from .logstreams import GlobalLogStreams
 from .setting import GlobalSetting
 from .stores import GlobalStores
 from .vaults import GlobalVaults
+from .sources import GlobalSources
 
 __all__ = [
     "GlobalIdentities",
@@ -12,4 +13,5 @@ __all__ = [
     "GlobalSetting",
     "GlobalStores",
     "GlobalVaults",
+    "GlobalSources",
 ]
