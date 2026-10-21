@@ -11,7 +11,9 @@ _GLOB_CHARS = "*?["
 
 class DRAMount(IAbstractDomain):
     """
-    一个 asset 挂进 DRA 引擎所需的全部信息，纯数据，由 asset.as_mount() 实时产出
+    A DRA Mount used to enable the DRA system to access assets
+
+    This class will be used in embeded OLAP such as DuckDB Engine
 
     Args:
     ----------
