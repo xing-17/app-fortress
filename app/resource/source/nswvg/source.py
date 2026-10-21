@@ -25,6 +25,8 @@ class NSWVGSource(BaseSource):
 
     The files are downloaded manually and dropped into the provision path,
     one sub-directory per dataset.
+    
+    URL: https://valuation.property.nsw.gov.au/embed/propertySalesInformation
 
     Attributes:
     ----------
