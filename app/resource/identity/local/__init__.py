@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from .identity import LocalIdentity
-from .secret import LocalSecret
+from .identitysecret import LocalIdentitySecret
 
 __all__ = [
     "LocalIdentity",
-    "LocalSecret",
+    "LocalIdentitySecret",
 ]

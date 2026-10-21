@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import ClassVar
 
 from app.internal.constant.platform import Platform
-from app.resource.identity._common._secret import BaseSecret
+from app.resource.identity._common._identitysecret import BaseIdentitySecret
 
 
-class LocalSecret(BaseSecret):
+class LocalIdentitySecret(BaseIdentitySecret):
     """
     Local secret, always empty (for granularity only)
 
@@ -17,7 +17,7 @@ class LocalSecret(BaseSecret):
 
     Example:
     ----------
-        >>> secret = LocalSecret()
+        >>> secret = LocalIdentitySecret()
 
     """
 

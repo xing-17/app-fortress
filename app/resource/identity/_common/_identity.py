@@ -8,7 +8,7 @@ from pydantic import Field
 from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
-from app.resource.identity._common._secret import BaseSecret
+from app.resource.identity._common._identitysecret import BaseIdentitySecret
 from app.setting._identity import UnionIdentitySetting
 
 
@@ -26,7 +26,7 @@ class BaseIdentity(
 
     Methods:
     ----------
-        as_secret() -> BaseSecret:
+        as_secret() -> BaseIdentitySecret:
             Produce a fresh secret on every call, it may reach the network and must not be cached.
 
     """
@@ -56,7 +56,7 @@ class BaseIdentity(
     def default(cls) -> BaseIdentity: ...
 
     @abstractmethod
-    def as_secret(self) -> BaseSecret: ...
+    def as_secret(self) -> BaseIdentitySecret: ...
 
     @property
     def frn(self) -> str:

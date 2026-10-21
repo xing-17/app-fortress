@@ -7,10 +7,10 @@ from pydantic import ValidationError
 
 from app.internal.constant.platform import Platform
 from app.resource.identity._common._identity import BaseIdentity
-from app.resource.identity._common._secret import BaseSecret
+from app.resource.identity._common._identitysecret import BaseIdentitySecret
 
 
-class _ConcreteSecret(BaseSecret):
+class _ConcreteSecret(BaseIdentitySecret):
     platform: ClassVar[Platform] = Platform.LOCAL
 
 

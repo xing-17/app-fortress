@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from .identity import AliyunIdentity
-from .secret import AliyunSecret
+from .identitysecret import AliyunIdentitySecret
 
 __all__ = [
     "AliyunIdentity",
-    "AliyunSecret",
+    "AliyunIdentitySecret",
 ]

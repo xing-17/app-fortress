@@ -8,27 +8,27 @@ from pydantic import ValidationError
 
 from app.internal.constant.platform import Platform
 from app.resource.identity.aliyun.identity import AliyunIdentity
-from app.resource.identity.aliyun.secret import AliyunSecret
+from app.resource.identity.aliyun.identitysecret import AliyunIdentitySecret
 
 _SECRET = "secretvalue-123456"
 _TOKEN = "tokenvalue-654321"
 
 
-class TestAliyunSecret:
+class TestAliyunIdentitySecret:
     def test_platform_is_fixed_to_aliyun(self):
-        _secret = AliyunSecret(access_key_id="AKID", access_key_secret=_SECRET)
+        _secret = AliyunIdentitySecret(access_key_id="AKID", access_key_secret=_SECRET)
         assert _secret.platform == Platform.ALIYUN
 
     def test_missing_secret_raises_validation_error(self):
         with pytest.raises(ValidationError):
-            AliyunSecret(access_key_id="AKID")
+            AliyunIdentitySecret(access_key_id="AKID")
 
     def test_security_token_defaults_to_none(self):
-        _secret = AliyunSecret(access_key_id="AKID", access_key_secret=_SECRET)
+        _secret = AliyunIdentitySecret(access_key_id="AKID", access_key_secret=_SECRET)
         assert _secret.security_token is None
 
     def test_values_are_readable_only_through_get_secret_value(self):
-        _secret = AliyunSecret(
+        _secret = AliyunIdentitySecret(
             access_key_id="AKID",
             access_key_secret=_SECRET,
             security_token=_TOKEN,
@@ -37,12 +37,12 @@ class TestAliyunSecret:
         assert _secret.security_token.get_secret_value() == _TOKEN
 
     def test_instance_is_frozen(self):
-        _secret = AliyunSecret(access_key_id="AKID", access_key_secret=_SECRET)
+        _secret = AliyunIdentitySecret(access_key_id="AKID", access_key_secret=_SECRET)
         with pytest.raises(ValidationError):
             _secret.access_key_id = "other"
 
     def test_values_do_not_leak_through_repr_export_or_describe(self):
-        _secret = AliyunSecret(
+        _secret = AliyunIdentitySecret(
             access_key_id="AKID",
             access_key_secret=_SECRET,
             security_token=_TOKEN,
@@ -78,7 +78,7 @@ class TestAliyunIdentityAsSecret:
             CredentialModel(access_key_id="AKID", access_key_secret=_SECRET, security_token=_TOKEN),
         )
         _secret = AliyunIdentity(name="n").as_secret()
-        assert isinstance(_secret, AliyunSecret)
+        assert isinstance(_secret, AliyunIdentitySecret)
         assert _secret.access_key_id == "AKID"
         assert _secret.access_key_secret.get_secret_value() == _SECRET
         assert _secret.security_token.get_secret_value() == _TOKEN

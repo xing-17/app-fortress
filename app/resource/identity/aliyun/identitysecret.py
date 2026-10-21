@@ -5,10 +5,10 @@ from typing import ClassVar
 from pydantic import Field, SecretStr
 
 from app.internal.constant.platform import Platform
-from app.resource.identity._common._secret import BaseSecret
+from app.resource.identity._common._identitysecret import BaseIdentitySecret
 
 
-class AliyunSecret(BaseSecret):
+class AliyunIdentitySecret(BaseIdentitySecret):
     """
     Aliyun 密钥，由 AliyunIdentity.as_secret() 实时获取
 
@@ -28,7 +28,7 @@ class AliyunSecret(BaseSecret):
 
     Example:
     ----------
-        >>> secret = AliyunSecret(access_key_id="AKIDEXAMPLE", access_key_secret="secretvalue")
+        >>> secret = AliyunIdentitySecret(access_key_id="AKIDEXAMPLE", access_key_secret="secretvalue")
         >>> secret.access_key_secret.get_secret_value()
         'secretvalue'
 

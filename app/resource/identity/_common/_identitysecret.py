@@ -9,7 +9,7 @@ from app.internal.abstract.domain import IAbstractDomain
 from app.internal.constant.platform import Platform
 
 
-class BaseSecret(
+class BaseIdentitySecret(
     IAbstractDomain,
     ABC,
 ):
