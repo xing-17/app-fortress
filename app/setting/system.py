@@ -54,6 +54,10 @@ class SystemSetting(IAbstractSetting):
         default="伽蓝",
         description="[Optional] System alias",
     )
+    node: str = Field(
+        default="centre",
+        description="[Optional] System node name",
+    )
 
     # System-level configuration attributes
     version: str = Field(

@@ -27,6 +27,16 @@ from ._vault import (
     OSSVaultSetting,
     UnionVaultSetting,
 )
+from .service import (
+    AbstractHostServiceSetting,
+    AbstractServiceSetting,
+    MachineServiceSetting,
+    McpHostServiceSetting,
+    NodeEndpointSetting,
+    NodeServiceSetting,
+    ServicesSetting,
+    WebHostServiceSetting,
+)
 from .system import (
     SystemLogSetting,
     SystemSetting,
@@ -50,6 +60,14 @@ __all__ = [
     "LocalVaultSetting",
     "OSSVaultSetting",
     "UnionVaultSetting",
+    "AbstractHostServiceSetting",
+    "AbstractServiceSetting",
+    "MachineServiceSetting",
+    "NodeEndpointSetting",
+    "NodeServiceSetting",
+    "McpHostServiceSetting",
+    "WebHostServiceSetting",
+    "ServicesSetting",
     "SystemLogSetting",
     "SystemSetting",
 ]
