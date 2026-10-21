@@ -115,13 +115,22 @@ class OSSClient:
         self.region: str = region
         self.identity: AliyunIdentity = identity
         self.in_vpc: bool = in_vpc
-        self.endpoint: str = self._resolve_endpoint()
+        self.endpoint: str = OSSClient.resolve_endpoint(
+            region=self.region,
+            in_vpc=self.in_vpc,
+        )
         self._client: OSSTeaClient | None = None
         self._client_lock: threading.RLock = threading.RLock()
 
-    def _resolve_endpoint(self) -> str:
-        _ep: str = "-internal" if self.in_vpc else ""
-        return f"oss-{self.region}{_ep}.aliyuncs.com"
+    @staticmethod
+    def resolve_endpoint(
+        region: str,
+        in_vpc: bool = False,
+    ) -> str:
+        # Upgraded this method to staticmethod
+        # since external code need to resolve the endpoint
+        _ep: str = "-internal" if in_vpc else ""
+        return f"oss-{region}{_ep}.aliyuncs.com"
 
     @property
     def client(self) -> OSSTeaClient:

@@ -94,6 +94,17 @@ class TestOSSClientInit:
         assert client._client is None
 
 
+class TestOSSClientResolveEndpoint:
+    def test_public_endpoint_by_default(self):
+        assert OSSClient.resolve_endpoint(region="cn-hangzhou") == "oss-cn-hangzhou.aliyuncs.com"
+
+    def test_internal_endpoint_in_vpc(self):
+        assert OSSClient.resolve_endpoint(region="cn-hangzhou", in_vpc=True) == "oss-cn-hangzhou-internal.aliyuncs.com"
+
+    def test_is_callable_without_an_instance(self):
+        assert OSSClient.resolve_endpoint("cn-beijing", False) == "oss-cn-beijing.aliyuncs.com"
+
+
 class TestOSSClientGetClient:
     def test_returns_new_instance_on_cache_miss(self):
         identity = _make_identity()
