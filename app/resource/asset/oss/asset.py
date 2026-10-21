@@ -12,11 +12,13 @@ from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
 from app.internal.util.partition import IPartition
 from app.internal.util.prefix import IPrefix
+from app.internal.model.dra.mount import DRAMount
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._asset import BaseAsset
 from app.resource.asset.oss.assetfile import OSSAssetfile
-from app.resource.identity.aliyun import AliyunIdentity
+from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.aliyun.identitysecret import AliyunIdentitySecret
 
 
 class OSSAsset(BaseAsset):
@@ -65,6 +67,8 @@ class OSSAsset(BaseAsset):
 
     Methods:
     ----------
+        get_dra_mount() -> DRAMount:
+            获取该asset的DRA挂载设置
         list_assetfiles(since=None, until=None, recursive=True) -> list[OSSAssetfile]:
             列出bucket/prefix下匹配full_pattern的assetfile，可选按修改时间过滤。
         list_objects(pattern=None, since=None, until=None, recursive=True) -> list[OSSAssetfile]:
@@ -166,6 +170,30 @@ class OSSAsset(BaseAsset):
             return f"*{_base_expr}/{_obj_expr}"
         else:
             return f"*{_base_expr}/{self.partition_pattern}/{_obj_expr}"
+
+    def get_dra_mount(self) -> DRAMount:
+        if self.prefix:
+            _root: str = f"s3://{self.bucket}/{self.prefix}"
+        else:
+            _root: str = f"s3://{self.bucket}"
+
+        _secret: AliyunIdentitySecret = self.identity.as_secret()
+        _ep: str = OSSClient.resolve_endpoint(
+            region=self.region,
+            in_vpc=self.in_vpc,
+        )
+        return DRAMount(
+            scheme="s3",  # Use S3 scheme for OSS assets
+            pattern=self._mount_glob(_root),
+            scope=f"{_root}/",
+            partitions=self.partitions,
+            endpoint=_ep,
+            region=self.region,
+            url_style="vhost",
+            key_id=_secret.access_key_id,
+            secret=_secret.access_key_secret,
+            session_token=_secret.security_token,
+        )
 
     def list_assetfiles(
         self,

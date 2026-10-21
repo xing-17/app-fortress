@@ -8,6 +8,7 @@ from pydantic import Field
 
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.util.partition import IPartition
+from app.internal.model.dra.mount import DRAMount
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.asset._common._base import GovernedAssetResource
 
@@ -51,6 +52,8 @@ class BaseAsset(
 
     Methods:
     ----------
+        get_dra_mount() -> DRAMount:
+            Get the DRA mount settings for this asset
         assetfile(name: str, partitions: dict[str, str] | None = None) -> BaseAssetfile:
             Construct an assetfile under this asset
         list_assetfiles(since: datetime | float | None = None, until: datetime | float | None = None, recursive: bool = True) -> list[BaseAssetfile]:
@@ -96,7 +99,24 @@ class BaseAsset(
 
     @property
     @abstractmethod
-    def full_pattern(self) -> str: ...
+    def full_pattern(self) -> str:
+        """Full pattern is used to match assetfiles under this asset only."""
+        ...
+
+    def _mount_glob(
+        self,
+        root: str,
+    ) -> str:
+        _pptrn: str = self.partition_pattern
+        _optrn: str = self.object_pattern
+        if self.partitions:
+            return f"{root}/{_pptrn}/{_optrn}"
+        return f"{root}/{_optrn}"
+
+    @abstractmethod
+    def get_dra_mount(self) -> DRAMount:
+        """DRA Mount is the settings for dra system to access this asset"""
+        ...
 
     @abstractmethod
     def assetfile(

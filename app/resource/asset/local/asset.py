@@ -11,6 +11,7 @@ from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
 from app.internal.util.partition import IPartition
 from app.internal.util.path import IPath
+from app.internal.model.dra.mount import DRAMount
 from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._asset import BaseAsset
@@ -56,6 +57,8 @@ class LocalAsset(BaseAsset):
 
     Methods:
     ----------
+        get_dra_mount() -> DRAMount:
+            Get the DRA mount settings for this asset
         list_assetfiles(since=None, until=None, recursive=True) -> list[LocalAssetfile]:
             List assetfiles under this asset matching full_pattern, optionally filtered by modified time.
         list_objects(pattern=None, since=None, until=None, recursive=True) -> list[LocalAssetfile]:
@@ -138,6 +141,16 @@ class LocalAsset(BaseAsset):
             return f"*{_base_expr}/{_obj_expr}"
         else:
             return f"*{_base_expr}/{self.partition_pattern}/{_obj_expr}"
+
+    def get_dra_mount(self) -> DRAMount:
+        _root: str = self.path.as_posix()
+        _mount_glob: str = self._mount_glob(_root)
+        return DRAMount(
+            scheme="file",
+            pattern=_mount_glob,
+            scope=f"{_root}/",
+            partitions=self.partitions,
+        )
 
     def list_assetfiles(
         self,

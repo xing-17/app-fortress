@@ -8,11 +8,13 @@ from pydantic import ValidationError
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.internal.model.dra.mount import DRAMount
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset.oss.asset import OSSAsset
 from app.resource.asset.oss.assetfile import OSSAssetfile
 from app.resource.identity.aliyun.identity import AliyunIdentity
+from app.resource.identity.aliyun.identitysecret import AliyunIdentitySecret
 from app.resource.identity.local.identity import LocalIdentity
 
 
@@ -130,6 +132,97 @@ class TestOSSAssetFullPattern:
             _authorized=True,
         )
         assert asset.full_pattern == "*prices/*.parquet"
+
+
+class TestOSSAssetGetDraMount:
+    @pytest.fixture(autouse=True)
+    def _fake_secret(self, monkeypatch):
+        monkeypatch.setattr(
+            AliyunIdentity,
+            "as_secret",
+            lambda self: AliyunIdentitySecret(
+                access_key_id="AKID",
+                access_key_secret="topsecret",
+                security_token="sts-token",
+            ),
+        )
+
+    def test_is_an_s3_mount_with_vhost_style(self):
+        mount = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="prices", _authorized=True).get_dra_mount()
+        assert isinstance(mount, DRAMount)
+        assert mount.scheme == "s3"
+        assert mount.url_style == "vhost"
+        assert mount.region == "cn-hangzhou"
+
+    def test_scope_and_pattern_use_s3_scheme_not_oss(self):
+        mount = OSSAsset(bucket="my-bucket", region="cn-hangzhou", prefix="prices", _authorized=True).get_dra_mount()
+        assert mount.scope == "s3://my-bucket/prices/"
+        assert mount.pattern == "s3://my-bucket/prices/*"
+
+    def test_empty_prefix_scopes_the_whole_bucket(self):
+        mount = OSSAsset(bucket="my-bucket", region="cn-hangzhou", _authorized=True).get_dra_mount()
+        assert mount.scope == "s3://my-bucket/"
+        assert mount.pattern == "s3://my-bucket/*"
+
+    def test_partitions_and_filekind_shape_the_pattern(self):
+        asset = OSSAsset(
+            bucket="my-bucket",
+            region="cn-hangzhou",
+            prefix="prices",
+            partitions=["year", "month"],
+            filekind=AssetFileKind.PARQUET,
+            _authorized=True,
+        )
+        mount = asset.get_dra_mount()
+        assert mount.pattern == "s3://my-bucket/prices/year=*/month=*/*.parquet"
+        assert mount.partitions == ["year", "month"]
+
+    def test_public_endpoint_when_not_in_vpc(self):
+        mount = OSSAsset(bucket="my-bucket", region="cn-hangzhou", _authorized=True).get_dra_mount()
+        assert mount.endpoint == "oss-cn-hangzhou.aliyuncs.com"
+
+    def test_internal_endpoint_when_in_vpc(self):
+        mount = OSSAsset(bucket="my-bucket", region="cn-hangzhou", in_vpc=True, _authorized=True).get_dra_mount()
+        assert mount.endpoint == "oss-cn-hangzhou-internal.aliyuncs.com"
+
+    def test_credentials_come_from_identity_secret(self):
+        mount = OSSAsset(bucket="my-bucket", region="cn-hangzhou", _authorized=True).get_dra_mount()
+        assert mount.key_id == "AKID"
+        assert mount.secret.get_secret_value() == "topsecret"
+        assert mount.session_token.get_secret_value() == "sts-token"
+
+    def test_long_lived_key_has_no_session_token(self, monkeypatch):
+        monkeypatch.setattr(
+            AliyunIdentity,
+            "as_secret",
+            lambda self: AliyunIdentitySecret(access_key_id="AKID", access_key_secret="topsecret"),
+        )
+        mount = OSSAsset(bucket="my-bucket", region="cn-hangzhou", _authorized=True).get_dra_mount()
+        assert mount.session_token is None
+
+    def test_secret_is_fetched_on_every_call(self, monkeypatch):
+        _calls = []
+
+        def _as_secret(self):
+            _calls.append(1)
+            return AliyunIdentitySecret(access_key_id=f"AKID{len(_calls)}", access_key_secret="s")
+
+        monkeypatch.setattr(AliyunIdentity, "as_secret", _as_secret)
+        asset = OSSAsset(bucket="my-bucket", region="cn-hangzhou", _authorized=True)
+        assert asset.get_dra_mount().key_id == "AKID1"
+        assert asset.get_dra_mount().key_id == "AKID2"
+
+    def test_mount_does_not_expose_secret_in_describe(self):
+        mount = OSSAsset(bucket="my-bucket", region="cn-hangzhou", _authorized=True).get_dra_mount()
+        assert "topsecret" not in mount.describe()
+        assert "sts-token" not in mount.describe()
+
+    def test_does_not_create_an_oss_client(self, monkeypatch):
+        def _boom(**kwargs):
+            raise AssertionError("get_dra_mount must not build an OSS client")
+
+        monkeypatch.setattr(OSSClient, "get_client", _boom)
+        OSSAsset(bucket="my-bucket", region="cn-hangzhou", _authorized=True).get_dra_mount()
 
 
 class TestOSSAssetListObjects:

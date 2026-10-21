@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import glob
+
 import pytest
 from pydantic import ValidationError
 
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
+from app.internal.model.dra.mount import DRAMount
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset.local.asset import LocalAsset
 from app.resource.asset.local.assetfile import LocalAssetfile
@@ -97,6 +100,70 @@ class TestLocalAssetFullPattern:
     def test_with_filekind_restricts_object_segment(self, tmp_path):
         asset = LocalAsset(path=tmp_path, filekind=AssetFileKind.PARQUET, _authorized=True)
         assert asset.full_pattern == f"*{tmp_path.resolve()}/*.parquet"
+
+
+class TestLocalAssetGetDraMount:
+    def test_is_a_file_mount_without_remote_fields_or_credentials(self, tmp_path):
+        mount = LocalAsset(path=tmp_path, _authorized=True).get_dra_mount()
+        assert isinstance(mount, DRAMount)
+        assert mount.scheme == "file"
+        assert mount.endpoint is None
+        assert mount.region is None
+        assert mount.url_style is None
+        assert mount.key_id is None
+        assert mount.secret is None
+        assert mount.session_token is None
+
+    def test_scope_is_resolved_path_with_trailing_slash(self, tmp_path):
+        mount = LocalAsset(path=tmp_path, _authorized=True).get_dra_mount()
+        assert mount.scope == f"{tmp_path.resolve().as_posix()}/"
+
+    def test_pattern_has_no_leading_wildcard(self, tmp_path):
+        mount = LocalAsset(path=tmp_path, _authorized=True).get_dra_mount()
+        assert mount.pattern == f"{tmp_path.resolve().as_posix()}/*"
+
+    def test_partitions_and_filekind_shape_the_pattern(self, tmp_path):
+        asset = LocalAsset(
+            path=tmp_path,
+            partitions=["year", "month"],
+            filekind=AssetFileKind.PARQUET,
+            _authorized=True,
+        )
+        mount = asset.get_dra_mount()
+        assert mount.pattern == f"{tmp_path.resolve().as_posix()}/year=*/month=*/*.parquet"
+        assert mount.partitions == ["year", "month"]
+
+    def test_pattern_matches_real_partitioned_files(self, tmp_path):
+        _hit = tmp_path / "year=2026" / "month=01" / "a.parquet"
+        _hit.parent.mkdir(parents=True)
+        _hit.write_bytes(b"x")
+        (tmp_path / "year=2026" / "month=01" / "b.csv").write_bytes(b"x")
+        asset = LocalAsset(
+            path=tmp_path,
+            partitions=["year", "month"],
+            filekind=AssetFileKind.PARQUET,
+            _authorized=True,
+        )
+        assert glob.glob(asset.get_dra_mount().pattern) == [str(_hit.resolve())]
+
+    def test_pattern_matches_files_directly_under_path_without_partitions(self, tmp_path):
+        _hit = tmp_path / "a.parquet"
+        _hit.write_bytes(b"x")
+        asset = LocalAsset(path=tmp_path, _authorized=True)
+        assert glob.glob(asset.get_dra_mount().pattern) == [str(_hit.resolve())]
+
+    def test_path_with_glob_character_is_rejected(self, tmp_path):
+        _dir = tmp_path / "data[1]"
+        _dir.mkdir()
+        asset = LocalAsset(path=_dir, _authorized=True)
+        with pytest.raises(ValidationError):
+            asset.get_dra_mount()
+
+    def test_does_not_touch_identity(self, tmp_path, monkeypatch):
+        _calls = []
+        monkeypatch.setattr(LocalIdentity, "as_secret", lambda self: _calls.append(1))
+        LocalAsset(path=tmp_path, _authorized=True).get_dra_mount()
+        assert _calls == []
 
 
 class TestLocalAssetListObjects:
