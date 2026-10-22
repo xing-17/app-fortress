@@ -15,10 +15,10 @@ from app.internal.util.prefix import IPrefix
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._asset import BaseAsset
+from app.resource.asset._common._mount import DRAMount
 from app.resource.asset.oss.assetfile import OSSAssetfile
 from app.resource.identity.aliyun.identity import AliyunIdentity
 from app.resource.identity.aliyun.identitysecret import AliyunIdentitySecret
-from app.service.node.dra.mount import DRAMount
 
 
 class OSSAsset(BaseAsset):

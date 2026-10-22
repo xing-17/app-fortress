@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.service.node.dra.mount import DRAMount
+from app.resource.asset._common._mount import DRAMount
 
 
 def _file_kwargs(**overrides):

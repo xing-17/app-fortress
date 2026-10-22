@@ -10,12 +10,12 @@ from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
 from app.resource._client.oss.client import OSSClient
 from app.resource._global.identities import GlobalIdentities
+from app.resource.asset._common._mount import DRAMount
 from app.resource.asset.oss.asset import OSSAsset
 from app.resource.asset.oss.assetfile import OSSAssetfile
 from app.resource.identity.aliyun.identity import AliyunIdentity
 from app.resource.identity.aliyun.identitysecret import AliyunIdentitySecret
 from app.resource.identity.local.identity import LocalIdentity
-from app.service.node.dra.mount import DRAMount
 
 
 @pytest.fixture(autouse=True)

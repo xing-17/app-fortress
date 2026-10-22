@@ -6,6 +6,12 @@ from pydantic import ConfigDict, Field, SecretStr, model_validator
 
 from app.internal.abstract.domain import IAbstractDomain
 
+# This class does not require duckdb as dependency
+# Migrated from app.service.node.dra.DRAMount
+# Keep this class as it is, now under app.resource.asset._common._mount
+# to avoid importing the DRA engine dependencies in app.resources
+
+
 _GLOB_CHARS = "*?["
 
 
