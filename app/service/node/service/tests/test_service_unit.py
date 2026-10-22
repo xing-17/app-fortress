@@ -7,13 +7,13 @@ import polars as pl
 import pytest
 
 from app.internal.logstream import LogStream
-from app.internal.model.dra import DRARejectedError
 from app.resource._global.identities import GlobalIdentities
 from app.resource._global.logstreams import GlobalLogStreams
 from app.resource._global.sources import GlobalSources
 from app.resource.asset.local.vault import LocalVault
 from app.resource.source._common.tests.fakes.base import FakeSource
 from app.resource.store.file.store import FileStore
+from app.service.node.dra import DRABusyError, DRARejectedError
 from app.service.node.service.auth import Principal
 from app.service.node.service.errors import NodeDatasetNotFoundError, NodeSourceNotFoundError
 from app.service.node.service.service import NodeService
@@ -228,15 +228,15 @@ class TestQuery:
     def test_a_caller_keeps_one_session(self, service, source):
         _write(source, "alpha", "a.parquet", pl.DataFrame({"a": [1]}))
         service.query(_ALICE, "SELECT * FROM src.alpha")
-        _first = service._sessions["alice"]
+        _first = service._pool.session("alice")
         service.query(_ALICE, "SELECT * FROM src.alpha")
-        assert service._sessions["alice"] is _first
+        assert service._pool.session("alice") is _first
 
     def test_callers_get_isolated_sessions(self, service, source):
         _write(source, "alpha", "a.parquet", pl.DataFrame({"a": [1]}))
         service.query(_ALICE, "SELECT * FROM src.alpha")
         service.query(_BOB, "SELECT * FROM src.alpha")
-        assert service._sessions["alice"] is not service._sessions["bob"]
+        assert service._pool.session("alice") is not service._pool.session("bob")
 
     def test_empty_dataset_is_not_mounted(self, service, source):
         _write(source, "alpha", "a.parquet", pl.DataFrame({"a": [1]}))
@@ -263,10 +263,10 @@ class TestQuery:
     def test_reset_sessions_builds_a_new_one(self, service, source):
         _write(source, "alpha", "a.parquet", pl.DataFrame({"a": [1]}))
         service.query(_ALICE, "SELECT * FROM src.alpha")
-        _first = service._sessions["alice"]
+        _first = service._pool.session("alice")
         service.reset_sessions()
         service.query(_ALICE, "SELECT * FROM src.alpha")
-        assert service._sessions["alice"] is not _first
+        assert service._pool.session("alice") is not _first
 
     def test_limits_come_from_the_setting(self, log, source):
         _write(source, "alpha", "a.parquet", pl.DataFrame({"a": list(range(50))}))
@@ -278,3 +278,58 @@ class TestQuery:
             _service.stop()
         assert len(_res.rows) == 5
         assert _res.truncated_by == "rows"
+
+
+_SQL = "SELECT * FROM src.alpha"
+
+
+@pytest.fixture
+def pooled(log, source):
+    _write(source, "alpha", "a.parquet", pl.DataFrame({"a": [1]}))
+    _services: list[NodeService] = []
+
+    def _make(**dra):
+        _service = NodeService(NodeServiceSetting(dra=dra))
+        _service.start()
+        _services.append(_service)
+        return _service
+
+    yield _make
+    for _service in _services:
+        _service.stop()
+
+
+class TestSessionPool:
+    def test_pool_limits_come_from_the_setting(self, pooled):
+        _service = pooled(max_sessions=1)
+        _service.query(_ALICE, _SQL)
+        _service.query(_BOB, _SQL)
+        assert _service._pool.keys() == ["bob"]
+
+    def test_eviction_is_logged(self, pooled, log):
+        _service = pooled(max_sessions=1)
+        _service.query(_ALICE, _SQL)
+        _service.query(_BOB, _SQL)
+        _meta = [c.kwargs.get("metadata", {}) for c in log.info.call_args_list]
+        assert {"caller": "alice", "reason": "lru"} in _meta
+
+    def test_a_busy_pool_rejects_and_logs(self, pooled, log):
+        _service = pooled(max_sessions=1)
+        with _service._pool.lease("alice"):
+            with pytest.raises(DRABusyError):
+                _service.query(_BOB, _SQL)
+        assert log.warning.call_args.kwargs["metadata"]["error"] == "DRABusyError"
+
+    def test_health_counts_busy_sessions(self, pooled):
+        _service = pooled()
+        _service.query(_ALICE, _SQL)
+        with _service._pool.lease("bob"):
+            _health = _service.health()
+        assert _health["sessions"] == 2
+        assert _health["busy_sessions"] == 1
+
+    def test_a_failed_query_releases_the_session(self, pooled):
+        _service = pooled(max_sessions=1)
+        with pytest.raises(DRARejectedError):
+            _service.query(_ALICE, "DROP TABLE x")
+        assert _service.health()["busy_sessions"] == 0

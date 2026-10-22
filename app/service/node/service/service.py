@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import threading
 from datetime import datetime
 from typing import Any
 
@@ -8,22 +7,26 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.servicekind import ServiceKind
 from app.internal.model.definition.dataframe import DataframeDefinition
 from app.internal.model.definition.group import DefinitionGroup
-from app.internal.model.dra import DRADataResult, DRAError, DRAMount
 from app.internal.model.metadata.assetfile import AssetfileMetadata
 from app.resource._global.sources import GlobalSources
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.source._common._dataset import BaseDataset
 from app.resource.source._common._source import BaseSource
 from app.service._common._service import BaseService
-from app.service.node.dra import DRALimits, DRASession
+from app.service.node.dra import (
+    DRADataResult,
+    DRAError,
+    DRALimits,
+    DRAMount,
+    DRAPool,
+    DRASession,
+)
 from app.service.node.service.auth import Principal
 from app.service.node.service.errors import (
     NodeDatasetNotFoundError,
     NodeSourceNotFoundError,
 )
 from app.setting.service import NodeServiceSetting
-
-_SQL_LOG_CHARS = 500
 
 
 class NodeService(BaseService[NodeServiceSetting]):
@@ -32,6 +35,9 @@ class NodeService(BaseService[NodeServiceSetting]):
 
     Catalog methods are answered by the resources themselves (source, dataset, store) and never
     touch the DRA engine. Only `query` does, through one isolated `DRASession` per caller.
+
+    Sessions are pooled by `DRAPool` up to `setting.dra.max_sessions`, see there for the eviction
+    rules. When every session is busy a new caller gets `DRABusyError`.
 
     The DRA views are named "<source>.<dataset>"; catalog methods take `source` and `dataset` apart.
 
@@ -62,7 +68,7 @@ class NodeService(BaseService[NodeServiceSetting]):
         query(caller, sql) -> DRADataResult:
             Run one SELECT in the caller's DRA session, created on first use
         reset_sessions() -> None:
-            Close all sessions, the next query builds a new one
+            Close all idle sessions and retire the busy ones, the next query builds a new one
 
     """
 
@@ -73,8 +79,12 @@ class NodeService(BaseService[NodeServiceSetting]):
         setting: NodeServiceSetting,
     ) -> None:
         super().__init__(setting)
-        self._sessions: dict[str, DRASession] = {}
-        self._session_lock = threading.Lock()
+        self._pool = DRAPool(
+            factory=self._build_session,
+            max_sessions=setting.dra.max_sessions,
+            max_idle_seconds=setting.dra.max_session_idle_seconds,
+            on_close=self._log_session_closed,
+        )
 
     def _require_running(self) -> None:
         if not self.is_running:
@@ -89,7 +99,7 @@ class NodeService(BaseService[NodeServiceSetting]):
 
     def health(self) -> dict:
         _res: dict = super().health()
-        _res["sessions"] = len(self._sessions)
+        _res.update(self._pool.stats())
         return _res
 
     def _resolve_source(
@@ -115,7 +125,8 @@ class NodeService(BaseService[NodeServiceSetting]):
         source: str,
         dataset: str,
     ) -> BaseDataset:
-        return self._resolve_dataset(self._resolve_source(source), dataset)
+        _source: BaseSource = self._resolve_source(source)
+        return self._resolve_dataset(_source, dataset)
 
     # --------------------------------------------------
     # Catalog
@@ -128,10 +139,10 @@ class NodeService(BaseService[NodeServiceSetting]):
     ) -> dict[str, Any]:
         return {
             "name": source.name,
-            "provider": source.provider,
-            "type": source.type,
-            "board": source.board,
-            "country": source.country,
+            "provider": str(source.provider),
+            "type": str(source.type),
+            "board": str(source.board),
+            "country": str(source.country),
             "description": source.description,
             "datasets": source.list_dataset_names(),
         }
@@ -162,10 +173,10 @@ class NodeService(BaseService[NodeServiceSetting]):
             "source": source,
             "dataset": f"{source}.{dataset.name}",
             "name": dataset.name,
-            "provider": dataset.provider,
+            "provider": str(dataset.provider),
             "partitions": dataset.partitions,
-            "filekind": dataset.filekind,
-            "frequency": dataset.frequency,
+            "filekind": str(dataset.filekind),
+            "frequency": str(dataset.frequency),
             "description": dataset.description,
         }
 
@@ -209,7 +220,7 @@ class NodeService(BaseService[NodeServiceSetting]):
     ) -> dict[str, Any]:
         return {
             "name": assetfile.name,
-            "filekind": assetfile.filekind,
+            "filekind": str(assetfile.filekind),
             "partitions": dict(assetfile.partitions),
             "size": assetfile.size,
             "modified_at": assetfile.modified_at,
@@ -332,13 +343,13 @@ class NodeService(BaseService[NodeServiceSetting]):
         sql: str,
     ) -> DRADataResult:
         self._require_running()
-        _session: DRASession = self._session_of(caller)
         _meta: dict[str, Any] = {
             "caller": caller.name,
-            "sql": sql[:_SQL_LOG_CHARS],
+            "sql": sql[:500],  # Log only the first 500 characters of the SQL query
         }
         try:
-            _res: DRADataResult = _session.query(sql)
+            with self._pool.lease(caller.name) as _session:
+                _res: DRADataResult = _session.query(sql)
         except DRAError as e:
             _meta["error"] = type(e).__name__
             self.log.warning(f"query failed: {caller.name}", metadata=_meta)
@@ -355,28 +366,36 @@ class NodeService(BaseService[NodeServiceSetting]):
         return _res
 
     def reset_sessions(self) -> None:
-        with self._session_lock:
-            _sessions: list[DRASession] = list(self._sessions.values())
-            self._sessions.clear()
-        for _session in _sessions:
-            _session.close()
+        self._pool.reset()
 
-    def _session_of(
+    def _build_session(self) -> DRASession:
+        _dra_export: dict[str, Any] = self.setting.dra.export()
+        _limits = DRALimits.model_validate(_dra_export)
+        _session = DRASession(
+            mounts=self._mounts(),
+            limits=_limits,
+        )
+        self.log.info(
+            "DRA session built",
+            metadata={
+                "limits": _limits,
+                "mounts": len(self._mounts()),
+            },
+        )
+        return _session
+
+    def _log_session_closed(
         self,
-        caller: Principal,
-    ) -> DRASession:
-        # Built under the lock, so one caller never ends up with two sessions
-        with self._session_lock:
-            _session: DRASession | None = self._sessions.get(caller.name)
-            if _session is None:
-                _dra_setting = self.setting.dra.export()
-                _limits = DRALimits.model_validate(_dra_setting)
-                _session = DRASession(
-                    mounts=self._mounts(),
-                    limits=_limits,
-                )
-                self._sessions[caller.name] = _session
-            return _session
+        caller: str,
+        reason: str,
+    ) -> None:
+        self.log.info(
+            f"session closed: {caller}",
+            metadata={
+                "caller": caller,
+                "reason": reason,
+            },
+        )
 
     def _mounts(self) -> dict[str, DRAMount]:
         _res: dict[str, DRAMount] = {}

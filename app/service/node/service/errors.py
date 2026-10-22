@@ -9,5 +9,13 @@ class NodeDatasetNotFoundError(LookupError):
     """Dataset does not exist on this node"""
 
 
-class NodeBusyError(RuntimeError):
-    """Every session slot of this node is running a query"""
+class NodeBadRequestError(ValueError):
+    """Bad request made to this node"""
+
+
+class NodeUnauthorizedError(PermissionError):
+    """Unauthorized request made to this node"""
+
+
+class NodeUnknownError(RuntimeError):
+    """Unknown error occurred on this node"""
