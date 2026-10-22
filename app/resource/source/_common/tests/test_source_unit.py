@@ -119,4 +119,3 @@ class TestShowAndExport:
         assert _res["name"] == "src"
         assert _res["vault"] == source.vault.export()
         assert _res["store"] == source.store.export()
-        assert _res["log_stream"] == source.log_stream.export()

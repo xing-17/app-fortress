@@ -279,5 +279,4 @@ class BaseSource(
         _res["fetch_type"] = str(self.fetch_type)
         _res["vault"] = self.vault.export()
         _res["store"] = self.store.export()
-        _res["log_stream"] = self.log_stream.export()
         return _res

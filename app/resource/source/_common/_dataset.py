@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, ClassVar
 
 import polars as pl
@@ -10,10 +11,7 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.frequencyoption import FrequencyOption
 from app.internal.constant.sourceprovider import SourceProvider
 from app.internal.logstream import LogStream
-from app.internal.model.definition.dataframe import DataframeDefinition
-from app.internal.model.definition.group import DefinitionGroup
 from app.internal.model.metadata.assetfile import AssetfileMetadata
-from app.internal.model.quality import DataframeQuality
 from app.internal.util.frn import IFrn
 from app.internal.util.stopwatch import IStopwatch
 from app.resource.asset._common._asset import BaseAsset
@@ -72,7 +70,7 @@ class BaseDataset(
             Write raw bytes into an assetfile.
         read_assetfile(assetfile: BaseAssetfile) -> bytes:
             Read raw bytes from an assetfile.
-        list_assetfiles(since=None, until=None) -> list[BaseAssetfile]:
+        list_assetfiles(since: datetime | float | None = None, until: datetime | float | None = None) -> list[BaseAssetfile]:
             List assetfiles of the dataset asset.
         get_metadata_table(name: str) -> BaseTable:
             Get the metadata table of the given name from the dataset database.
@@ -82,11 +80,11 @@ class BaseDataset(
             Write the metadata of an assetfile into its metadata table.
         read_metadata(assetfile: BaseAssetfile) -> AssetfileMetadata:
             Read the metadata of an assetfile from its metadata table.
-        list_metadatas(since=None, until=None) -> list[AssetfileMetadata]:
+        list_metadatas(since: datetime | float | None = None, until: datetime | float | None = None) -> list[AssetfileMetadata]:
             Read the metadata of all assetfiles matching the filter.
-        list_qualities(since=None, until=None) -> list[tuple[BaseAssetfile, DataframeQuality]]:
+        list_qualities(since: datetime | float | None = None, until: datetime | float | None = None) -> list[tuple[BaseAssetfile, DataframeQuality]]:
             Quality of each assetfile matching the filter, assetfiles without metadata are skipped.
-        list_definitions(since=None, until=None) -> list[DefinitionGroup]:
+        list_definitions(since: datetime | float | None = None, until: datetime | float | None = None) -> list[DefinitionGroup]:
             Definitions of the assetfiles matching the filter, grouped by fingerprint
             with the partitions that carry each definition.
         export() -> dict[str, Any]:
@@ -212,8 +210,8 @@ class BaseDataset(
 
     def list_assetfiles(
         self,
-        since=None,
-        until=None,
+        since: datetime | float | None = None,
+        until: datetime | float | None = None,
     ) -> list[BaseAssetfile]:
         return self.asset.list_assetfiles(
             since=since,
@@ -270,8 +268,8 @@ class BaseDataset(
 
     def list_metadatas(
         self,
-        since=None,
-        until=None,
+        since: datetime | float | None = None,
+        until: datetime | float | None = None,
     ) -> list[AssetfileMetadata]:
         _files: list[BaseAssetfile] = self.list_assetfiles(
             since=since,
