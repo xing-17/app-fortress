@@ -166,6 +166,26 @@ class TestAuthSetting:
         assert ServicesSetting.from_dict(_s.export()) == _s
 
 
+class TestNodeEndpointToken:
+    def test_token_defaults_to_none(self):
+        assert NodeEndpointSetting(name="snt", endpoint="http://a").token is None
+
+    def test_token_from_yaml(self, tmp_path):
+        _path = tmp_path / "services.yaml"
+        _path.write_text(
+            "mcphost:\n  nodes:\n    - name: snt\n      endpoint: http://127.0.0.1:8800\n      token: abc123\n",
+            encoding="utf-8",
+        )
+        _node = ServicesSetting.from_yaml(_path).mcphost.nodes[0]
+        assert _node.token.get_secret_value() == "abc123"
+
+    def test_token_is_hidden(self):
+        _s = McpHostServiceSetting(nodes=[{"name": "snt", "endpoint": "http://a", "token": "abc123"}])
+        assert "abc123" not in repr(_s)
+        assert "abc123" not in _s.describe()
+        assert "abc123" not in str(_s.export())
+
+
 class TestServicesSetting:
     def test_defaults(self):
         _s = ServicesSetting()

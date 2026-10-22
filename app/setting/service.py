@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 
 from app.internal.abstract.setting import IAbstractSetting, IAbstractTaggedSetting
 from app.internal.constant.servicekind import ServiceKind
@@ -233,6 +233,8 @@ class NodeEndpointSetting(IAbstractSetting):
     ----------
         name (str): Node name, matches SystemSetting.node of that node
         endpoint (str): Base URL of the node service
+        token (SecretStr | None): Bearer token of this host on the node (`fortress auth show <name>`),
+            held as SecretStr so repr and export never show it
 
     """
 
@@ -245,6 +247,10 @@ class NodeEndpointSetting(IAbstractSetting):
         ...,
         description="Base URL of the node service",
         min_length=1,
+    )
+    token: SecretStr | None = Field(
+        default=None,
+        description="[Optional] Bearer token of this host on the node",
     )
 
 
