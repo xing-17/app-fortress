@@ -10,8 +10,10 @@ from app.internal.model.dra import (
     DRAColumnDefinition,
     DRADataResult,
     DRADefinitionResult,
-    DRAError,
     DRAMount,
+)
+from app.service.node.dra.errors import (
+    DRAError,
     DRAQueryError,
     DRAQueryTimeoutError,
     DRARejectedError,

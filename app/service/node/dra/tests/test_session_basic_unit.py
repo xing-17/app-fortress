@@ -9,11 +9,13 @@ import pytest
 from app.internal.model.dra import (
     DRADataResult,
     DRADefinitionResult,
-    DRAError,
     DRAMount,
-    DRAQueryError,
-    DRAQueryTimeoutError,
+)
+from app.service.node.dra.errors import (
+    DRAError,
     DRARejectedError,
+    DRAQueryError,
+    DRAQueryTimeoutError,  # noqa: E402
 )
 from app.service.node.dra import DRALimits, DRASession
 
