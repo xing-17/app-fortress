@@ -8,10 +8,10 @@ import pytest
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.assetfilesystem import AssetFilesystem
 from app.internal.constant.platform import Platform
-from app.internal.model.dra.mount import DRAMount
 from app.resource.asset._common._asset import BaseAsset
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.identity.local.identity import LocalIdentity
+from app.service.node.dra.mount import DRAMount
 
 
 class _ConcreteAssetfile(BaseAssetfile):

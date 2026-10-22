@@ -8,9 +8,9 @@ from pydantic import Field
 
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.util.partition import IPartition
-from app.internal.model.dra.mount import DRAMount
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.asset._common._base import GovernedAssetResource
+from app.service.node.dra.mount import DRAMount
 
 
 class BaseAsset(

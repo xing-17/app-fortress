@@ -15,8 +15,8 @@ dependencies = [
     "pydantic-settings",
     "pyyaml",
     "polars",
-    "duckdb",
     "requests",
+    "pyarrow",
 
     # ---------- Source Dependencies ----------
     "tushare"
@@ -32,7 +32,22 @@ aliyun = [
 dev = [
     "pytest",
     "pytest-benchmark",
+    "httpx",
+    "moto[server]",
     "ruff"
+]
+machine = ["psutil"]
+node = [
+    "duckdb", 
+    "starlette", 
+    "uvicorn",
+]
+mcphost = [
+    "app-fortress[node]",
+    "mcp",
+]
+webhost = [
+    "app-fortress[node]",
 ]
 
 [build-system]

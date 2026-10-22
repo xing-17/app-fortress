@@ -11,12 +11,12 @@ from app.internal.constant.platform import Platform
 from app.internal.util.frn import IFrn
 from app.internal.util.partition import IPartition
 from app.internal.util.path import IPath
-from app.internal.model.dra.mount import DRAMount
 from app.resource._client.local.client import LocalObjectClient
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset._common._asset import BaseAsset
 from app.resource.asset.local.assetfile import LocalAssetfile
 from app.resource.identity.local import LocalIdentity
+from app.service.node.dra.mount import DRAMount
 
 
 class LocalAsset(BaseAsset):
