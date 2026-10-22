@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import socket
+import threading
 import time
 
 import duckdb
@@ -12,7 +13,7 @@ moto_server = pytest.importorskip("moto.server")
 
 from app.resource.asset import DRAMount  # noqa: E402
 from app.service.node.dra import DRALimits, DRASession  # noqa: E402
-from app.service.node.dra.errors import DRAQueryError, DRARejectedError  # noqa: E402
+from app.service.node.dra.errors import DRAError, DRAQueryError, DRARefreshError, DRARejectedError  # noqa: E402
 
 _KEY_ID = "AKIATESTKEYID"
 _SECRET = "test-secret-value-9f3a"
@@ -221,6 +222,24 @@ class TestDRASessionS3Secrets:
         assert _TOKEN not in str(_info.value)
 
 
+class _SpyConnection:
+    """Records the statements run on the engine, optionally fails the ones containing `fail_on`."""
+
+    def __init__(self, con, fail_on: str | None = None):
+        self._con = con
+        self._fail_on = fail_on
+        self.statements: list[str] = []
+
+    def execute(self, sql, *args, **kwargs):
+        self.statements.append(sql)
+        if self._fail_on and self._fail_on in sql:
+            raise duckdb.IOException(f"boom while running {sql}")
+        return self._con.execute(sql, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._con, name)
+
+
 class TestDRASessionS3Refresh:
     def test_same_mount_is_accepted(self, session, s3_endpoint):
         session.refresh({"cloud.ds": _mount(s3_endpoint)})
@@ -229,3 +248,111 @@ class TestDRASessionS3Refresh:
         _other = _mount(s3_endpoint, scope="s3://bkt-b/ds/", pattern="s3://bkt-b/ds/*.parquet", partitions=[])
         with pytest.raises(DRARejectedError, match="mounts changed"):
             session.refresh({"cloud.ds": _other})
+
+    def test_session_reports_its_secrets(self, session):
+        assert session.has_secrets is True
+        assert session.names == ["cloud.ds"]
+
+    def test_unchanged_credentials_run_nothing(self, session, s3_endpoint):
+        _spy = _SpyConnection(session._con)
+        session._con = _spy
+        session.refresh({"cloud.ds": _mount(s3_endpoint)})
+        assert _spy.statements == []
+
+    def test_unchanged_credentials_still_count_as_refreshed(self, session, s3_endpoint):
+        _before = session.refreshed_at
+        session.refresh({"cloud.ds": _mount(s3_endpoint)})
+        assert session.refreshed_at > _before
+
+    def test_new_token_replaces_the_secret_once(self, session, s3_endpoint):
+        _spy = _SpyConnection(session._con)
+        session._con = _spy
+        _new = _mount(s3_endpoint, session_token="rotated-token")
+        session.refresh({"cloud.ds": _new})
+        session.refresh({"cloud.ds": _new})
+        assert len(_spy.statements) == 1
+        assert _spy.statements[0].startswith("CREATE OR REPLACE SECRET dra_s3_0 ")
+        assert "rotated-token" in _spy.statements[0]
+        assert session.query("SELECT count(*) FROM cloud.ds").rows == [[3]]
+
+    def test_replaced_secret_is_the_one_in_use(self, s3_endpoint):
+        # The engine caches what it already read, so probe with objects it has not touched yet
+        _client = boto3.client(
+            "s3",
+            endpoint_url=f"http://{s3_endpoint}",
+            aws_access_key_id=_KEY_ID,
+            aws_secret_access_key=_SECRET,
+            region_name="us-east-1",
+        )
+        for _key in ("seed", "p1", "p2"):
+            _client.put_object(Bucket="bkt-a", Key=f"probe/{_key}.parquet", Body=_parquet_bytes("SELECT 1 AS id"))
+
+        def _probe_mount(**overrides) -> DRAMount:
+            return _mount(
+                s3_endpoint,
+                scope="s3://bkt-a/probe/",
+                pattern="s3://bkt-a/probe/*.parquet",
+                partitions=[],
+                **overrides,
+            )
+
+        with DRASession({"cloud.probe": _probe_mount()}) as _session:
+            _session.refresh({"cloud.probe": _probe_mount(key_id=None, secret=None, session_token=None)})
+            with pytest.raises(DRAQueryError):
+                _session.query("SELECT id FROM read_parquet('s3://bkt-a/probe/p1.parquet')")
+            _session.refresh({"cloud.probe": _probe_mount()})
+            assert _session.query("SELECT id FROM read_parquet('s3://bkt-a/probe/p2.parquet')").rows == [[1]]
+
+    def test_secrets_stay_redacted_after_replacement(self, session, s3_endpoint):
+        session.refresh({"cloud.ds": _mount(s3_endpoint, secret="rotated-secret", session_token="rotated-token")})
+        _text = repr(session._con.execute("SELECT * FROM duckdb_secrets()").fetchall())
+        assert "rotated-secret" not in _text
+        assert "rotated-token" not in _text
+
+    def test_failed_replacement_keeps_the_old_secret_and_hides_the_new_one(self, session, s3_endpoint):
+        _digests = dict(session._digests)
+        _before = session.refreshed_at
+        session._con = _SpyConnection(session._con, fail_on="CREATE OR REPLACE")
+        with pytest.raises(DRARefreshError) as _info:
+            session.refresh({"cloud.ds": _mount(s3_endpoint, secret="rotated-secret")})
+
+        assert "rotated-secret" not in str(_info.value)
+        assert "boom" not in str(_info.value)
+        assert _info.value.__cause__ is None
+        assert _info.value.__suppress_context__ is True
+        assert session._digests == _digests
+        assert session.refreshed_at == _before
+        # The next attempt is not skipped as unchanged
+        session._con = session._con._con
+        session.refresh({"cloud.ds": _mount(s3_endpoint, secret="rotated-secret")})
+        assert session._digests != _digests
+        assert session.query("SELECT count(*) FROM cloud.ds").rows == [[3]]
+
+    def test_refresh_after_close_raises(self, s3_endpoint):
+        _session = DRASession({"cloud.ds": _mount(s3_endpoint)})
+        _session.close()
+        with pytest.raises(DRAError, match="closed"):
+            _session.refresh({"cloud.ds": _mount(s3_endpoint)})
+
+    def test_refresh_during_queries_is_safe(self, session, s3_endpoint):
+        _errors: list[BaseException] = []
+        _stop = threading.Event()
+
+        def _query() -> None:
+            try:
+                while not _stop.is_set():
+                    assert session.query("SELECT count(*) FROM cloud.ds").rows == [[3]]
+            except BaseException as e:
+                _errors.append(e)
+
+        _threads = [threading.Thread(target=_query) for _ in range(3)]
+        for _t in _threads:
+            _t.start()
+        try:
+            for _i in range(20):
+                session.refresh({"cloud.ds": _mount(s3_endpoint, session_token=f"token-{_i}")})
+        finally:
+            _stop.set()
+            for _t in _threads:
+                _t.join()
+        assert _errors == []

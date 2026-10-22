@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import threading
 import time
 from collections.abc import Mapping
@@ -12,6 +13,7 @@ from .errors import (
     DRAError,
     DRAQueryError,
     DRAQueryTimeoutError,
+    DRARefreshError,
     DRARejectedError,
 )
 from .guard import DRAGuard
@@ -47,7 +49,7 @@ class DRASession:
     Methods:
     ----------
         refresh(mounts):
-            Update credentials before a query, nothing to do for file mounts
+            Replace the secrets of s3 mounts whose credentials changed, nothing to do for file mounts
         definition(name):
             Live schema of a mounted dataset
         query(sql):
@@ -79,9 +81,15 @@ class DRASession:
             _checked[_name] = (_source, _dataset, _scope, _glob, _mount)
         self._scopes = {name: c[2] for name, c in _checked.items()}
 
+        # Dataset name -> engine secret of each s3 mount, and the digest of what the secret holds
+        _remote: dict[str, DRAMount] = {n: c[4] for n, c in _checked.items() if c[4].scheme == "s3"}
+        self._secrets: dict[str, str] = {n: f"dra_s3_{i}" for i, n in enumerate(_remote)}
+        self._digests: dict[str, str] = {n: self._digest(self._secrets[n], m) for n, m in _remote.items()}
+        self._refreshed_at: float = time.monotonic()
+
         _sorted_scopes = sorted(set(self._scopes.values()))
-        _checked_mounts = [c[4] for c in _checked.values()]
-        self._con = self._connect(_sorted_scopes, _checked_mounts)
+        _secret_mounts = {self._secrets[n]: m for n, m in _remote.items()}
+        self._con = self._connect(_sorted_scopes, _secret_mounts)
         try:
             for _name, (_source, _dataset, _, _glob, _mount) in _checked.items():
                 self._mount(_name, _source, _dataset, _glob, _mount)
@@ -89,12 +97,26 @@ class DRASession:
             self._con.close()
             raise
 
+    @property
+    def names(self) -> list[str]:
+        return list(self._scopes)
+
+    @property
+    def has_secrets(self) -> bool:
+        return bool(self._secrets)
+
+    @property
+    def refreshed_at(self) -> float:
+        """Monotonic time of the build or the last successful refresh."""
+        return self._refreshed_at
+
     def refresh(
         self,
         mounts: Mapping[str, DRAMount],
     ) -> None:
         """
-        File mounts carry no credentials, only require that the mounted set is unchanged.
+        The mounted set must be unchanged. Secrets of s3 mounts whose credentials differ from the
+        ones in the engine are replaced, the old secret stays when a replacement fails.
 
         """
         _scopes = {}
@@ -103,6 +125,23 @@ class DRASession:
 
         if _scopes != self._scopes:
             raise DRARejectedError("mounts changed, open a new session")
+
+        with self._lock:
+            self._ensure_open()
+            for _name, _secret in self._secrets.items():
+                _mount = mounts[_name]
+                if _mount.scheme != "s3":
+                    raise DRARejectedError("mounts changed, open a new session")
+                _digest = self._digest(_secret, _mount)
+                if _digest == self._digests[_name]:
+                    continue
+                try:
+                    self._con.execute(self._secret_sql(_secret, _mount, replace=True))
+                except duckdb.Error as e:
+                    # The statement holds the secret, so neither it nor the engine message is passed on
+                    raise DRARefreshError(f"cannot refresh credentials of {_name}: {type(e).__name__}") from None
+                self._digests[_name] = _digest
+            self._refreshed_at = time.monotonic()
 
     def definition(
         self,
@@ -172,16 +211,15 @@ class DRASession:
     def _connect(
         self,
         scopes: list[str],
-        mounts: list[DRAMount] | None = None,
+        secrets: Mapping[str, DRAMount] | None = None,
     ) -> duckdb.DuckDBPyConnection:
-        """In-memory engine confined to `scopes`, configuration locked."""
+        """In-memory engine confined to `scopes`, configuration locked, `secrets` is secret name -> s3 mount."""
         _con = duckdb.connect(":memory:")
-        _s3 = [m for m in mounts or [] if m.scheme == "s3"]
-        if _s3:
+        if secrets:
             # The extension and the secrets must be in place before external access is turned off.
             _con.execute("LOAD httpfs")
-            for _i, _m in enumerate(_s3):
-                _con.execute(self._secret_sql(f"dra_s3_{_i}", _m))
+            for _secret, _m in secrets.items():
+                _con.execute(self._secret_sql(_secret, _m))
         # No spilling: with external access off the engine
         # aborts the process when it cleans up its temp dir.
         _con.execute("SET temp_directory=''")
@@ -197,8 +235,21 @@ class DRASession:
         _con.execute("SET lock_configuration=true")
         return _con
 
+    @classmethod
+    def _digest(
+        cls,
+        name: str,
+        m: DRAMount,
+    ) -> str:
+        # The statement is the single source of what the engine holds, only its hash is kept
+        return hashlib.sha256(cls._secret_sql(name, m, replace=True).encode()).hexdigest()
+
     @staticmethod
-    def _secret_sql(name: str, m: DRAMount) -> str:
+    def _secret_sql(
+        name: str,
+        m: DRAMount,
+        replace: bool = False,
+    ) -> str:
         _q = DRAGuard.stringify_sql
         _parts = [
             "TYPE s3",
@@ -218,7 +269,8 @@ class DRASession:
         if m.session_token is not None:
             _session_token: str = m.session_token.get_secret_value()
             _parts.append(f"SESSION_TOKEN {_q(_session_token)}")
-        return f"CREATE SECRET {name} ({', '.join(_parts)})"
+        _create = "CREATE OR REPLACE SECRET" if replace else "CREATE SECRET"
+        return f"{_create} {name} ({', '.join(_parts)})"
 
     def _mount(
         self,

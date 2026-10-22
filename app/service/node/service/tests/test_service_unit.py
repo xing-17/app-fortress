@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import io
+import time
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import polars as pl
@@ -13,7 +15,7 @@ from app.resource._global.sources import GlobalSources
 from app.resource.asset.local.vault import LocalVault
 from app.resource.source._common.tests.fakes.base import FakeSource
 from app.resource.store.file.store import FileStore
-from app.service.node.dra import DRABusyError, DRARejectedError
+from app.service.node.dra import DRABusyError, DRADataResult, DRARefreshError, DRARejectedError, DRASession
 from app.service.node.service.auth import Principal
 from app.service.node.service.errors import NodeDatasetNotFoundError, NodeSourceNotFoundError
 from app.service.node.service.service import NodeService
@@ -281,6 +283,121 @@ class TestQuery:
 
 
 _SQL = "SELECT * FROM src.alpha"
+
+
+class TestQueryRefresh:
+    @staticmethod
+    def _fake_session(refreshed_at: float = 0.0) -> MagicMock:
+        _session = MagicMock(
+            names=["src.alpha"],
+            has_secrets=True,
+            refreshed_at=refreshed_at,
+        )
+        _session.query.return_value = DRADataResult(
+            columns=["a"],
+            types=["BIGINT"],
+            rows=[[1]],
+            truncated=False,
+            truncated_by=None,
+            elapsed_ms=0.0,
+        )
+        return _session
+
+    @staticmethod
+    def _serve(monkeypatch, session, **dra) -> NodeService:
+        monkeypatch.setattr(NodeService, "_build_session", lambda self: session)
+        _service = NodeService(NodeServiceSetting(dra=dra))
+        _service.start()
+        monkeypatch.setattr(
+            _service,
+            "_resolve",
+            lambda source, dataset: SimpleNamespace(asset=SimpleNamespace(get_dra_mount=lambda: f"mount:{dataset}")),
+        )
+        return _service
+
+    def test_file_session_is_never_refreshed(self, service, source, monkeypatch):
+        _write(source, "alpha", "a.parquet", pl.DataFrame({"a": [1]}))
+        _spy = MagicMock()
+        monkeypatch.setattr(DRASession, "refresh", _spy)
+        service.query(_ALICE, _SQL)
+        service.query(_ALICE, _SQL)
+        _spy.assert_not_called()
+
+    def test_stale_session_is_refreshed_with_fresh_mounts(self, log, monkeypatch):
+        _session = self._fake_session(refreshed_at=time.monotonic() - 1000)
+        _service = self._serve(monkeypatch, _session, refresh_interval_seconds=60)
+        try:
+            _service.query(_ALICE, _SQL)
+        finally:
+            _service.stop()
+        _session.refresh.assert_called_once_with({"src.alpha": "mount:alpha"})
+
+    def test_recent_session_is_not_refreshed(self, log, monkeypatch):
+        _session = self._fake_session(refreshed_at=time.monotonic())
+        _service = self._serve(monkeypatch, _session, refresh_interval_seconds=3600)
+        try:
+            _service.query(_ALICE, _SQL)
+        finally:
+            _service.stop()
+        _session.refresh.assert_not_called()
+        _session.query.assert_called_once()
+
+    def test_zero_interval_refreshes_before_every_query(self, log, monkeypatch):
+        _session = self._fake_session(refreshed_at=time.monotonic())
+        _service = self._serve(monkeypatch, _session, refresh_interval_seconds=0)
+        try:
+            _service.query(_ALICE, _SQL)
+            _service.query(_ALICE, _SQL)
+        finally:
+            _service.stop()
+        assert _session.refresh.call_count == 2
+
+    def test_refresh_runs_before_the_query(self, log, monkeypatch):
+        _session = self._fake_session(refreshed_at=0.0)
+        _order: list[str] = []
+        _result = _session.query.return_value
+
+        def _query(sql):
+            _order.append("query")
+            return _result
+
+        _session.refresh.side_effect = lambda mounts: _order.append("refresh")
+        _session.query.side_effect = _query
+        _service = self._serve(monkeypatch, _session, refresh_interval_seconds=0)
+        try:
+            _service.query(_ALICE, _SQL)
+        finally:
+            _service.stop()
+        assert _order == ["refresh", "query"]
+
+    def test_refresh_error_fails_the_query_and_is_logged(self, log, monkeypatch):
+        _session = self._fake_session(refreshed_at=0.0)
+        _session.refresh.side_effect = DRARefreshError("cannot refresh credentials of src.alpha: IOException")
+        _service = self._serve(monkeypatch, _session, refresh_interval_seconds=0)
+        try:
+            with pytest.raises(DRARefreshError):
+                _service.query(_ALICE, _SQL)
+        finally:
+            _service.stop()
+        _session.query.assert_not_called()
+        assert log.warning.call_args.kwargs["metadata"]["error"] == "DRARefreshError"
+
+    def test_provider_failure_becomes_a_refresh_error_without_its_message(self, log, monkeypatch):
+        _session = self._fake_session(refreshed_at=0.0)
+        _service = self._serve(monkeypatch, _session, refresh_interval_seconds=0)
+
+        def _boom(source, dataset):
+            raise RuntimeError("secret-token-xyz")
+
+        monkeypatch.setattr(_service, "_resolve", _boom)
+        try:
+            with pytest.raises(DRARefreshError) as _info:
+                _service.query(_ALICE, _SQL)
+        finally:
+            _service.stop()
+        assert "secret-token-xyz" not in str(_info.value)
+        assert "RuntimeError" in str(_info.value)
+        _session.query.assert_not_called()
 
 
 @pytest.fixture

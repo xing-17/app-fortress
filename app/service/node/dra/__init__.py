@@ -5,6 +5,7 @@ from .errors import (
     DRAError,
     DRAQueryError,
     DRAQueryTimeoutError,
+    DRARefreshError,
     DRARejectedError,
 )
 from .limits import DRALimits
@@ -31,5 +32,6 @@ __all__ = [
     "DRAError",
     "DRAQueryError",
     "DRAQueryTimeoutError",
+    "DRARefreshError",
     "DRARejectedError",
 ]

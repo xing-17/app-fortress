@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from typing import Any
 
@@ -19,6 +20,7 @@ from app.service.node.dra import (
     DRAError,
     DRALimits,
     DRAPool,
+    DRARefreshError,
     DRASession,
 )
 from app.service.node.service.auth import Principal
@@ -349,6 +351,7 @@ class NodeService(BaseService[NodeServiceSetting]):
         }
         try:
             with self._pool.lease(caller.name) as _session:
+                self._refresh_session(_session)
                 _res: DRADataResult = _session.query(sql)
         except DRAError as e:
             _meta["error"] = type(e).__name__
@@ -367,6 +370,25 @@ class NodeService(BaseService[NodeServiceSetting]):
 
     def reset_sessions(self) -> None:
         self._pool.reset()
+
+    def _refresh_session(
+        self,
+        session: DRASession,
+    ) -> None:
+        _interval: float = self.setting.dra.refresh_interval_seconds
+        if not session.has_secrets or time.monotonic() - session.refreshed_at < _interval:
+            return
+        try:
+            _mounts: dict[str, DRAMount] = {}
+            for _name in session.names:
+                _source, _, _dataset = _name.partition(".")
+                _mounts[_name] = self._resolve(_source, _dataset).asset.get_dra_mount()
+            session.refresh(_mounts)
+        except DRAError:
+            raise
+        except Exception as e:
+            # What the credential provider says may hold secrets, only the type goes on
+            raise DRARefreshError(f"cannot refresh credentials: {type(e).__name__}") from None
 
     def _build_session(self) -> DRASession:
         _dra_export: dict[str, Any] = self.setting.dra.export()

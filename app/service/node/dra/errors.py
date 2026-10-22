@@ -19,3 +19,7 @@ class DRAQueryError(DRAError):
 
 class DRABusyError(DRAError):
     """Every session slot is running a query, retry later."""
+
+
+class DRARefreshError(DRAError):
+    """The credentials of a session could not be refreshed, the message never carries them."""

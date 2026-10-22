@@ -352,6 +352,22 @@ class TestDRASessionRefresh:
         with pytest.raises(DRARejectedError):
             session.refresh({"sales.orders": _mount})
 
+    def test_file_session_has_no_secrets(self, session):
+        assert session.has_secrets is False
+        assert session.names == ["sales.orders"]
+
+    def test_refresh_of_a_file_session_changes_nothing(self, session, orders_dir):
+        _before = session.refreshed_at
+        session.refresh({"sales.orders": _mount_of(orders_dir)})
+        assert session.refreshed_at >= _before
+        assert session.query("SELECT count(*) FROM sales.orders").rows == [[5]]
+
+    def test_refresh_after_close_raises(self, orders_dir):
+        _session = DRASession({"sales.orders": _mount_of(orders_dir)})
+        _session.close()
+        with pytest.raises(DRAError, match="closed"):
+            _session.refresh({"sales.orders": _mount_of(orders_dir)})
+
 
 class TestDRASessionLifecycle:
     def test_query_after_close_raises(self, orders_dir):
