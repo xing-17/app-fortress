@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import polars as pl
@@ -195,6 +196,15 @@ class TestAssetfiles:
         _res = client.get(_url, params={"since": "2999-01-01T00:00:00+00:00"}, headers=headers)
         assert _res.status_code == 200
         assert _res.json() == []
+
+    def test_naive_iso_datetime_is_read_as_utc(self, client, headers, source):
+        _write(source, "alpha", "a.parquet", pl.DataFrame({"a": [1]}))
+        _url = "/internal/datasets/src/alpha/assetfiles"
+        _modified = client.get(_url, headers=headers).json()[0]["modified_at"]
+        _after = datetime.fromtimestamp(_modified + 3600, tz=timezone.utc).replace(tzinfo=None)
+        _before = datetime.fromtimestamp(_modified - 3600, tz=timezone.utc).replace(tzinfo=None)
+        assert client.get(_url, params={"since": _after.isoformat()}, headers=headers).json() == []
+        assert len(client.get(_url, params={"since": _before.isoformat()}, headers=headers).json()) == 1
 
     def test_bad_time_is_400(self, client, headers):
         _res = client.get("/internal/datasets/src/alpha/assetfiles", params={"since": "yesterday"}, headers=headers)

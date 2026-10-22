@@ -14,6 +14,7 @@ from starlette.routing import Route
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.internal.logstream import LogStream
+from app.internal.util.clock import IClock
 from app.service.node.dra import (
     DRABusyError,
     DRAError,
@@ -168,7 +169,7 @@ class NodeHttp:
         POST /internal/query            body {"sql": "SELECT ..."}
 
     `since` and `until` are epoch seconds (`modified_at` of an assetfile is one) or an ISO 8601
-    datetime.
+    datetime, a datetime without an offset is read as UTC.
 
     Errors:
     ----------
@@ -295,7 +296,7 @@ class NodeHttp:
         except ValueError:
             pass
         try:
-            return datetime.fromisoformat(_raw)
+            return IClock.from_iso(_raw)
         except ValueError:
             raise NodeBadRequestError(f"'{name}' must be epoch seconds or an ISO 8601 datetime") from None
 

@@ -19,3 +19,7 @@ class NodeUnauthorizedError(PermissionError):
 
 class NodeUnknownError(RuntimeError):
     """Unknown error occurred on this node"""
+
+
+class NodeUnavailableError(ConnectionError):
+    """Node cannot be reached or did not answer in time"""
