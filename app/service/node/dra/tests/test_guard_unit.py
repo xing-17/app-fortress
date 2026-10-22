@@ -3,7 +3,7 @@ from __future__ import annotations
 import duckdb
 import pytest
 
-from app.service.node.dra import DRAMount
+from app.resource.asset import DRAMount
 from app.service.node.dra.errors import DRARejectedError
 from app.service.node.dra.guard import RESERVED_SCHEMAS, DRAGuard
 

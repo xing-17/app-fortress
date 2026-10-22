@@ -8,7 +8,6 @@ from .errors import (
     DRARejectedError,
 )
 from .limits import DRALimits
-from .mount import DRAMount
 from .pool import DRAPool
 from .result import (
     DRAColumnDefinition,
@@ -21,7 +20,6 @@ from .session import DRASession
 
 __all__ = [
     "DRAColumnDefinition",
-    "DRAMount",
     "DRADataResult",
     "DRADatasetResult",
     "DRADefinitionResult",

@@ -10,7 +10,8 @@ import pytest
 boto3 = pytest.importorskip("boto3")
 moto_server = pytest.importorskip("moto.server")
 
-from app.service.node.dra import DRALimits, DRAMount, DRASession  # noqa: E402
+from app.resource.asset import DRAMount  # noqa: E402
+from app.service.node.dra import DRALimits, DRASession  # noqa: E402
 from app.service.node.dra.errors import DRAQueryError, DRARejectedError  # noqa: E402
 
 _KEY_ID = "AKIATESTKEYID"

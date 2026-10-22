@@ -6,6 +6,8 @@ from collections.abc import Mapping
 
 import duckdb
 
+from app.resource.asset import DRAMount
+
 from .errors import (
     DRAError,
     DRAQueryError,
@@ -14,7 +16,6 @@ from .errors import (
 )
 from .guard import DRAGuard
 from .limits import DRALimits
-from .mount import DRAMount
 from .result import (
     DRAColumnDefinition,
     DRADataResult,
