@@ -6,18 +6,19 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from app.internal.model.dra import (
+from app.service.node.dra import (
     DRADataResult,
     DRADefinitionResult,
+    DRALimits,
     DRAMount,
+    DRASession,
 )
 from app.service.node.dra.errors import (
     DRAError,
-    DRARejectedError,
     DRAQueryError,
     DRAQueryTimeoutError,  # noqa: E402
+    DRARejectedError,
 )
-from app.service.node.dra import DRALimits, DRASession
 
 
 def _write_parquet(path: Path, select_sql: str) -> Path:

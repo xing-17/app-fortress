@@ -5,8 +5,9 @@ from pathlib import Path, PurePosixPath
 
 import duckdb
 
-from app.internal.model.dra import DRAMount
 from app.service.node.dra.errors import DRARejectedError
+
+from .mount import DRAMount
 
 _IDENT = re.compile(r"^[a-z_][a-z0-9_]{0,62}\Z")
 _GLOB_CHARS = "*?["

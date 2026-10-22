@@ -6,21 +6,20 @@ from collections.abc import Mapping
 
 import duckdb
 
-from app.internal.model.dra import (
-    DRAColumnDefinition,
-    DRADataResult,
-    DRADefinitionResult,
-    DRAMount,
-)
-from app.service.node.dra.errors import (
+from .errors import (
     DRAError,
     DRAQueryError,
     DRAQueryTimeoutError,
     DRARejectedError,
 )
-
 from .guard import DRAGuard
 from .limits import DRALimits
+from .mount import DRAMount
+from .result import (
+    DRAColumnDefinition,
+    DRADataResult,
+    DRADefinitionResult,
+)
 
 _BATCH_ROWS = 1024
 

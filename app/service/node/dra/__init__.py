@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from .limits import DRALimits
-from .pool import DRAPool
-from .session import DRASession
 from .errors import (
     DRABusyError,
     DRAError,
@@ -10,8 +7,25 @@ from .errors import (
     DRAQueryTimeoutError,
     DRARejectedError,
 )
+from .limits import DRALimits
+from .mount import DRAMount
+from .pool import DRAPool
+from .result import (
+    DRAColumnDefinition,
+    DRADataResult,
+    DRADatasetResult,
+    DRADefinitionResult,
+    DRAQualityResult,
+)
+from .session import DRASession
 
 __all__ = [
+    "DRAColumnDefinition",
+    "DRAMount",
+    "DRADataResult",
+    "DRADatasetResult",
+    "DRADefinitionResult",
+    "DRAQualityResult",
     "DRALimits",
     "DRAPool",
     "DRASession",
