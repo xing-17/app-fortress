@@ -114,6 +114,23 @@ class TestDRASessionQuery:
         assert result.columns == ["n", "total"]
         assert result.rows == [[5, 15]]
 
+    def test_sum_of_integers_is_an_int_not_a_decimal(self, session):
+        result = session.query("SELECT sum(id) AS total FROM sales.orders")
+        assert result.types == ["HUGEINT"]
+        assert type(result.rows[0][0]) is int
+
+    def test_huge_int_keeps_nulls_and_big_values(self, session):
+        result = session.query(
+            "SELECT x FROM (VALUES (NULL::HUGEINT), (170141183460469231731687303715884105727::HUGEINT)) t(x)"
+        )
+        assert result.rows == [[None], [2**127 - 1]]
+        assert type(result.rows[1][0]) is int
+
+    def test_decimal_column_stays_a_decimal(self, session):
+        result = session.query("SELECT sum(amount) AS total FROM sales.orders")
+        assert result.types[0].startswith("DECIMAL")
+        assert not isinstance(result.rows[0][0], int)
+
     def test_empty_result_keeps_columns(self, session):
         result = session.query("SELECT id, name FROM sales.orders WHERE id > 100")
         assert result.columns == ["id", "name"]

@@ -23,6 +23,9 @@ from .result import (
 
 _BATCH_ROWS = 1024
 
+# Arrow hands these back as Decimal(38, 0), a JSON string, but they are plain integers (SUM of integers)
+_HUGE_INT_TYPES = frozenset({"HUGEINT", "UHUGEINT"})
+
 
 class DRASession:
     """
@@ -263,6 +266,7 @@ class DRASession:
             cur.execute(sql)
             _columns = [d[0] for d in cur.description]
             _types = [str(d[1]) for d in cur.description]
+            _huge_columns = [i for i, t in enumerate(_types) if t in _HUGE_INT_TYPES]
             _rows: list[list] = []
             _size = 0
             _truncated_by = None
@@ -278,7 +282,10 @@ class DRASession:
                     _batch = _batch.slice(0, _fit)
                     _truncated_by = "size"
                 _size += _batch.nbytes
-                _rows.extend(list(r) for r in zip(*(c.to_pylist() for c in _batch.columns)))
+                _values = [c.to_pylist() for c in _batch.columns]
+                for _i in _huge_columns:
+                    _values[_i] = [None if v is None else int(v) for v in _values[_i]]
+                _rows.extend(list(r) for r in zip(*_values))
                 if _truncated_by:
                     break
         except duckdb.Error as e:
