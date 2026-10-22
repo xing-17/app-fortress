@@ -7,3 +7,7 @@ class NodeSourceNotFoundError(LookupError):
 
 class NodeDatasetNotFoundError(LookupError):
     """Dataset does not exist on this node"""
+
+
+class NodeBusyError(RuntimeError):
+    """Every session slot of this node is running a query"""
