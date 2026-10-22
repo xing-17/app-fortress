@@ -9,6 +9,7 @@ from app.internal.model.definition.dataframe import DataframeDefinition
 from app.internal.model.definition.group import DefinitionGroup
 from app.internal.model.metadata.assetfile import AssetfileMetadata
 from app.resource._global.sources import GlobalSources
+from app.resource.asset import DRAMount
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.source._common._dataset import BaseDataset
 from app.resource.source._common._source import BaseSource
@@ -17,7 +18,6 @@ from app.service.node.dra import (
     DRADataResult,
     DRAError,
     DRALimits,
-    DRAMount,
     DRAPool,
     DRASession,
 )
@@ -371,15 +371,16 @@ class NodeService(BaseService[NodeServiceSetting]):
     def _build_session(self) -> DRASession:
         _dra_export: dict[str, Any] = self.setting.dra.export()
         _limits = DRALimits.model_validate(_dra_export)
+        _mounts: dict[str, DRAMount] = self._mounts()
         _session = DRASession(
-            mounts=self._mounts(),
+            mounts=_mounts,
             limits=_limits,
         )
         self.log.info(
             "DRA session built",
             metadata={
-                "limits": _limits,
-                "mounts": len(self._mounts()),
+                "limits": _limits.export(),
+                "mounts": len(_mounts),
             },
         )
         return _session
