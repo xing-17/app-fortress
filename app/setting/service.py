@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -65,6 +66,130 @@ class MachineServiceSetting(AbstractServiceSetting):
     kind: Literal[ServiceKind.MACHINE] = ServiceKind.MACHINE
 
 
+class DRASetting(IAbstractSetting):
+    """
+    Query sandbox limits of the node
+
+    Attributes:
+    ----------
+        timeout_seconds (float):
+            Wall-clock limit of one query, the query is interrupted when exceeded
+        max_rows (int):
+            Row cap of one result, extra rows are dropped and the result is marked truncated
+        max_result_mb (float):
+            Size cap of one result in MB, extra rows are dropped and the result is marked truncated
+        memory_limit_mb (int):
+            Memory limit of the query engine, queries exceeding it fail
+        threads (int):
+            Worker threads of the query engine
+        max_sessions (int):
+            Max concurrent sessions, one per caller, the least recently used idle one is evicted
+        max_session_idle_seconds (float):
+            Max idle time before a session is closed, 0 disables
+
+    """
+
+    # Single query settings
+    timeout_seconds: float = Field(
+        default=30.0,
+        description="[Optional] Wall-clock limit of one query in seconds",
+        gt=0,
+    )
+    max_rows: int = Field(
+        default=10_000,
+        description="[Optional] Row cap of one result",
+        ge=1,
+    )
+    max_result_mb: float = Field(
+        default=128.0,
+        description="[Optional] Size cap of one result in MB",
+        gt=0,
+    )
+    memory_limit_mb: int = Field(
+        default=1024,
+        description="[Optional] Memory limit of the query engine in MB",
+        ge=16,
+    )
+    threads: int = Field(
+        default=4,
+        description="[Optional] Worker threads of the query engine",
+        ge=1,
+    )
+
+    # Group session settings
+    max_sessions: int = Field(default=4, ge=1, description="[Optional] Max concurrent sessions")
+    max_session_idle_seconds: float = Field(
+        default=900.0, ge=0, description="[Optional] Max idle time before a session is closed, 0 disables"
+    )
+
+
+class TokenSetting(IAbstractSetting):
+    """
+    One access token entry, the token itself is derived from the master key and never stored
+
+    Attributes:
+    ----------
+        name (str): Token name, lowercase letters, digits and '-', used to derive the token
+        description (str): What the token is for
+        version (int): Bump to invalidate the current token and derive a new one
+        expires (date | None): Last valid day (UTC), None means never expires
+        revoked (bool): Revoked tokens are always rejected
+
+    """
+
+    name: str = Field(
+        ...,
+        description="Token name",
+        pattern=r"^[a-z0-9][a-z0-9-]{0,31}$",
+    )
+    description: str = Field(
+        default="",
+        description="[Optional] What the token is for",
+    )
+    version: int = Field(
+        default=1,
+        description="[Optional] Bump to rotate the token",
+        ge=1,
+    )
+    expires: date | None = Field(
+        default=None,
+        description="[Optional] Last valid day (UTC)",
+    )
+    revoked: bool = Field(
+        default=False,
+        description="[Optional] Whether the token is revoked",
+    )
+
+
+class AuthSetting(IAbstractSetting):
+    """
+    Node auth setting, bearer tokens derived from one master key
+
+    Attributes:
+    ----------
+        masterfile (str): Master key file, relative paths are resolved against the settings directory
+        tokens (list[TokenSetting]): Token entries, names must be unique
+
+    """
+
+    masterfile: str = Field(
+        default="../local/.auth/password.key",
+        description="[Optional] Master key file",
+        min_length=1,
+    )
+    tokens: list[TokenSetting] = Field(
+        default_factory=list,
+        description="[Optional] Token entries",
+    )
+
+    @model_validator(mode="after")
+    def _validate_tokens(self):
+        _names = [t.name for t in self.tokens]
+        if len(_names) != len(set(_names)):
+            raise ValueError(f"auth: duplicate token names: {_names}")
+        return self
+
+
 class NodeServiceSetting(AbstractServiceSetting):
     """
     Node service setting, the data node (catalog, schema, quality, query)
@@ -74,6 +199,8 @@ class NodeServiceSetting(AbstractServiceSetting):
         kind (Literal[ServiceKind.NODE]): Service kind, fixed as NODE
         host (str): Listen host, loopback by default
         port (int): Listen port
+        dra (DRASetting): Query sandbox limits
+        auth (AuthSetting): Bearer token auth
 
     """
 
@@ -87,6 +214,14 @@ class NodeServiceSetting(AbstractServiceSetting):
         description="[Optional] Listen port",
         ge=1,
         le=65535,
+    )
+    dra: DRASetting = Field(
+        default_factory=DRASetting,
+        description="[Optional] Query sandbox limits",
+    )
+    auth: AuthSetting = Field(
+        default_factory=AuthSetting,
+        description="[Optional] Bearer token auth",
     )
 
 

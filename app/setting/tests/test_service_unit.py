@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from pydantic import ValidationError
 
 from app.internal.constant.servicekind import ServiceKind
 from app.setting.service import (
+    AuthSetting,
+    DRASetting,
     MachineServiceSetting,
     McpHostServiceSetting,
     NodeEndpointSetting,
     NodeServiceSetting,
     ServicesSetting,
+    TokenSetting,
     WebHostServiceSetting,
 )
 
@@ -90,6 +95,75 @@ class TestHostNodes:
 
     def test_node_service_has_no_nodes(self):
         assert not hasattr(NodeServiceSetting(), "nodes")
+
+
+class TestDRASetting:
+    def test_defaults(self):
+        _s = NodeServiceSetting().dra
+        assert (_s.timeout_seconds, _s.max_rows, _s.max_result_mb, _s.memory_limit_mb, _s.threads) == (
+            30,
+            10_000,
+            128,
+            1024,
+            4,
+        )
+
+    def test_override_from_dict(self):
+        _s = ServicesSetting.from_dict({"node": {"dra": {"timeout_seconds": 5, "max_result_mb": 16}}})
+        assert _s.node.dra.timeout_seconds == 5
+        assert _s.node.dra.max_result_mb == 16
+        assert _s.node.dra.max_rows == 10_000
+
+    @pytest.mark.parametrize(
+        "field, value",
+        [("timeout_seconds", 0), ("max_rows", 0), ("max_result_mb", 0), ("memory_limit_mb", 8), ("threads", 0)],
+    )
+    def test_invalid_limits_raise(self, field, value):
+        with pytest.raises(ValidationError):
+            DRASetting(**{field: value})
+
+
+class TestAuthSetting:
+    def test_defaults(self):
+        _a = NodeServiceSetting().auth
+        assert _a.masterfile == "../local/.auth/password.key"
+        assert _a.tokens == []
+
+    def test_from_yaml(self, tmp_path):
+        _path = tmp_path / "services.yaml"
+        _path.write_text(
+            "node:\n  auth:\n    masterfile: ../k\n    tokens:\n"
+            "      - name: chatgpt\n        version: 2\n        expires: 2027-10-22\n",
+            encoding="utf-8",
+        )
+        _a = ServicesSetting.from_yaml(_path).node.auth
+        assert _a.masterfile == "../k"
+        assert (_a.tokens[0].name, _a.tokens[0].version) == ("chatgpt", 2)
+        assert _a.tokens[0].expires == date(2027, 10, 22)
+        assert _a.tokens[0].revoked is False
+
+    def test_token_defaults(self):
+        _t = TokenSetting(name="a")
+        assert (_t.description, _t.version, _t.expires, _t.revoked) == ("", 1, None, False)
+
+    @pytest.mark.parametrize("name", ["", "A", "a_b", "-a", "a b", "a.b", "a" * 33, "a\n"])
+    def test_invalid_token_name_raises(self, name):
+        with pytest.raises(ValidationError):
+            TokenSetting(name=name)
+
+    def test_invalid_version_raises(self):
+        with pytest.raises(ValidationError):
+            TokenSetting(name="a", version=0)
+
+    def test_duplicate_token_names_raise(self):
+        with pytest.raises(ValidationError, match="duplicate"):
+            AuthSetting(tokens=[{"name": "a"}, {"name": "a", "version": 2}])
+
+    def test_export_roundtrip(self):
+        _s = ServicesSetting.from_dict(
+            {"node": {"auth": {"tokens": [{"name": "a", "expires": "2027-10-22", "revoked": True}]}}}
+        )
+        assert ServicesSetting.from_dict(_s.export()) == _s
 
 
 class TestServicesSetting:

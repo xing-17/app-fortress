@@ -30,11 +30,14 @@ from ._vault import (
 from .service import (
     AbstractHostServiceSetting,
     AbstractServiceSetting,
+    AuthSetting,
+    DRASetting,
     MachineServiceSetting,
     McpHostServiceSetting,
     NodeEndpointSetting,
     NodeServiceSetting,
     ServicesSetting,
+    TokenSetting,
     WebHostServiceSetting,
 )
 from .system import (
@@ -62,12 +65,15 @@ __all__ = [
     "UnionVaultSetting",
     "AbstractHostServiceSetting",
     "AbstractServiceSetting",
+    "AuthSetting",
+    "DRASetting",
     "MachineServiceSetting",
     "NodeEndpointSetting",
     "NodeServiceSetting",
     "McpHostServiceSetting",
     "WebHostServiceSetting",
     "ServicesSetting",
+    "TokenSetting",
     "SystemLogSetting",
     "SystemSetting",
 ]
