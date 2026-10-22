@@ -93,10 +93,9 @@ class TestDatasetMetadata:
         _loaded = dataset.read_metadata(_file)
         assert _loaded.export() == _metadata.export()
 
-    def test_read_metadata_of_unknown_assetfile_raises(self, dataset):
+    def test_read_metadata_of_unknown_assetfile_return_none(self, dataset):
         _file = dataset.asset.assetfile("missing.parquet")
-        with pytest.raises(Exception):
-            dataset.read_metadata(_file)
+        assert dataset.read_metadata(_file) is None
 
     def test_list_metadatas_reads_metadata_of_each_assetfile(self, dataset):
         _files = dataset.run()

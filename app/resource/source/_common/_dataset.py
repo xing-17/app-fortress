@@ -10,7 +10,10 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.frequencyoption import FrequencyOption
 from app.internal.constant.sourceprovider import SourceProvider
 from app.internal.logstream import LogStream
+from app.internal.model.definition.dataframe import DataframeDefinition
+from app.internal.model.definition.group import DefinitionGroup
 from app.internal.model.metadata.assetfile import AssetfileMetadata
+from app.internal.model.quality import DataframeQuality
 from app.internal.util.frn import IFrn
 from app.internal.util.stopwatch import IStopwatch
 from app.resource.asset._common._asset import BaseAsset
@@ -81,6 +84,11 @@ class BaseDataset(
             Read the metadata of an assetfile from its metadata table.
         list_metadatas(since=None, until=None) -> list[AssetfileMetadata]:
             Read the metadata of all assetfiles matching the filter.
+        list_qualities(since=None, until=None) -> list[tuple[BaseAssetfile, DataframeQuality]]:
+            Quality of each assetfile matching the filter, assetfiles without metadata are skipped.
+        list_definitions(since=None, until=None) -> list[DefinitionGroup]:
+            Definitions of the assetfiles matching the filter, grouped by fingerprint
+            with the partitions that carry each definition.
         export() -> dict[str, Any]:
             Export the dataset as a dictionary.
 
@@ -249,13 +257,15 @@ class BaseDataset(
     def read_metadata(
         self,
         assetfile: BaseAssetfile,
-    ) -> AssetfileMetadata:
+    ) -> AssetfileMetadata | None:
         _name: str = assetfile.name
         _table: BaseTable = self.get_metadata_table(name=_name)
         _record: dict[str, dict] = _table.read(
             key=self._metadata_key,
             strict=True,
         )
+        if _record is None:
+            return None
         return AssetfileMetadata.from_dict(_record)
 
     def list_metadatas(
@@ -269,7 +279,9 @@ class BaseDataset(
         )
         _res: list[AssetfileMetadata] = []
         for _file in _files:
-            _metadata: AssetfileMetadata = self.read_metadata(_file)
+            _metadata: AssetfileMetadata | None = self.read_metadata(_file)
+            if _metadata is None:
+                continue
             _res.append(_metadata)
         return _res
 
