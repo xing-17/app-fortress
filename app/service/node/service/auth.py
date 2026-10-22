@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import argparse
 import hashlib
 import hmac
 import os
 import secrets
-import sys
 from datetime import date
 from pathlib import Path
 
@@ -227,69 +225,3 @@ class NodeAuth:
         _msg = f"{self._domain_name}:{entry.name}:{entry.version}".encode()
         _mac: str = hmac.new(self._masterkey, _msg, hashlib.sha256).hexdigest()
         return _mac
-
-
-def main(argv: list[str] | None = None) -> int:
-    """
-    Manage tokens of the node:
-        `python -m app.service.node.service.auth {init,list,show NAME}`
-
-    Commands:
-        init        Create the master key file
-        list        List the tokens and their state
-        show NAME   Print the token of an entry
-
-    """
-    _parser = argparse.ArgumentParser(prog="auth", description=main.__doc__)
-    _parser.add_argument(
-        "--setting-path",
-        default=None,
-        help="settings directory, default as the node",
-    )
-    _sub = _parser.add_subparsers(dest="command", required=True)
-    _sub.add_parser("init", help="create the master key file")
-    _sub.add_parser("list", help="list the tokens and their state")
-    _show = _sub.add_parser("show", help="print the token of an entry")
-    _show.add_argument("name")
-    _args = _parser.parse_args(argv)
-
-    from app.resource._global.setting import GlobalSetting
-
-    GlobalSetting.load(_args.setting_path)
-    _setting: AuthSetting = GlobalSetting.get_services().node.auth
-    _base_dir: Path = GlobalSetting.get_setting_path()
-
-    # Handle the command-line arguments and execute the corresponding actions
-    if _args.command == "init":
-        _created = NodeAuth.generate_master_file(_setting, _base_dir)
-        if _created is None:
-            print("masterfile already exists, not overwritten", file=sys.stderr)
-            return 1
-        else:
-            print(f"created {_created}")
-            return 0
-
-    # Initialize the NodeAuth instance for further commands
-    _auth = NodeAuth(_setting, base_dir=_base_dir)
-    if _args.command == "list":
-        for _t in _setting.tokens:
-            _t_name: str = _t.name
-            _t_state: str = _auth.state(_t.name)
-            _t_expires: str = _t.expires or "-"
-            print(f"Token '{_t_name}'")
-            print(f" - state: {_t_state}")
-            print(f" - expires: {_t_expires}")
-            print(f" - description: {_t.description}")
-        return 0
-
-    # Handle the "show" command to print the token of a specific entry
-    try:
-        print(_auth.token(_args.name))
-    except ValueError as e:
-        print(str(e), file=sys.stderr)
-        return 1
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
