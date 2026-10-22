@@ -23,7 +23,8 @@ from .result import (
 
 _BATCH_ROWS = 1024
 
-# Arrow hands these back as Decimal(38, 0), a JSON string, but they are plain integers (SUM of integers)
+# Arrow hands these back as Decimal(38, 0), a JSON string
+# but they are plain integers (SUM of integers)
 _HUGE_INT_TYPES = frozenset({"HUGEINT", "UHUGEINT"})
 
 
