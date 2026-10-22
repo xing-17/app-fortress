@@ -3,7 +3,8 @@ from __future__ import annotations
 import duckdb
 import pytest
 
-from app.internal.model.dra import DRAMount, DRARejectedError
+from app.internal.model.dra import DRAMount
+from app.service.node.dra.errors import DRARejectedError
 from app.service.node.dra.guard import RESERVED_SCHEMAS, DRAGuard
 
 
