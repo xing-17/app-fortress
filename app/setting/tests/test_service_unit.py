@@ -166,6 +166,40 @@ class TestAuthSetting:
         assert ServicesSetting.from_dict(_s.export()) == _s
 
 
+class TestPublicHosts:
+    def test_default_is_empty(self):
+        assert McpHostServiceSetting().public_hosts == []
+
+    def test_from_yaml(self, tmp_path):
+        _path = tmp_path / "services.yaml"
+        _path.write_text(
+            "mcphost:\n  public_hosts:\n    - WWW.Example.com\n    - mcp.example.com:8443\n", encoding="utf-8"
+        )
+        assert ServicesSetting.from_yaml(_path).mcphost.public_hosts == ["www.example.com", "mcp.example.com:8443"]
+
+    def test_duplicates_are_dropped(self):
+        assert McpHostServiceSetting(public_hosts=["a.com", "A.com"]).public_hosts == ["a.com"]
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "",
+            "*",
+            "*.example.com",
+            "https://a.com",
+            "a.com/mcp",
+            "a.com:",
+            "a.com:123456",
+            "a b.com",
+            "a.com\nb.com",
+            "-a.com",
+        ],
+    )
+    def test_invalid_host_raises(self, host):
+        with pytest.raises(ValidationError, match="public_hosts"):
+            McpHostServiceSetting(public_hosts=[host])
+
+
 class TestNodeEndpointToken:
     def test_token_defaults_to_none(self):
         assert NodeEndpointSetting(name="snt", endpoint="http://a").token is None
