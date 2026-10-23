@@ -49,6 +49,34 @@ class TestServiceDefaults:
             NodeServiceSetting(kind="mcphost")
 
 
+class TestMachineSetting:
+    def test_defaults_are_a_snapshot_a_minute_for_twelve_hours(self):
+        _setting = MachineServiceSetting()
+        assert _setting.interval_seconds == 60
+        assert _setting.retention_hours == 12.0
+        assert _setting.max_snapshots == 720
+
+    def test_max_snapshots_follows_the_two_settings(self):
+        _setting = MachineServiceSetting(interval_seconds=30, retention_hours=2)
+        assert _setting.max_snapshots == 240
+
+    def test_max_snapshots_rounds_up(self):
+        assert MachineServiceSetting(interval_seconds=60, retention_hours=0.02).max_snapshots == 2
+
+    @pytest.mark.parametrize("field, value", [("interval_seconds", 0), ("retention_hours", 0), ("retention_hours", -1)])
+    def test_invalid_values_raise(self, field, value):
+        with pytest.raises(ValidationError):
+            MachineServiceSetting(**{field: value})
+
+    def test_too_many_snapshots_raise(self):
+        with pytest.raises(ValidationError, match="exceed"):
+            MachineServiceSetting(interval_seconds=1, retention_hours=100)
+
+    def test_loaded_through_services_setting(self):
+        _services = ServicesSetting.model_validate({"machine": {"interval_seconds": 120, "retention_hours": 24}})
+        assert _services.machine.max_snapshots == 720
+
+
 class TestHostNodes:
     @pytest.mark.parametrize("cls", [McpHostServiceSetting, WebHostServiceSetting])
     def test_default_nodes_is_single_local_node(self, cls):

@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import math
+import re
 from datetime import date
 from typing import Literal
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 
 from app.internal.abstract.setting import IAbstractSetting, IAbstractTaggedSetting
 from app.internal.constant.servicekind import ServiceKind
 from app.setting._log import LogSetting
+
+# No wildcard, scheme or path: a Host header is a name with an optional port
+_HOST_PATTERN = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:[0-9]{1,5})?\Z")
+
+# Snapshots live in memory, this keeps a mistyped interval from eating it
+_MAX_SNAPSHOTS = 10_000
 
 
 class AbstractServiceSetting(IAbstractTaggedSetting):
@@ -60,10 +68,34 @@ class MachineServiceSetting(AbstractServiceSetting):
     Attributes:
     ----------
         kind (Literal[ServiceKind.MACHINE]): Service kind, fixed as MACHINE
+        interval_seconds (int): Seconds between two snapshots
+        retention_hours (float): How far back snapshots are kept, older ones are dropped
+        max_snapshots (int): Snapshots kept at most, derived from the two above
 
     """
 
     kind: Literal[ServiceKind.MACHINE] = ServiceKind.MACHINE
+    interval_seconds: int = Field(
+        default=60,
+        description="[Optional] Seconds between two snapshots",
+        ge=1,
+    )
+    retention_hours: float = Field(
+        default=12.0,
+        description="[Optional] How far back snapshots are kept in hours",
+        gt=0,
+    )
+
+    @property
+    def max_snapshots(self) -> int:
+        return math.ceil(self.retention_hours * 3600 / self.interval_seconds)
+
+    @model_validator(mode="after")
+    def _validate_max_snapshots(self):
+        if self.max_snapshots > _MAX_SNAPSHOTS:
+            _msg = f"machine: {self.max_snapshots} snapshots exceed {_MAX_SNAPSHOTS}, raise interval_seconds or lower retention_hours"
+            raise ValueError(_msg)
+        return self
 
 
 class DRASetting(IAbstractSetting):
@@ -86,6 +118,8 @@ class DRASetting(IAbstractSetting):
             Max concurrent sessions, one per caller, the least recently used idle one is evicted
         max_session_idle_seconds (float):
             Max idle time before a session is closed, 0 disables
+        refresh_interval_seconds (float):
+            Min time between two credential refreshes of a session, 0 refreshes before every query
 
     """
 
@@ -121,6 +155,11 @@ class DRASetting(IAbstractSetting):
     max_session_idle_seconds: float = Field(
         default=900.0, ge=0, description="[Optional] Max idle time before a session is closed, 0 disables"
     )
+    refresh_interval_seconds: float = Field(
+        default=120.0,
+        ge=0,
+        description="[Optional] Min time between two credential refreshes of a session, 0 refreshes before every query",
+    )
 
 
 class TokenSetting(IAbstractSetting):
@@ -134,6 +173,8 @@ class TokenSetting(IAbstractSetting):
         version (int): Bump to invalidate the current token and derive a new one
         expires (date | None): Last valid day (UTC), None means never expires
         revoked (bool): Revoked tokens are always rejected
+        delegate (bool): May act for another caller named in the `X-Fortress-Caller` header,
+            only for a host service that has already authenticated that caller
 
     """
 
@@ -158,6 +199,10 @@ class TokenSetting(IAbstractSetting):
     revoked: bool = Field(
         default=False,
         description="[Optional] Whether the token is revoked",
+    )
+    delegate: bool = Field(
+        default=False,
+        description="[Optional] Whether the token may act for a caller named in X-Fortress-Caller",
     )
 
 
@@ -286,6 +331,76 @@ class AbstractHostServiceSetting(AbstractServiceSetting):
         return self
 
 
+class AccessUserSetting(IAbstractSetting):
+    """
+    One person allowed through Cloudflare Access
+
+    Attributes:
+    ----------
+        email (str): Email of the identity Access verified, compared in lowercase
+        name (str): Caller name in the logs and on the node, same shape as a token name
+
+    """
+
+    email: str = Field(
+        ...,
+        description="Email of the identity verified by Access",
+        pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+    )
+    name: str = Field(
+        ...,
+        description="Caller name",
+        pattern=r"^[a-z0-9][a-z0-9-]{0,31}$",
+    )
+
+    @field_validator("email")
+    @classmethod
+    def _lowercase_email(cls, value: str) -> str:
+        return value.lower()
+
+
+class AccessSetting(IAbstractSetting):
+    """
+    Cloudflare Access in front of the host, it signs who the caller is in `Cf-Access-Jwt-Assertion`
+
+    Attributes:
+    ----------
+        team_domain (str): Team domain of the Zero Trust organization, `<team>.cloudflareaccess.com`
+        audience (str): AUD tag of the Access application, a token minted for another application is rejected
+        users (list[AccessUserSetting]): The identities allowed in, everyone else is rejected even when
+            Access let them through
+
+    """
+
+    team_domain: str = Field(
+        ...,
+        description="Team domain, <team>.cloudflareaccess.com",
+        pattern=r"^[a-z0-9][a-z0-9-]*\.cloudflareaccess\.com$",
+    )
+    audience: str = Field(
+        ...,
+        description="AUD tag of the Access application",
+        min_length=16,
+    )
+    users: list[AccessUserSetting] = Field(
+        ...,
+        description="Identities allowed in",
+        min_length=1,
+    )
+
+    @field_validator("team_domain")
+    @classmethod
+    def _lowercase_domain(cls, value: str) -> str:
+        return value.lower()
+
+    @model_validator(mode="after")
+    def _validate_users(self):
+        _emails = [u.email for u in self.users]
+        if len(_emails) != len(set(_emails)):
+            raise ValueError(f"access: duplicate user emails: {_emails}")
+        return self
+
+
 class McpHostServiceSetting(AbstractHostServiceSetting):
     """
     MCP host service setting, MCP adapter in front of nodes
@@ -295,6 +410,11 @@ class McpHostServiceSetting(AbstractHostServiceSetting):
         kind (Literal[ServiceKind.MCPHOST]): Service kind, fixed as MCPHOST
         host (str): Listen host, loopback by default
         port (int): Listen port
+        public_hosts (list[str]): Host names (optionally with port) clients reach this host by through a
+            tunnel or proxy, the Host header of a request must be one of them or loopback
+        auth (AuthSetting): Bearer tokens of the users of this host, one per device
+        access (AccessSetting | None): Cloudflare Access in front of the host, when set a request carrying
+            an Access assertion is authenticated by it, a request without one still needs a bearer token
 
     """
 
@@ -309,6 +429,31 @@ class McpHostServiceSetting(AbstractHostServiceSetting):
         ge=1,
         le=65535,
     )
+    public_hosts: list[str] = Field(
+        default_factory=list,
+        description="[Optional] Host names clients reach this host by through a tunnel or proxy",
+    )
+    auth: AuthSetting = Field(
+        default_factory=lambda: AuthSetting(masterfile="../local/.auth/mcphost.key"),
+        description="[Optional] Bearer tokens of the users, its master key must not be the node's",
+    )
+    access: AccessSetting | None = Field(
+        default=None,
+        description="[Optional] Cloudflare Access in front of the host",
+    )
+
+    @field_validator("public_hosts")
+    @classmethod
+    def _validate_public_hosts(cls, value: list[str]) -> list[str]:
+        _hosts: list[str] = []
+        for _host in value:
+            # Lowercase because browsers and proxies send the Host header lowercased
+            _name: str = _host.strip().lower()
+            if not _HOST_PATTERN.match(_name):
+                raise ValueError(f"public_hosts: '{_host}' is not a host name, use 'name' or 'name:port'")
+            if _name not in _hosts:
+                _hosts.append(_name)
+        return _hosts
 
 
 class WebHostServiceSetting(AbstractHostServiceSetting):
