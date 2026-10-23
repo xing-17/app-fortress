@@ -54,7 +54,9 @@ class HttpNodeClient(NodeClient):
     `NodeClient` over the `/internal/...` HTTP routes of a node, authenticated by a bearer token
 
     The node decides who the caller is from the token, so all queries of one client share one
-    DRA session on the node. Responses are parsed back into the types the node raised or returned.
+    DRA session on the node, unless `query` names a `caller` and the token may delegate:
+    then each caller gets its own session. Responses are parsed back into the types the node
+    raised or returned.
 
     Args:
     ----------
@@ -119,7 +121,7 @@ class HttpNodeClient(NodeClient):
             self._client.close()
 
     # --------------------------------------------------
-    # Transport
+    # Transport: Low-level HTTP transport utilities
     # --------------------------------------------------
 
     @staticmethod
@@ -144,7 +146,8 @@ class HttpNodeClient(NodeClient):
 
     @staticmethod
     def _segment(value: str) -> str:
-        # Encode "/" too, a name must stay one path segment
+        # Encode "/" too
+        # a name must stay one path segment
         return quote(value, safe="")
 
     def _send(
@@ -153,6 +156,7 @@ class HttpNodeClient(NodeClient):
         path: str,
         params: dict[str, str] | None = None,
         body: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         try:
             return self._client.request(
@@ -160,7 +164,7 @@ class HttpNodeClient(NodeClient):
                 path,
                 params=params,
                 json=body,
-                headers=self._headers,
+                headers={**self._headers, **(headers or {})},
             )
         except httpx.TimeoutException as e:
             raise NodeUnavailableError(f"node {self._endpoint} did not answer in time") from e
@@ -205,8 +209,15 @@ class HttpNodeClient(NodeClient):
         path: str,
         params: dict[str, str] | None = None,
         body: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> Any:
-        _response: httpx.Response = self._send(method, path, params=params, body=body)
+        _response: httpx.Response = self._send(
+            method=method,
+            path=path,
+            params=params,
+            body=body,
+            headers=headers,
+        )
         self._raise_for_error(_response)
         _res: Any = self._body(_response)
         if _res is None:
@@ -214,7 +225,7 @@ class HttpNodeClient(NodeClient):
         return _res
 
     # --------------------------------------------------
-    # Catalog
+    # Catalog: Dataset and Source Catalog API
     # --------------------------------------------------
 
     def _dataset_path(
@@ -233,25 +244,40 @@ class HttpNodeClient(NodeClient):
         self,
         source: str,
     ) -> dict[str, Any]:
-        _seg_source: str = self._segment(source)
-        return self._call("GET", f"/internal/sources/{_seg_source}")
+        _source_seg: str = self._segment(source)
+        _source_path: str = f"/internal/sources/{_source_seg}"
+        return self._call(
+            method="GET",
+            path=_source_path,
+        )
 
     def list_datasets(
         self,
         source: str | None = None,
     ) -> list[dict[str, Any]]:
+        # List datasets from the node, optionally filtered by source
         if source is None:
             _params = None
         else:
             _params = {"source": source}
-        return self._call("GET", "/internal/datasets", params=_params)
+
+        return self._call(
+            method="GET",
+            path="/internal/datasets",
+            params=_params,
+        )
 
     def get_dataset(
         self,
         source: str,
         dataset: str,
     ) -> dict[str, Any]:
-        return self._call("GET", self._dataset_path(source, dataset))
+        # Get dataset information from the node via http request
+        _dataset_path: str = self._dataset_path(source, dataset)
+        return self._call(
+            method="GET",
+            path=_dataset_path,
+        )
 
     def list_assetfiles(
         self,
@@ -260,8 +286,12 @@ class HttpNodeClient(NodeClient):
         since: datetime | float | None = None,
         until: datetime | float | None = None,
     ) -> list[dict[str, Any]]:
-        _path: str = f"{self._dataset_path(source, dataset)}/assetfiles"
-        return self._call("GET", _path, params=self._window(since, until))
+        _dataset_path: str = self._dataset_path(source, dataset)
+        return self._call(
+            method="GET",
+            path=f"{_dataset_path}/assetfiles",
+            params=self._window(since, until),
+        )
 
     def list_metadatas(
         self,
@@ -270,8 +300,12 @@ class HttpNodeClient(NodeClient):
         since: datetime | float | None = None,
         until: datetime | float | None = None,
     ) -> list[dict[str, Any]]:
-        _path: str = f"{self._dataset_path(source, dataset)}/metadatas"
-        return self._call("GET", _path, params=self._window(since, until))
+        _dataset_path: str = self._dataset_path(source, dataset)
+        return self._call(
+            method="GET",
+            path=f"{_dataset_path}/metadatas",
+            params=self._window(since, until),
+        )
 
     def list_qualities(
         self,
@@ -280,8 +314,12 @@ class HttpNodeClient(NodeClient):
         since: datetime | float | None = None,
         until: datetime | float | None = None,
     ) -> list[dict[str, Any]]:
-        _path: str = f"{self._dataset_path(source, dataset)}/qualities"
-        return self._call("GET", _path, params=self._window(since, until))
+        _dataset_path: str = self._dataset_path(source, dataset)
+        return self._call(
+            method="GET",
+            path=f"{_dataset_path}/qualities",
+            params=self._window(since, until),
+        )
 
     def list_definitions(
         self,
@@ -290,23 +328,44 @@ class HttpNodeClient(NodeClient):
         since: datetime | float | None = None,
         until: datetime | float | None = None,
     ) -> list[dict[str, Any]]:
-        _path: str = f"{self._dataset_path(source, dataset)}/definitions"
-        return self._call("GET", _path, params=self._window(since, until))
+        _dataset_path: str = self._dataset_path(source, dataset)
+        return self._call(
+            method="GET",
+            path=f"{_dataset_path}/definitions",
+            params=self._window(since, until),
+        )
 
     # --------------------------------------------------
-    # DRA
+    # DRA: Data Retrieval API
     # --------------------------------------------------
 
     def query(
         self,
         sql: str,
+        caller: str | None = None,
     ) -> DRADataResult:
-        _payload: Any = self._call("POST", "/internal/query", body={"sql": sql})
+        _headers: dict[str, str] | None = None
+        if caller is not None:
+            _headers = {"X-Fortress-Caller": caller}
+        _payload: Any = self._call(
+            method="POST",
+            path="/internal/query",
+            body={"sql": sql},
+            headers=_headers,
+        )
         return DRADataResult.model_validate(_payload)
 
+    # --------------------------------------------------
+    # HEALTH: Check the health status of the node
+    # --------------------------------------------------
+
     def health(self) -> dict[str, Any]:
-        # 503 is a valid answer, it carries the state of a node that is not running
-        _response: httpx.Response = self._send("GET", "/health")
+        # 503 is a valid answer
+        # it carries the state of a node that is not running
+        _response: httpx.Response = self._send(
+            method="GET",
+            path="/health",
+        )
         if _response.status_code not in (200, 503):
             self._raise_for_error(_response)
         _res: Any = self._body(_response)

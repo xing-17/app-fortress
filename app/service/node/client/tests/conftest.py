@@ -13,9 +13,9 @@ from app.resource._global.sources import GlobalSources
 from app.resource.asset.local.vault import LocalVault
 from app.resource.source._common.tests.fakes.base import FakeSource
 from app.resource.store.file.store import FileStore
+from app.service._common.auth import TokenAuth
 from app.service.node.client.httpnode import HttpNodeClient
 from app.service.node.client.localnode import LocalNodeClient
-from app.service.node.service.auth import NodeAuth
 from app.service.node.service.http import create_app
 from app.service.node.service.service import NodeService
 from app.setting.service import AuthSetting, NodeServiceSetting
@@ -64,7 +64,7 @@ def auth(tmp_path):
     _key = tmp_path / "password.key"
     _key.write_text(_KEY + "\n", encoding="utf-8")
     _key.chmod(0o600)
-    return NodeAuth(AuthSetting(masterfile=str(_key), tokens=[{"name": "alice"}]))
+    return TokenAuth(AuthSetting(masterfile=str(_key), tokens=[{"name": "alice"}]))
 
 
 @pytest.fixture

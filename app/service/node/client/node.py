@@ -38,8 +38,9 @@ class NodeClient(ABC):
             Each assetfile with its quality, None when it has no metadata
         list_definitions(source, dataset, since=None, until=None) -> list[dict]:
             Definitions grouped by fingerprint with the partitions that carry each of them
-        query(sql) -> DRADataResult:
-            Run one SELECT on the node, as the identity this client holds
+        query(sql, caller=None) -> DRADataResult:
+            Run one SELECT on the node, as the identity this client holds, or as `caller` when
+            that identity may delegate (the node names the principal `<identity>:<caller>`)
         health() -> dict:
             Node state, does not need the node to be healthy
         close() -> None:
@@ -117,6 +118,7 @@ class NodeClient(ABC):
     def query(
         self,
         sql: str,
+        caller: str | None = None,
     ) -> DRADataResult:
         """Run one SELECT on the node."""
 

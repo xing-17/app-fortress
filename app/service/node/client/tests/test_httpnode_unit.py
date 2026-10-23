@@ -152,6 +152,26 @@ class TestRequest:
         assert _seen == [{"sql": "SELECT 1 AS a"}]
         assert _res.rows == [[1]]
 
+    def test_query_names_the_caller_in_a_header(self):
+        _seen = []
+
+        def _handler(request):
+            _seen.append((request.headers.get("x-fortress-caller"), request.headers["authorization"]))
+            return httpx.Response(200, json={"columns": ["a"], "types": ["INTEGER"], "rows": [[1]]})
+
+        _client(_handler).query("SELECT 1 AS a", caller="phone")
+        assert _seen == [("phone", f"Bearer {_TOKEN}")]
+
+    def test_query_without_a_caller_sends_no_header(self):
+        _seen = []
+
+        def _handler(request):
+            _seen.append("x-fortress-caller" in request.headers)
+            return httpx.Response(200, json={"columns": ["a"], "types": ["INTEGER"], "rows": [[1]]})
+
+        _client(_handler).query("SELECT 1 AS a")
+        assert _seen == [False]
+
 
 class TestErrors:
     @pytest.mark.parametrize(
