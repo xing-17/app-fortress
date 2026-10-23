@@ -101,7 +101,7 @@ flowchart TB
 | Access 应用 | Fortress Front，Self-hosted，Destination `www.fortressfront.app/mcp` |
 | Policy | Allow；Include 仅自己的邮箱；One-time PIN 登录；Session 6 小时 |
 | Managed OAuth | 已开启；Allowed redirect URIs 为 ChatGPT 的回调地址 |
-| 团队域名 | `purple-brook-7e37.cloudflareaccess.com` |
+| 团队域名 | `fortressfront.cloudflareaccess.com` |
 
 ### 1.6 局限
 
@@ -174,7 +174,7 @@ Managed OAuth 下面打开OAuth，设置:
 在 `settings/services.yaml`：
 
 - `mcphost.public_hosts: [www.fortressfront.app]`，否则返回 421 或 403
-- `mcphost.access.team_domain`：团队域名 `purple-brook-7e37.cloudflareaccess.com`
+- `mcphost.access.team_domain`：团队域名 `fortressfront.cloudflareaccess.com`
 - `mcphost.access.audience`：Access 应用的 AUD 标签，在应用概览页
 - `mcphost.access.users`：允许的邮箱与对应的调用者名
 
@@ -187,7 +187,7 @@ AUD 和团队域名是公开标识，不是密钥。改完后重启 mcphost。
 curl -i https://www.fortressfront.app/mcp
 
 # 授权服务器元数据：应返回 200
-curl -i https://purple-brook-7e37.cloudflareaccess.com/.well-known/oauth-authorization-server
+curl -i https://fortressfront.cloudflareaccess.com/.well-known/oauth-authorization-server
 ```
 
 如果返回的是 mcphost 自己的 `{"error":"unauthorized"}`，说明 Access 没有挡在前面，检查 Destination 和路径。
