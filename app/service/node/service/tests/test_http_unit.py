@@ -15,6 +15,7 @@ from app.resource._global.sources import GlobalSources
 from app.resource.asset.local.vault import LocalVault
 from app.resource.source._common.tests.fakes.base import FakeSource
 from app.resource.store.file.store import FileStore
+from app.service._common.auth import TokenAuth
 from app.service.node.dra import (
     DRABusyError,
     DRAError,
@@ -22,7 +23,6 @@ from app.service.node.dra import (
     DRAQueryTimeoutError,
     DRARejectedError,
 )
-from app.service.node.service.auth import NodeAuth
 from app.service.node.service.http import create_app
 from app.service.node.service.service import NodeService
 from app.setting.service import AuthSetting, NodeServiceSetting
@@ -76,9 +76,10 @@ def auth(tmp_path):
         tokens=[
             {"name": "alice"},
             {"name": "gone", "revoked": True},
+            {"name": "host", "delegate": True},
         ],
     )
-    return NodeAuth(_setting)
+    return TokenAuth(_setting)
 
 
 @pytest.fixture
@@ -129,9 +130,8 @@ class TestAuth:
         assert _res.headers["www-authenticate"] == "Bearer"
 
     def test_revoked_token_looks_like_any_other(self, client, auth, log):
-        _auth = auth
-        _entry = _auth._entries["gone"]
-        _token = _auth._mac(_entry)
+        _state = auth._state
+        _token = auth._mac(_state.masterkey, _state.entries["gone"])
         _res = client.get("/internal/sources", headers={"Authorization": f"Bearer {_token}"})
         assert _res.status_code == 401
         assert _res.json() == {"error": "unauthorized"}
@@ -255,6 +255,37 @@ class TestQuery:
         monkeypatch.setattr(service, "query", lambda caller, sql: (_seen.append(caller.name), _orig(caller, sql))[1])
         client.post("/internal/query", json={"sql": "SELECT 1"}, headers=headers)
         assert _seen == ["alice"]
+
+
+class TestDelegation:
+    def _caller_of(self, client, headers, service, monkeypatch):
+        _seen = []
+        _orig = service.query
+        monkeypatch.setattr(service, "query", lambda caller, sql: (_seen.append(caller.name), _orig(caller, sql))[1])
+        _res = client.post("/internal/query", json={"sql": "SELECT 1"}, headers=headers)
+        return _res, _seen
+
+    def test_a_delegating_token_acts_for_the_named_caller(self, client, auth, service, monkeypatch):
+        _headers = {"Authorization": f"Bearer {auth.token('host')}", "X-Fortress-Caller": "phone"}
+        _res, _seen = self._caller_of(client, _headers, service, monkeypatch)
+        assert _seen == ["host:phone"]
+
+    def test_without_the_header_the_token_is_the_caller(self, client, auth, service, monkeypatch):
+        _headers = {"Authorization": f"Bearer {auth.token('host')}"}
+        _res, _seen = self._caller_of(client, _headers, service, monkeypatch)
+        assert _seen == ["host"]
+
+    def test_other_tokens_cannot_name_a_caller(self, client, headers, log):
+        _res = client.get("/internal/sources", headers={**headers, "X-Fortress-Caller": "phone"})
+        assert _res.status_code == 401
+        assert _res.json() == {"error": "unauthorized"}
+        assert log.warning.call_args.kwargs["metadata"]["reason"] == "delegation denied"
+
+    @pytest.mark.parametrize("caller", ["", "Phone", "a:b", "a b", "-a", "x" * 33])
+    def test_a_malformed_caller_is_rejected(self, client, auth, caller, log):
+        _headers = {"Authorization": f"Bearer {auth.token('host')}", "X-Fortress-Caller": caller}
+        _res = client.get("/internal/sources", headers=_headers)
+        assert _res.status_code == 401
 
     @pytest.mark.parametrize(
         "body",

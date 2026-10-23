@@ -4,17 +4,16 @@ from datetime import datetime
 from typing import Any
 
 import uvicorn
-from pydantic_core import to_json
 from starlette.applications import Starlette
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
-from starlette.types import ASGIApp, Receive, Scope, Send
 
-from app.internal.logstream import LogStream
 from app.internal.util.clock import IClock
+from app.service._common.auth import Principal, TokenAuth
+from app.service._common.http import BearerAuthMiddleware, JsonResponse
 from app.service.node.dra import (
     DRABusyError,
     DRAError,
@@ -22,7 +21,6 @@ from app.service.node.dra import (
     DRAQueryTimeoutError,
     DRARejectedError,
 )
-from app.service.node.service.auth import AuthError, NodeAuth, Principal
 from app.service.node.service.errors import (
     NodeBadRequestError,
     NodeDatasetNotFoundError,
@@ -31,7 +29,6 @@ from app.service.node.service.errors import (
 from app.service.node.service.service import NodeService
 
 _MAX_BODY_BYTES = 1_000_000
-_PUBLIC_PATHS = frozenset({"/health"})
 
 # Exceptions the service raises on purpose, with the status the caller sees
 _STATUS: dict[type[Exception], int] = {
@@ -43,108 +40,6 @@ _STATUS: dict[type[Exception], int] = {
     DRABusyError: 503,
     NodeBadRequestError: 400,
 }
-
-
-class JsonResponse(Response):
-    """
-    JSON response serialized by pydantic, so datetime, Decimal and models are handled and
-    NaN/Infinity (valid in a query result, not in JSON) become null
-
-    """
-
-    media_type = "application/json"
-
-    def render(self, content: Any) -> bytes:
-        _res: bytes = to_json(
-            content,
-            inf_nan_mode="null",
-            bytes_mode="base64",
-        )
-        return _res
-
-
-class BearerAuthMiddleware:
-    """
-    Reject requests without a valid bearer token, put the `Principal` in `request.state.principal`
-
-    The response never says why a token was rejected, `AuthError.reason` only goes to the log.
-
-    Args:
-    ----------
-        app (ASGIApp):
-            Wrapped application
-        auth (NodeAuth):
-            Token verifier
-        log (LogStream):
-            Audit log
-        public_paths (frozenset[str]):
-            Paths served without a token
-
-    """
-
-    def __init__(
-        self,
-        app: ASGIApp,
-        auth: NodeAuth,
-        log: LogStream,
-        public_paths: frozenset[str] = _PUBLIC_PATHS,
-    ) -> None:
-        self._app = app
-        self._auth = auth
-        self._log = log
-        self._public_paths = public_paths
-
-    async def __call__(
-        self,
-        scope: Scope,
-        receive: Receive,
-        send: Send,
-    ) -> None:
-        if scope["type"] == "lifespan" or scope.get("path") in self._public_paths:
-            await self._app(scope, receive, send)
-            return
-
-        _path: str = scope.get("path", "")
-        _client = scope.get("client")
-        _address: str = _client[0] if _client else "-"
-        try:
-            _principal: Principal = self._verify(scope)
-        except AuthError as e:
-            self._log.warning(
-                "auth rejected",
-                metadata={
-                    "reason": e.reason,
-                    "path": _path,
-                    "client": _address,
-                },
-            )
-            _response = JsonResponse(
-                content={"error": "unauthorized"},
-                status_code=401,
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-            await _response(scope, receive, send)
-            return
-
-        scope.setdefault("state", {})["principal"] = _principal
-        await self._app(scope, receive, send)
-
-    def _verify(
-        self,
-        scope: Scope,
-    ) -> Principal:
-        _raw: str | None = None
-        for _key, _value in scope.get("headers", []):
-            if _key == b"authorization":
-                _raw = _value.decode("latin-1")
-                break
-        if _raw is None:
-            raise AuthError("missing")
-        _scheme, _, _token = _raw.partition(" ")
-        if _scheme.lower() != "bearer":
-            raise AuthError("malformed")
-        _principal: Principal = self._auth.verify(_token.strip())
-        return _principal
 
 
 class NodeHttp:
@@ -184,7 +79,7 @@ class NodeHttp:
     ----------
         service (NodeService):
             Running node service
-        auth (NodeAuth):
+        auth (TokenAuth):
             Token verifier
 
     Methods:
@@ -197,7 +92,7 @@ class NodeHttp:
     def __init__(
         self,
         service: NodeService,
-        auth: NodeAuth,
+        auth: TokenAuth,
     ) -> None:
         self._service = service
         self._auth = auth
@@ -403,14 +298,14 @@ class NodeHttp:
 
 def create_app(
     service: NodeService,
-    auth: NodeAuth,
+    auth: TokenAuth,
 ) -> Starlette:
     return NodeHttp(service, auth).build()
 
 
 def serve(
     service: NodeService,
-    auth: NodeAuth,
+    auth: TokenAuth,
     host: str | None = None,
     port: int | None = None,
 ) -> None:

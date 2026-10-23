@@ -15,8 +15,8 @@ from app.resource._global.sources import GlobalSources
 from app.resource.asset.local.vault import LocalVault
 from app.resource.source._common.tests.fakes.base import FakeSource
 from app.resource.store.file.store import FileStore
+from app.service._common.auth import Principal
 from app.service.node.dra import DRABusyError, DRADataResult, DRARefreshError, DRARejectedError, DRASession
-from app.service.node.service.auth import Principal
 from app.service.node.service.errors import NodeDatasetNotFoundError, NodeSourceNotFoundError
 from app.service.node.service.service import NodeService
 from app.setting.service import NodeServiceSetting

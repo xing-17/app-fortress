@@ -15,6 +15,7 @@ from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.source._common._dataset import BaseDataset
 from app.resource.source._common._source import BaseSource
 from app.service._common._service import BaseService
+from app.service._common.auth import Principal
 from app.service.node.dra import (
     DRADataResult,
     DRAError,
@@ -23,7 +24,6 @@ from app.service.node.dra import (
     DRARefreshError,
     DRASession,
 )
-from app.service.node.service.auth import Principal
 from app.service.node.service.errors import (
     NodeDatasetNotFoundError,
     NodeSourceNotFoundError,
@@ -81,10 +81,12 @@ class NodeService(BaseService[NodeServiceSetting]):
         setting: NodeServiceSetting,
     ) -> None:
         super().__init__(setting)
+        _dra_max_sessions: int = setting.dra.max_sessions
+        _dra_max_idle_seconds: int = setting.dra.max_session_idle_seconds
         self._pool = DRAPool(
             factory=self._build_session,
-            max_sessions=setting.dra.max_sessions,
-            max_idle_seconds=setting.dra.max_session_idle_seconds,
+            max_sessions=_dra_max_sessions,
+            max_idle_seconds=_dra_max_idle_seconds,
             on_close=self._log_session_closed,
         )
 
@@ -93,7 +95,7 @@ class NodeService(BaseService[NodeServiceSetting]):
             raise RuntimeError(f"{self.kind} is not running, state is {self.state}")
 
     def _start(self) -> None:
-        # Load the sources now so a broken setting fails the start, not the first request
+        # Load the sources now so a broken setting fails the start
         GlobalSources.list_sources()
 
     def _stop(self) -> None:
@@ -101,7 +103,8 @@ class NodeService(BaseService[NodeServiceSetting]):
 
     def health(self) -> dict:
         _res: dict = super().health()
-        _res.update(self._pool.stats())
+        _stats: dict = self._pool.stats()
+        _res.update(_stats)
         return _res
 
     def _resolve_source(
@@ -110,7 +113,8 @@ class NodeService(BaseService[NodeServiceSetting]):
     ) -> BaseSource:
         _source: BaseSource | None = GlobalSources.get_source(source, strict=False)
         if _source is None:
-            raise NodeSourceNotFoundError(f"Source '{source}' not found on this node")
+            _msg: str = f"Source '{source}' not found on this node"
+            raise NodeSourceNotFoundError(_msg)
         return _source
 
     def _resolve_dataset(
@@ -119,7 +123,8 @@ class NodeService(BaseService[NodeServiceSetting]):
         dataset: str,
     ) -> BaseDataset:
         if dataset not in source.list_dataset_names():
-            raise NodeDatasetNotFoundError(f"Dataset '{source.name}.{dataset}' not found on this node")
+            _msg: str = f"Dataset '{source.name}.{dataset}' not found on this node"
+            raise NodeDatasetNotFoundError(_msg)
         return source.dataset(dataset)
 
     def _resolve(
@@ -139,6 +144,8 @@ class NodeService(BaseService[NodeServiceSetting]):
         self,
         source: BaseSource,
     ) -> dict[str, Any]:
+        # Only write required attributes
+        # Add more attributes as needed
         return {
             "name": source.name,
             "provider": str(source.provider),
@@ -171,6 +178,8 @@ class NodeService(BaseService[NodeServiceSetting]):
         source: str,
         dataset: BaseDataset,
     ) -> dict[str, Any]:
+        # Only write required attributes
+        # Add more attributes as needed
         return {
             "source": source,
             "dataset": f"{source}.{dataset.name}",
@@ -249,6 +258,8 @@ class NodeService(BaseService[NodeServiceSetting]):
         self,
         metadata: AssetfileMetadata,
     ) -> dict[str, Any]:
+        # Metadata got nothing to hold back
+        # Return all metadata as is
         _res: dict[str, Any] = metadata.export()
         return _res
 
@@ -270,6 +281,7 @@ class NodeService(BaseService[NodeServiceSetting]):
             else:
                 _metadata_info: dict[str, Any] | None = self._retrieve_metadata(_metadata)
 
+            # Each item protocol follows fixed structure
             _item: dict[str, dict[str, Any] | None] = {
                 "assetfile": _file_info,
                 "metadata": _metadata_info,
@@ -295,6 +307,7 @@ class NodeService(BaseService[NodeServiceSetting]):
             else:
                 _quality: dict[str, Any] | None = _metadata.quality.export()
 
+            # Each item protocol follows fixed structure
             _item: dict[str, dict[str, Any] | None] = {
                 "assetfile": _file_info,
                 "quality": _quality,
@@ -309,6 +322,8 @@ class NodeService(BaseService[NodeServiceSetting]):
         since: datetime | float | None = None,
         until: datetime | float | None = None,
     ) -> list[dict[str, Any]]:
+        # Convert definitions to DefinitionGroup objects and group by fingerprint
+        # Reduce duplicate partitions for each definition group
         self._require_running()
         _dataset: BaseDataset = self._resolve(source, dataset)
         _groups: dict[str, DefinitionGroup] = {}
@@ -355,7 +370,10 @@ class NodeService(BaseService[NodeServiceSetting]):
                 _res: DRADataResult = _session.query(sql)
         except DRAError as e:
             _meta["error"] = type(e).__name__
-            self.log.warning(f"query failed: {caller.name}", metadata=_meta)
+            self.log.warning(
+                f"query failed: {caller.name}",
+                metadata=_meta,
+            )
             raise
 
         self.log.info(
@@ -376,19 +394,27 @@ class NodeService(BaseService[NodeServiceSetting]):
         session: DRASession,
     ) -> None:
         _interval: float = self.setting.dra.refresh_interval_seconds
-        if not session.has_secrets or time.monotonic() - session.refreshed_at < _interval:
+        if not session.has_secrets:
+            # Session has no secrets, nothing to refresh
             return
+
+        if time.monotonic() - session.refreshed_at < _interval:
+            # Session was refreshed recently, no need to refresh again
+            return
+
         try:
             _mounts: dict[str, DRAMount] = {}
             for _name in session.names:
                 _source, _, _dataset = _name.partition(".")
-                _mounts[_name] = self._resolve(_source, _dataset).asset.get_dra_mount()
+                _dataset_object: BaseDataset = self._resolve(_source, _dataset)
+                _mounts[_name] = _dataset_object.asset.get_dra_mount()
             session.refresh(_mounts)
         except DRAError:
             raise
         except Exception as e:
             # What the credential provider says may hold secrets, only the type goes on
-            raise DRARefreshError(f"cannot refresh credentials: {type(e).__name__}") from None
+            _msg: str = f"cannot refresh credentials: {type(e).__name__}"
+            raise DRARefreshError(_msg) from None
 
     def _build_session(self) -> DRASession:
         _dra_export: dict[str, Any] = self.setting.dra.export()
@@ -429,5 +455,6 @@ class NodeService(BaseService[NodeServiceSetting]):
                 # A view over no files cannot be created
                 if not _dataset.asset.list_assetfiles():
                     continue
-                _res[f"{_source.name}.{_dataset.name}"] = _dataset.asset.get_dra_mount()
+                _identifier: str = f"{_source.name}.{_dataset.name}"
+                _res[_identifier] = _dataset.asset.get_dra_mount()
         return _res
