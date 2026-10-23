@@ -18,7 +18,6 @@ from app.service.node.dra import (
 from app.service.node.service.errors import (
     NodeBadRequestError,
     NodeDatasetNotFoundError,
-    NodeSourceNotFoundError,
     NodeUnauthorizedError,
     NodeUnavailableError,
     NodeUnknownError,
@@ -83,12 +82,29 @@ def fake():
 
 @pytest.fixture
 def server(fake, log):
-    return build_server(fake, log)
+    return build_server({"centre": fake}, log)
+
+
+def _info(source, name):
+    return {
+        "source": source,
+        "dataset": f"{source}.{name}",
+        "name": name,
+        "description": f"{name} dataset",
+        "frequency": "daily",
+        "partitions": ["date"],
+    }
 
 
 class TestToolList:
-    def test_exposes_the_four_tools(self, server):
-        assert {t.name for t in tools_of(server)} == {"list_datasets", "get_schema", "get_quality", "query"}
+    def test_exposes_the_tools(self, server):
+        assert {t.name for t in tools_of(server)} == {
+            "list_nodes",
+            "list_datasets",
+            "get_schema",
+            "get_quality",
+            "query",
+        }
 
     def test_every_tool_is_described(self, server):
         for _tool in tools_of(server):
@@ -101,32 +117,165 @@ class TestToolList:
         assert "VARCHAR" in _query.description
 
     def test_name_and_instructions(self, fake, log):
-        _server = build_server(fake, log, name="snt")
+        _server = build_server({"centre": fake}, log, name="snt")
         assert _server.name == "snt"
         assert "<source>.<dataset>" in _server.instructions
+
+    def test_needs_a_node(self, log):
+        with pytest.raises(ValueError, match="at least one node"):
+            build_server({}, log)
+
+
+class TestListNodes:
+    def test_lists_the_node_with_its_sources(self, server, fake):
+        fake.sources = [{"name": "src"}, {"name": "other"}]
+        assert data(call(server, "list_nodes")) == [{"name": "centre", "reachable": True, "sources": ["src", "other"]}]
+
+    def test_a_node_that_is_down_is_marked_not_reachable(self, server, fake):
+        fake.raises = NodeUnavailableError("node http://secret-host:8800 is unreachable")
+        _res = call(server, "list_nodes")
+        assert not _res.is_error
+        _node = data(_res)[0]
+        assert _node["reachable"] is False
+        assert "unreachable or too slow" in _node["error"]
+        assert "sources" not in _node
+        assert "secret-host" not in text(_res)
 
 
 class TestListDatasets:
     def test_maps_the_fields_the_ai_needs(self, server):
         _res = data(call(server, "list_datasets"))
-        assert _res == [
-            {
-                "dataset": "src.alpha",
-                "description": "Alpha dataset",
-                "frequency": "daily",
-                "partition_keys": ["date"],
-            }
-        ]
+        assert _res == {
+            "datasets": [
+                {
+                    "node": "centre",
+                    "dataset": "src.alpha",
+                    "description": "Alpha dataset",
+                    "frequency": "daily",
+                    "partition_keys": ["date"],
+                }
+            ],
+            "nodes": [{"name": "centre", "reachable": True}],
+        }
 
     def test_passes_the_source(self, server, fake):
         call(server, "list_datasets", {"source": "src"})
         assert ("list_datasets", ("src",)) in fake.calls
 
-    def test_unknown_source_keeps_the_node_message(self, server, fake):
-        fake.raises = NodeSourceNotFoundError("Source 'nope' not found on this node")
+    def test_unknown_source_is_an_error(self, server):
         _res = call(server, "list_datasets", {"source": "nope"})
         assert _res.is_error
-        assert "Source 'nope' not found on this node" in text(_res)
+        assert "Source 'nope' not found" in text(_res)
+
+    def test_a_node_that_is_down_is_marked_not_reachable(self, server, fake):
+        fake.raises = NodeUnavailableError("node http://secret-host:8800 is unreachable")
+        _res = call(server, "list_datasets")
+        assert not _res.is_error
+        _body = data(_res)
+        assert _body["datasets"] == []
+        assert _body["nodes"][0]["reachable"] is False
+        assert "secret-host" not in text(_res)
+
+
+class TestMultipleNodes:
+    @pytest.fixture
+    def snt(self):
+        _node = FakeNodeClient()
+        _node.datasets = [_info("tushare", "tradedates")]
+        _node.sources = [{"name": "tushare"}]
+        return _node
+
+    @pytest.fixture
+    def sh(self):
+        _node = FakeNodeClient()
+        _node.datasets = [_info("nswvg", "psi")]
+        _node.sources = [{"name": "nswvg"}]
+        return _node
+
+    @pytest.fixture
+    def server(self, snt, sh, log):
+        return build_server({"snt": snt, "sh": sh}, log)
+
+    def test_list_nodes_lists_them_all(self, server, sh):
+        sh.raises = NodeUnavailableError("gone")
+        _res = data(call(server, "list_nodes"))
+        assert [(n["name"], n["reachable"]) for n in _res] == [("snt", True), ("sh", False)]
+        assert _res[0]["sources"] == ["tushare"]
+
+    def test_list_datasets_merges_the_nodes(self, server):
+        _res = data(call(server, "list_datasets"))
+        assert [(d["node"], d["dataset"]) for d in _res["datasets"]] == [
+            ("snt", "tushare.tradedates"),
+            ("sh", "nswvg.psi"),
+        ]
+        assert all(n["reachable"] for n in _res["nodes"])
+
+    def test_list_datasets_keeps_the_others_when_a_node_is_down(self, server, sh):
+        sh.raises = NodeUnavailableError("gone")
+        _res = data(call(server, "list_datasets"))
+        assert [d["dataset"] for d in _res["datasets"]] == ["tushare.tradedates"]
+        assert [(n["name"], n["reachable"]) for n in _res["nodes"]] == [("snt", True), ("sh", False)]
+
+    def test_list_datasets_of_a_source_held_by_one_node(self, server):
+        _res = data(call(server, "list_datasets", {"source": "nswvg"}))
+        assert [d["node"] for d in _res["datasets"]] == ["sh"]
+        assert all(n["reachable"] for n in _res["nodes"])
+
+    def test_list_datasets_of_one_node(self, server, snt):
+        _res = data(call(server, "list_datasets", {"node": "sh"}))
+        assert [n["name"] for n in _res["nodes"]] == ["sh"]
+        assert [c[0] for c in snt.calls] == []
+
+    def test_list_datasets_of_a_source_no_node_has(self, server):
+        _res = call(server, "list_datasets", {"source": "nope"})
+        assert _res.is_error
+        assert "not found on any node" in text(_res)
+
+    def test_schema_is_routed_to_the_node_that_holds_the_dataset(self, server, snt, sh):
+        _res = data(call(server, "get_schema", {"dataset": "nswvg.psi"}))
+        assert _res["node"] == "sh"
+        assert ("list_definitions", ("nswvg", "psi")) in sh.calls
+        assert "list_definitions" not in [c[0] for c in snt.calls]
+
+    def test_quality_is_routed_to_the_node_that_holds_the_dataset(self, server, snt, sh):
+        _res = data(call(server, "get_quality", {"dataset": "tushare.tradedates"}))
+        assert _res["node"] == "snt"
+        assert "list_qualities" not in [c[0] for c in sh.calls]
+
+    def test_a_dataset_on_several_nodes_needs_the_node(self, server, snt, sh):
+        sh.datasets.append(_info("tushare", "tradedates"))
+        _res = call(server, "get_schema", {"dataset": "tushare.tradedates"})
+        assert _res.is_error
+        assert "pass `node`" in text(_res)
+        assert data(call(server, "get_schema", {"dataset": "tushare.tradedates", "node": "sh"}))["node"] == "sh"
+
+    def test_an_unknown_dataset_is_not_found(self, server):
+        _res = call(server, "get_schema", {"dataset": "src.nope"})
+        assert _res.is_error
+        assert "not found on any node" in text(_res)
+
+    def test_a_dataset_that_may_be_on_a_node_that_is_down(self, server, sh):
+        sh.raises = NodeUnavailableError("gone")
+        _res = call(server, "get_schema", {"dataset": "nswvg.psi"})
+        assert _res.is_error
+        assert "['sh']" in text(_res)
+
+    def test_query_needs_the_node(self, server, snt, sh):
+        _res = call(server, "query", {"sql": "SELECT 1"})
+        assert _res.is_error
+        assert "pass `node`" in text(_res)
+        assert "query" not in [c[0] for c in snt.calls + sh.calls]
+
+    def test_query_runs_on_the_node_asked_for(self, server, snt, sh):
+        _res = data(call(server, "query", {"sql": "SELECT 1", "node": "sh"}))
+        assert _res["node"] == "sh"
+        assert [c[0] for c in sh.calls] == ["query"]
+        assert snt.calls == []
+
+    def test_unknown_node_is_an_error(self, server):
+        _res = call(server, "query", {"sql": "SELECT 1", "node": "nope"})
+        assert _res.is_error
+        assert "unknown node" in text(_res)
 
 
 class TestGetSchema:
@@ -325,7 +474,7 @@ class TestCallTrace:
 
     def test_failure_log_has_the_error_type_not_the_detail(self, server, fake, log):
         fake.raises = NodeUnavailableError("node http://secret-host:8800 is unreachable")
-        call(server, "list_datasets")
+        call(server, "query", {"sql": "SELECT 1"})
         _meta = log.warning.call_args.kwargs["metadata"]
         assert _meta["error"] == "NodeUnavailableError"
         assert "secret-host" not in str(_meta)

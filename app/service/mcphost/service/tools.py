@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from mcp.server.mcpserver import Context, MCPServer
@@ -28,6 +30,7 @@ from .instructions import (
     _GET_SCHEMA_DOC,
     _INSTRUCTIONS,
     _LIST_DATASETS_DOC,
+    _LIST_NODES_DOC,
     _QUERY_DOC,
 )
 
@@ -48,6 +51,9 @@ _CALLER_ERRORS = (
     DRAQueryTimeoutError,
     DRABusyError,
 )
+
+# Not a node failure: the node answered that it does not hold the thing asked for
+_NOT_FOUND = (NodeSourceNotFoundError, NodeDatasetNotFoundError)
 
 
 class MCPGuard:
@@ -140,6 +146,8 @@ class MCPGuard:
     def _clip(arguments: dict[str, Any]) -> dict[str, Any]:
         _res: dict[str, Any] = {}
         for _key, _value in arguments.items():
+            if _value is None:
+                continue
             if isinstance(_value, str) and len(_value) > _MAX_LOGGED_SQL:
                 _value = _value[:_MAX_LOGGED_SQL]
             _res[_key] = _value
@@ -221,21 +229,141 @@ def _summarize_quality(item: dict[str, Any]) -> dict[str, Any]:
     return _res
 
 
+@dataclass(frozen=True)
+class _Outcome:
+    node: str
+    value: Any = None
+    error: Exception | None = None
+
+
+def _failure_reason(error: Exception) -> str:
+    # Fixed words, the detail (endpoint, message) stays in the log
+    if isinstance(error, NodeUnauthorizedError):
+        return "The node rejected the token of this host."
+    if isinstance(error, NodeUnavailableError):
+        return "The node is unreachable or too slow."
+    return "Unexpected error in the node host."
+
+
+class NodeRouter:
+    """
+    Picks the node of a call and asks all nodes at once for the tools that span them
+
+    A node that fails is reported in its `_Outcome`, it never fails the others.
+
+    """
+
+    def __init__(
+        self,
+        clients: Mapping[str, NodeClient],
+        log: LogStream,
+    ) -> None:
+        if not clients:
+            raise ValueError("at least one node client is required")
+        self._clients: dict[str, NodeClient] = dict(clients)
+        self._log = log
+
+    @property
+    def names(self) -> list[str]:
+        return list(self._clients)
+
+    def get(self, node: str | None) -> tuple[str, NodeClient]:
+        if node is None:
+            if len(self._clients) == 1:
+                return next(iter(self._clients.items()))
+            _msg: str = f"several nodes are served, pass `node`, one of {self.names}"
+            raise NodeBadRequestError(_msg)
+        if node not in self._clients:
+            _msg: str = f"unknown node {node!r}, one of {self.names}"
+            raise NodeBadRequestError(_msg)
+        return node, self._clients[node]
+
+    def fan_out(
+        self,
+        func: Callable[[NodeClient], Any],
+        node: str | None = None,
+    ) -> list[_Outcome]:
+        if node:
+            _items: list[tuple[str, NodeClient]] = [self.get(node)]
+        else:
+            _items: list[tuple[str, NodeClient]] = list(self._clients.items())
+
+        def _run(item: tuple[str, NodeClient]) -> _Outcome:
+            _name, _client = item
+            try:
+                return _Outcome(_name, value=func(_client))
+            except Exception as e:
+                return _Outcome(_name, error=e)
+
+        with ThreadPoolExecutor(max_workers=len(_items)) as _pool:
+            _res: list[_Outcome] = list(_pool.map(_run, _items))
+
+        for _o in _res:
+            if _o.error is not None and not isinstance(_o.error, _NOT_FOUND):
+                self._log.warning(
+                    f"node failed: {_o.node}",
+                    metadata={"node": _o.node, "error": type(_o.error).__name__},
+                )
+        return _res
+
+    def locate(
+        self,
+        source: str,
+        name: str,
+        node: str | None = None,
+    ) -> tuple[str, NodeClient]:
+        # Single node or a named node needs no probing, the node answers for itself
+        if node is not None or len(self._clients) == 1:
+            return self.get(node)
+
+        _dataset: str = f"{source}.{name}"
+        _outcomes: list[_Outcome] = self.fan_out(lambda c: c.get_dataset(source, name))
+        _found: list[str] = []
+        for o in _outcomes:
+            if o.error is None:
+                _found.append(o.node)
+
+        _down: list[str] = []
+        for o in _outcomes:
+            if o.error is not None and not isinstance(o.error, _NOT_FOUND):
+                _down.append(o.node)
+
+        # Exactly one node has the dataset, return
+        if len(_found) == 1:
+            return self.get(_found[0])
+
+        # Multiple nodes have the dataset, ambiguous
+        if len(_found) > 1:
+            _msg: str = f"dataset '{_dataset}' is on nodes {_found}, pass `node` to choose one"
+            raise NodeBadRequestError(_msg)
+
+        # Some nodes were down
+        if _down:
+            _msg = f"dataset '{_dataset}' was not found, nodes not answering: {_down}"
+            raise NodeBadRequestError(_msg)
+
+        # No nodes have the dataset and no nodes were down
+        # report not found on any node
+        _msg = f"Dataset '{_dataset}' not found on any node"
+        raise NodeDatasetNotFoundError(_msg)
+
+
 def build_server(
-    client: NodeClient,
+    clients: Mapping[str, NodeClient],
     log: LogStream,
     name: str = "fortress",
 ) -> MCPServer:
     """
-    Build the MCP server whose tools answer from `client`
+    Build the MCP server whose tools answer from `clients`
 
     The tools are plain `def` functions, the SDK runs them in a worker thread so a slow node
-    call does not block the event loop.
+    call does not block the event loop. `list_nodes` and `list_datasets` ask every node at once,
+    the other tools go to one node: the `node` argument, else the node that holds the dataset.
 
     Args:
     ----------
-        client (NodeClient):
-            The node the tools talk to
+        clients (Mapping[str, NodeClient]):
+            The nodes the tools talk to, by node name
         log (LogStream):
             Call trace: tool, arguments, elapsed time, rows and whether the result was truncated
         name (str):
@@ -244,37 +372,74 @@ def build_server(
     """
     _server = MCPServer(name, instructions=_INSTRUCTIONS)
     _guard = MCPGuard(log)
+    _router = NodeRouter(clients, log)
 
-    @_server.tool(name="list_datasets", description=_LIST_DATASETS_DOC)
-    def list_datasets(ctx: Context, source: str | None = None) -> list[dict[str, Any]]:
+    @_server.tool(name="list_nodes", description=_LIST_NODES_DOC)
+    def list_nodes(ctx: Context) -> list[dict[str, Any]]:
         def _call() -> list[dict[str, Any]]:
-            _items = client.list_datasets(source)
             _res: list[dict[str, Any]] = []
-            for _d in _items:
-                _res.append(
-                    {
-                        "dataset": _d["dataset"],
-                        "description": _d["description"],
-                        "frequency": _d["frequency"],
-                        "partition_keys": _d["partitions"],
-                    }
-                )
+            for _o in _router.fan_out(lambda c: c.list_sources()):
+                _entry: dict[str, Any] = {"name": _o.node, "reachable": _o.error is None}
+                if _o.error is None:
+                    _entry["sources"] = [s["name"] for s in _o.value]
+                else:
+                    _entry["error"] = _failure_reason(_o.error)
+                _res.append(_entry)
             return _res
 
         return _guard.run(
-            tool="list_datasets",
-            arguments={"source": source},
+            tool="list_nodes",
+            arguments={},
             func=_call,
-            metrics=lambda r: {"datasets": len(r)},
+            metrics=lambda r: {"nodes": len(r), "unreachable": sum(not n["reachable"] for n in r)},
+            caller=_caller_of(ctx),
+        )
+
+    @_server.tool(name="list_datasets", description=_LIST_DATASETS_DOC)
+    def list_datasets(ctx: Context, source: str | None = None, node: str | None = None) -> dict[str, Any]:
+        def _call() -> dict[str, Any]:
+            _outcomes: list[_Outcome] = _router.fan_out(lambda c: c.list_datasets(source), node)
+            _datasets: list[dict[str, Any]] = []
+            _nodes: list[dict[str, Any]] = []
+            _missing: int = 0
+            for _o in _outcomes:
+                _entry: dict[str, Any] = {"name": _o.node, "reachable": True}
+                if _o.error is None:
+                    for _d in _o.value:
+                        _datasets.append(
+                            {
+                                "node": _o.node,
+                                "dataset": _d["dataset"],
+                                "description": _d["description"],
+                                "frequency": _d["frequency"],
+                                "partition_keys": _d["partitions"],
+                            }
+                        )
+                elif isinstance(_o.error, NodeSourceNotFoundError):
+                    _missing += 1
+                else:
+                    _entry["reachable"] = False
+                    _entry["error"] = _failure_reason(_o.error)
+                _nodes.append(_entry)
+            if _missing == len(_outcomes):
+                raise NodeSourceNotFoundError(f"Source '{source}' not found on any node")
+            return {"datasets": _datasets, "nodes": _nodes}
+
+        return _guard.run(
+            tool="list_datasets",
+            arguments={"source": source, "node": node},
+            func=_call,
+            metrics=lambda r: {"datasets": len(r["datasets"])},
             caller=_caller_of(ctx),
         )
 
     @_server.tool(name="get_schema", description=_GET_SCHEMA_DOC)
-    def get_schema(ctx: Context, dataset: str) -> dict[str, Any]:
+    def get_schema(ctx: Context, dataset: str, node: str | None = None) -> dict[str, Any]:
         def _call() -> dict[str, Any]:
             _source, _name = _split(dataset)
-            _info = client.get_dataset(_source, _name)
-            _groups = client.list_definitions(_source, _name)
+            _node, _client = _router.locate(_source, _name, node)
+            _info = _client.get_dataset(_source, _name)
+            _groups = _client.list_definitions(_source, _name)
             _definitions = []
             for _g in _groups:
                 _definition = {
@@ -289,6 +454,7 @@ def build_server(
                 reverse=True,
             )
             return {
+                "node": _node,
                 "dataset": _info["dataset"],
                 "description": _info["description"],
                 "partition_keys": _info["partitions"],
@@ -297,19 +463,26 @@ def build_server(
 
         return _guard.run(
             tool="get_schema",
-            arguments={"dataset": dataset},
+            arguments={"dataset": dataset, "node": node},
             func=_call,
             caller=_caller_of(ctx),
         )
 
     @_server.tool(name="get_quality", description=_GET_QUALITY_DOC)
-    def get_quality(ctx: Context, dataset: str, limit: int = _DEFAULT_QUALITY_LIMIT) -> dict[str, Any]:
+    def get_quality(
+        ctx: Context,
+        dataset: str,
+        limit: int = _DEFAULT_QUALITY_LIMIT,
+        node: str | None = None,
+    ) -> dict[str, Any]:
         def _call() -> dict[str, Any]:
             _source, _name = _split(dataset)
             _limit: int = max(1, min(limit, _MAX_QUALITY_LIMIT))
-            _items = client.list_qualities(_source, _name)
+            _node, _client = _router.locate(_source, _name, node)
+            _items = _client.list_qualities(_source, _name)
             _items.sort(key=lambda i: i["assetfile"].get("modified_at") or 0, reverse=True)
             return {
+                "node": _node,
                 "dataset": f"{_source}.{_name}",
                 "total_files": len(_items),
                 "files": [_summarize_quality(i) for i in _items[:_limit]],
@@ -317,17 +490,19 @@ def build_server(
 
         return _guard.run(
             "get_quality",
-            {"dataset": dataset, "limit": limit},
+            {"dataset": dataset, "limit": limit, "node": node},
             _call,
             caller=_caller_of(ctx),
         )
 
     @_server.tool(name="query", description=_QUERY_DOC)
-    def query(ctx: Context, sql: str) -> dict[str, Any]:
+    def query(ctx: Context, sql: str, node: str | None = None) -> dict[str, Any]:
         _caller: str | None = _caller_of(ctx)
 
         def _call() -> dict[str, Any]:
-            _query: dict[str, Any] = client.query(sql, caller=_caller).export()
+            _node, _client = _router.get(node)
+            _query: dict[str, Any] = _client.query(sql, caller=_caller).export()
+            _query["node"] = _node
             return _query
 
         def _metrics(result: dict[str, Any]) -> dict[str, float]:
@@ -338,7 +513,7 @@ def build_server(
 
         return _guard.run(
             tool="query",
-            arguments={"sql": sql},
+            arguments={"sql": sql, "node": node},
             func=_call,
             metrics=_metrics,
             caller=_caller,

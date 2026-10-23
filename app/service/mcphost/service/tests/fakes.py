@@ -4,6 +4,7 @@ from typing import Any
 
 from app.service.node.client.node import NodeClient
 from app.service.node.dra import DRADataResult
+from app.service.node.service.errors import NodeDatasetNotFoundError, NodeSourceNotFoundError
 
 
 class FakeNodeClient(NodeClient):
@@ -47,11 +48,19 @@ class FakeNodeClient(NodeClient):
 
     def list_datasets(self, source=None):
         self._call("list_datasets", source)
-        return self.datasets
+        if source is None:
+            return self.datasets
+        _items = [d for d in self.datasets if d["source"] == source]
+        if not _items:
+            raise NodeSourceNotFoundError(f"Source '{source}' not found on this node")
+        return _items
 
     def get_dataset(self, source, dataset):
         self._call("get_dataset", source, dataset)
-        return self.datasets[0]
+        for _d in self.datasets:
+            if _d["dataset"] == f"{source}.{dataset}":
+                return _d
+        raise NodeDatasetNotFoundError(f"Dataset '{source}.{dataset}' not found on this node")
 
     def list_assetfiles(self, source, dataset, since=None, until=None):
         self._call("list_assetfiles", source, dataset)

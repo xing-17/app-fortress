@@ -12,11 +12,12 @@ class TestThroughANode:
     """The tools over a real node, once through `LocalNodeClient` and once over HTTP."""
 
     def _server(self, node_client, log):
-        return build_server(node_client, log)
+        return build_server({"node": node_client}, log)
 
     def test_list_datasets(self, node_client, log):
         _res = data(call(self._server(node_client, log), "list_datasets"))
-        assert sorted(d["dataset"] for d in _res) == ["src.alpha", "src.beta"]
+        assert sorted(d["dataset"] for d in _res["datasets"]) == ["src.alpha", "src.beta"]
+        assert {d["node"] for d in _res["datasets"]} == {"node"}
 
     def test_schema_then_query(self, node_client, log, source):
         write_assetfile(source, "beta", "a.parquet", pl.DataFrame({"v": [1, 2]}), {"year": "2023"})

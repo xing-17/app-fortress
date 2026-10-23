@@ -26,7 +26,7 @@ def fake():
 
 @pytest.fixture
 def service(log, fake, user_auth):
-    _service = McpHostService(_setting(), client=fake, auth=user_auth)
+    _service = McpHostService(_setting(), clients={"centre": fake}, auth=user_auth)
     yield _service
     _service.stop()
 
@@ -36,17 +36,21 @@ class TestConstruction:
         with pytest.raises(ValueError, match="requires a mcphost setting"):
             McpHostService(NodeServiceSetting())
 
-    def test_defaults_to_the_first_node(self, log):
+    def test_serves_every_node_by_default(self, log):
         _service = McpHostService(_setting(a=1, b=1))
-        assert _service.node.name == "a"
+        assert [n.name for n in _service.nodes] == ["a", "b"]
 
     def test_selects_a_node_by_name(self, log):
         _service = McpHostService(_setting(a=1, b=1), node="b")
-        assert _service.node.name == "b"
+        assert [n.name for n in _service.nodes] == ["b"]
 
     def test_unknown_node_lists_the_known_ones(self, log):
         with pytest.raises(ValueError, match=r"'nope'.*\['a', 'b'\]"):
             McpHostService(_setting(a=1, b=1), node="nope")
+
+    def test_clients_of_unknown_nodes_are_refused(self, log):
+        with pytest.raises(ValueError, match=r"\['nope'\]"):
+            McpHostService(_setting(), clients={"nope": FakeNodeClient()})
 
 
 class TestStart:
@@ -77,6 +81,23 @@ class TestStart:
         _setting_ = McpHostServiceSetting(nodes=[{"name": "centre", "endpoint": "http://x:8800"}])
         _service = McpHostService(_setting_)
         with pytest.raises(ValueError, match="no token"):
+            _service.start()
+        assert _service.state == ServiceState.FAILED
+
+    def test_one_node_down_does_not_fail_the_start(self, log, user_auth):
+        _up, _down = FakeNodeClient(), FakeNodeClient()
+        _down.raises = NodeUnavailableError("unreachable")
+        _service = McpHostService(_setting(a=1, b=1), clients={"a": _up, "b": _down}, auth=user_auth)
+        _service.start()
+        assert _service.is_running
+        _service.stop()
+
+    def test_every_node_down_fails_the_start(self, log):
+        _a, _b = FakeNodeClient(), FakeNodeClient()
+        _a.raises = NodeUnavailableError("a is gone")
+        _b.raises = NodeUnavailableError("b is gone")
+        _service = McpHostService(_setting(a=1, b=1), clients={"a": _a, "b": _b})
+        with pytest.raises(NodeUnavailableError, match="a is gone"):
             _service.start()
         assert _service.state == ServiceState.FAILED
 
@@ -142,7 +163,7 @@ class TestAsgiApp:
             service.asgi_app()
 
     def test_refuses_to_serve_without_auth(self, log, fake):
-        _service = McpHostService(_setting(), client=fake)
+        _service = McpHostService(_setting(), clients={"centre": fake})
         _service.start()
         with pytest.raises(RuntimeError, match="no auth"):
             _service.asgi_app()
@@ -155,19 +176,27 @@ class TestHealth:
         _res = service.health()
         assert _res["kind"] == "mcphost"
         assert _res["is_running"] is True
-        assert _res["node"] == {"name": "centre", "reachable": True, "state": "running"}
+        assert _res["nodes"] == [{"name": "centre", "reachable": True, "state": "running"}]
 
     def test_unreachable_node_does_not_break_health(self, service, fake):
         service.start()
         fake.raises = NodeUnavailableError("gone")
         _res = service.health()
         assert _res["is_running"] is True
-        assert _res["node"] == {"name": "centre", "reachable": False}
+        assert _res["nodes"] == [{"name": "centre", "reachable": False}]
+
+    def test_reports_every_node(self, log):
+        _up, _down = FakeNodeClient(), FakeNodeClient()
+        _service = McpHostService(_setting(a=1, b=1), clients={"a": _up, "b": _down})
+        _service.start()
+        _down.raises = NodeUnavailableError("gone")
+        assert [(n["name"], n["reachable"]) for n in _service.health()["nodes"]] == [("a", True), ("b", False)]
+        _service.stop()
 
     def test_before_start(self, log):
         _res = McpHostService(_setting()).health()
         assert _res["is_running"] is False
-        assert _res["node"]["reachable"] is False
+        assert _res["nodes"] == [{"name": "centre", "reachable": False}]
 
 
 class TestRealHttpClient:

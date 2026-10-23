@@ -1,13 +1,13 @@
 # service/mcphost/service
 
-The **MCP front door of a node**. It lets an AI client (Claude, Copilot, ...) discover, inspect and query the datasets of one node through the [Model Context Protocol](https://modelcontextprotocol.io), over streamable HTTP.
+The **MCP front door of its nodes**. It lets an AI client (Claude, Copilot, ...) discover, inspect and query the datasets of one or more nodes through the [Model Context Protocol](https://modelcontextprotocol.io), over streamable HTTP.
 
 The host holds **no data and no logic of its own**. Every tool is answered by a `NodeClient` (see [../../node/client/_ABOUT.md](../../node/client/_ABOUT.md)) talking to the [node service](../../node/service/_ABOUT.md). The host only does four things: authenticate the AI user, expose tools, translate errors for the AI, and leave an audit trail.
 
 | File | Content |
 |---|---|
-| `service.py` | `McpHostService`, the lifecycle: pick the node, check it at start, build the MCP server, mount auth |
-| `tools.py` | `build_server` (the four tools), `MCPGuard` (timing, logging, error translation), result shaping helpers |
+| `service.py` | `McpHostService`, the lifecycle: pick the nodes, check them at start, build the MCP server, mount auth |
+| `tools.py` | `build_server` (the five tools), `NodeRouter` (route one call, fan out to all nodes), `MCPGuard` (timing, logging, error translation), result shaping helpers |
 | `instructions.py` | The texts the AI reads: server instructions and the description of each tool |
 | `http.py` | `serve`: start the service, run uvicorn, stop the service |
 | `tests/` | Unit tests (`fakes.py` holds a fake `NodeClient`) |
@@ -21,13 +21,16 @@ AI client ──► HTTP (streamable MCP)
         BearerAuthMiddleware ──► Principal (which user / device)
                 │
                 ▼
-        MCPServer  (tools: list_datasets, get_schema, get_quality, query)
+        MCPServer  (tools: list_nodes, list_datasets, get_schema, get_quality, query)
                 │
                 ▼
         MCPGuard   (log start, time, translate errors, log result)
                 │
                 ▼
-        NodeClient (HttpNodeClient, or any NodeClient)
+        NodeRouter (one node, or all nodes at once)
+                │
+                ▼
+        NodeClient (HttpNodeClient, or any NodeClient), one per node
                 │
                 ▼
         Node service ─► catalog / DRA query
@@ -35,14 +38,15 @@ AI client ──► HTTP (streamable MCP)
 
 ## Lifecycle (`McpHostService`)
 
-1. **Construct**: choose the node from `setting.nodes`, the first one unless `node` names another (unknown name → `ValueError`). A ready-made `client` can be injected (tests, in-process); otherwise an `HttpNodeClient` is built from the node setting at start. `auth` is a `TokenAuth`, needed only for `asgi_app`.
-2. **`start()`** (`_start`) fails fast on a bad deployment:
+1. **Construct**: serve every node of `setting.nodes`, or only the one `node` names (unknown name → `ValueError`). Ready-made `clients` (by node name) can be injected (tests, in-process); every other node gets an `HttpNodeClient` built from its setting at start. `auth` is a `TokenAuth`, needed only for `asgi_app`.
+2. **`start()`** (`_start`) fails fast on a bad deployment, per node:
    - `client.health()` must say the node `is_running`. The health route needs no token, so this only proves the node is up.
    - `client.list_sources()` is called next. It needs the token, so this is what proves the host's token for the node is valid.
-   - Then `build_server` creates the MCP server. If anything fails, the client the host created is released and the error is re-raised.
+   - A node that fails is logged and kept (it may come back, `list_nodes` reports it); the start fails only when **every** node fails, with the first error. A node without a token fails the start at once.
+   - Then `build_server` creates the MCP server. If anything fails, the clients the host created are released and the error is re-raised.
 3. **`asgi_app(host)`** returns the Starlette app of the MCP server. It refuses to build when the service is not running, or when there is **no auth** (it would serve data to anyone). It adds `BearerAuthMiddleware` with **no public paths**: every route needs a token. The transport only accepts a `Host` (and `Origin`) header that is loopback or listed in `setting.public_hosts`, see [Network architecture](#network-architecture).
-4. **`stop()`** drops the server and closes the client, but only if the host created it. An injected client is never closed by the host.
-5. **`health()`** adds the node's name, whether it is reachable and its state to the base service health.
+4. **`stop()`** drops the server and closes the clients, but only those the host created. An injected client is never closed by the host.
+5. **`health()`** adds `nodes`, the name, whether it is reachable and the state of each node, to the base service health.
 
 `serve(service, host, port, log_level)` in `http.py` is the standard entry: `start()` → `uvicorn.run(asgi_app)` → `stop()` in `finally`. Host and port default to the setting (`127.0.0.1:8801`).
 

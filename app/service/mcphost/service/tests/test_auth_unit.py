@@ -51,7 +51,7 @@ def fake():
 @pytest.fixture
 def web(log, fake, user_auth):
     _setting = McpHostServiceSetting(nodes=[{"name": "centre", "endpoint": "http://centre:8800", "token": "t0ken"}])
-    _service = McpHostService(_setting, client=fake, auth=user_auth)
+    _service = McpHostService(_setting, clients={"centre": fake}, auth=user_auth)
     _service.start()
     with TestClient(_service.asgi_app(), base_url=_BASE) as _client:
         yield _client
@@ -119,7 +119,7 @@ class TestPublicHost:
             nodes=[{"name": "centre", "endpoint": "http://centre:8800", "token": "t0ken"}],
             public_hosts=["mcp.example.com"],
         )
-        _service = McpHostService(_setting, client=fake, auth=user_auth)
+        _service = McpHostService(_setting, clients={"centre": fake}, auth=user_auth)
         _service.start()
         yield _service.asgi_app()
         _service.stop()
@@ -169,7 +169,7 @@ class TestAccessAssertion:
             access={"team_domain": TEAM, "audience": AUDIENCE, "users": [{"email": EMAIL, "name": "me"}]},
         )
         _access = AccessAuth(_setting.access, keys=StaticKeys(signing_key))
-        _service = McpHostService(_setting, client=fake, auth=user_auth, access=_access)
+        _service = McpHostService(_setting, clients={"centre": fake}, auth=user_auth, access=_access)
         _service.start()
         with TestClient(_service.asgi_app(), base_url=_BASE) as _client:
             yield _client
@@ -207,8 +207,8 @@ class TestAccessAssertion:
             nodes=[{"name": "centre", "endpoint": "http://centre:8800", "token": "t0ken"}],
             access={"team_domain": TEAM, "audience": AUDIENCE, "users": [{"email": EMAIL, "name": "me"}]},
         )
-        assert isinstance(McpHostService(_setting, client=fake, auth=user_auth)._access, AccessAuth)
-        assert McpHostService(McpHostServiceSetting(), client=fake, auth=user_auth)._access is None
+        assert isinstance(McpHostService(_setting, clients={"centre": fake}, auth=user_auth)._access, AccessAuth)
+        assert McpHostService(McpHostServiceSetting(), clients={"centre": fake}, auth=user_auth)._access is None
 
 
 class TestCaller:
