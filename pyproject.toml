@@ -1,6 +1,6 @@
 [project]
 name = "app-fortress"
-version = "1.0.0"
+version = "0.6.6"
 description = "Fortress station for global data assets."
 readme = "README.md"
 authors = [
@@ -38,17 +38,25 @@ dev = [
 ]
 machine = ["psutil"]
 node = [
+    "app-fortress[machine]",
     "duckdb", 
     "starlette", 
     "uvicorn",
 ]
 mcphost = [
     "app-fortress[node]",
+    "httpx",
     "mcp",
+    "pyjwt[crypto]",
 ]
 webhost = [
     "app-fortress[node]",
+    "httpx",
 ]
+
+[project.scripts]
+# Fortress CLI entry point
+fortress = "app.cline:main"
 
 [build-system]
 requires = [

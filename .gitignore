@@ -1,8 +1,12 @@
 # Project specific files
 .test/*
-system.yaml
-services.yaml
-/local/*
+/settings/system.yaml
+/settings/services.yaml
+/local/.logs/*
+/local/provision/*
+/local/store/*
+/local/vault/*
+local/.auth/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
