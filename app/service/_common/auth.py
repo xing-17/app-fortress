@@ -162,6 +162,17 @@ class TokenAuth:
             "active", "revoked" or "expired"
         generate_master_file(setting, base_dir) -> Path | None:
             Create the master key file, None when it already exists
+            
+    Example:
+    ----------
+    >>> from app.service._common.auth import TokenAuth, AuthSetting, LogStream
+    >>> setting = AuthSetting(masterfile="master.key", tokens=[])
+    >>> log = LogStream(name="auth")
+    >>> auth = TokenAuth(setting=setting, log=log)
+    >>> auth.token("example-name")                          # Derive the token for an active entry
+    >>> auth.verify("bearer-token")                         # Verify a bearer token
+    >>> auth.state("example-name")                          # Check the state of an entry
+    >>> auth.generate_master_file(setting, base_dir=None)   # Generate the master key file if it doesn't exist
 
     """
 
