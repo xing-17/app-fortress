@@ -103,6 +103,7 @@ class TestToolList:
             "list_datasets",
             "get_schema",
             "get_quality",
+            "list_machine_snapshots",
             "query",
         }
 
@@ -124,6 +125,58 @@ class TestToolList:
     def test_needs_a_node(self, log):
         with pytest.raises(ValueError, match="at least one node"):
             build_server({}, log)
+
+
+class TestListMachineSnapshots:
+    def test_returns_the_snapshots_of_the_node(self, server, fake):
+        fake.snapshots = [{"timestamp": 1.0, "cpu_percent": 5.0}, {"timestamp": 2.0, "cpu_percent": 6.0}]
+        _res = data(call(server, "list_machine_snapshots"))
+        assert _res == {"nodes": [{"name": "centre", "reachable": True, "snapshots": fake.snapshots}]}
+
+    def test_hours_goes_to_the_node(self, server, fake):
+        call(server, "list_machine_snapshots", {"hours": 2.5})
+        assert ("list_machine_snapshots", (2.5,)) in fake.calls
+
+    def test_default_asks_for_everything(self, server, fake):
+        call(server, "list_machine_snapshots")
+        assert ("list_machine_snapshots", (None,)) in fake.calls
+
+    @pytest.mark.parametrize("hours", [0, -3])
+    def test_non_positive_hours_is_a_tool_error(self, server, fake, hours):
+        _res = call(server, "list_machine_snapshots", {"hours": hours})
+        assert _res.is_error
+        assert "greater than 0" in text(_res)
+        assert fake.calls == []
+
+    def test_a_node_that_is_down_is_marked_not_reachable(self, server, fake):
+        fake.raises = NodeUnavailableError("node http://secret-host:8800 is unreachable")
+        _res = call(server, "list_machine_snapshots")
+        assert not _res.is_error
+        _node = data(_res)["nodes"][0]
+        assert _node["reachable"] is False
+        assert "unreachable or too slow" in _node["error"]
+        assert "secret-host" not in json.dumps(data(_res))
+
+    def test_asks_every_node_and_one_failure_does_not_fail_the_others(self, fake, log):
+        _down = FakeNodeClient()
+        _down.raises = NodeUnavailableError("down")
+        fake.snapshots = [{"timestamp": 1.0}]
+        _server = build_server({"centre": fake, "edge": _down}, log)
+        _nodes = {n["name"]: n for n in data(call(_server, "list_machine_snapshots"))["nodes"]}
+        assert _nodes["centre"]["snapshots"] == [{"timestamp": 1.0}]
+        assert _nodes["edge"]["reachable"] is False
+
+    def test_node_argument_asks_only_that_node(self, fake, log):
+        _other = FakeNodeClient()
+        _server = build_server({"centre": fake, "edge": _other}, log)
+        _res = data(call(_server, "list_machine_snapshots", {"node": "edge"}))
+        assert [n["name"] for n in _res["nodes"]] == ["edge"]
+        assert fake.calls == []
+
+    def test_unknown_node_is_a_tool_error(self, server):
+        _res = call(server, "list_machine_snapshots", {"node": "nope"})
+        assert _res.is_error
+        assert "unknown node" in text(_res)
 
 
 class TestListNodes:

@@ -30,6 +30,7 @@ from .instructions import (
     _GET_SCHEMA_DOC,
     _INSTRUCTIONS,
     _LIST_DATASETS_DOC,
+    _LIST_MACHINE_SNAPSHOTS_DOC,
     _LIST_NODES_DOC,
     _QUERY_DOC,
 )
@@ -492,6 +493,38 @@ def build_server(
             "get_quality",
             {"dataset": dataset, "limit": limit, "node": node},
             _call,
+            caller=_caller_of(ctx),
+        )
+
+    @_server.tool(name="list_machine_snapshots", description=_LIST_MACHINE_SNAPSHOTS_DOC)
+    def list_machine_snapshots(
+        ctx: Context,
+        hours: float | None = None,
+        node: str | None = None,
+    ) -> dict[str, Any]:
+        def _call() -> dict[str, Any]:
+            # `not > 0` also rejects NaN
+            if hours is not None and not hours > 0:
+                raise NodeBadRequestError("'hours' must be greater than 0")
+            _nodes: list[dict[str, Any]] = []
+            for _o in _router.fan_out(lambda c: c.list_machine_snapshots(hours), node):
+                _entry: dict[str, Any] = {"name": _o.node, "reachable": _o.error is None}
+                if _o.error is None:
+                    _entry["snapshots"] = _o.value
+                else:
+                    _entry["error"] = _failure_reason(_o.error)
+                _nodes.append(_entry)
+            return {"nodes": _nodes}
+
+        def _metrics(result: dict[str, Any]) -> dict[str, float]:
+            _count: int = sum(len(n.get("snapshots", [])) for n in result["nodes"])
+            return {"snapshots": _count}
+
+        return _guard.run(
+            tool="list_machine_snapshots",
+            arguments={"hours": hours, "node": node},
+            func=_call,
+            metrics=_metrics,
             caller=_caller_of(ctx),
         )
 

@@ -6,6 +6,7 @@ Read-only access to the data assets of one or more Fortress nodes.
 Datasets are named "<source>.<dataset>" and are tables in SQL under that exact name.
 Typical flow: list_datasets -> get_schema -> query. Use get_quality to check completeness before
 trusting a dataset. Use list_nodes to see which nodes exist and which of them are reachable.
+Use list_machine_snapshots to see how loaded the machine of a node was (cpu, memory, disk, network).
 A query runs on ONE node and can not join datasets of different nodes: pass `node` to `query`
 when several nodes are served.
 """
@@ -57,4 +58,17 @@ statement is allowed: no multiple statements, no writes, no SET, ATTACH or file 
 Results are NOT saved, keep what you need from the answer. The result is capped in rows and size:
 when `truncated` is true the rows are incomplete, aggregate or filter in SQL instead of
 reading everything. The query is interrupted when it runs too long.
+"""
+
+_LIST_MACHINE_SNAPSHOTS_DOC = """\
+Show how the machine of each node was doing over time: one snapshot per minute (oldest first) with
+cpu, memory, swap and disk usage, the memory, cpu and thread count of the node process, and the
+network totals.
+
+Without `hours` every snapshot the node keeps is returned (12 hours by default), pass `hours` to
+get only the last few. Each snapshot has a `timestamp` in epoch seconds. `net_sent_mb` and
+`net_recv_mb` are totals since boot: take the difference of two snapshots to get the traffic.
+`proc_*` and `net_*` are null when they could not be read. A node restart empties its history.
+The answer holds one entry per node with `"reachable"`; a node that is down carries an `error`.
+Pass `node` to ask only one node.
 """

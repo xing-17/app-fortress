@@ -32,6 +32,7 @@ class FakeNodeClient(NodeClient):
         self.qualities: list[dict[str, Any]] = []
         self.result = DRADataResult(columns=["a"], types=["BIGINT"], rows=[[1]])
         self.node_health: dict[str, Any] = {"state": "running", "is_running": True}
+        self.snapshots: list[dict[str, Any]] = []
 
     def _call(self, name: str, *args: Any) -> None:
         self.calls.append((name, args))
@@ -86,6 +87,10 @@ class FakeNodeClient(NodeClient):
     def health(self):
         self._call("health")
         return self.node_health
+
+    def list_machine_snapshots(self, hours=None):
+        self._call("list_machine_snapshots", hours)
+        return list(self.snapshots)
 
     def close(self):
         self.closed = True
