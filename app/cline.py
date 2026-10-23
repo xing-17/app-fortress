@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.setting.service import NodeServiceSetting
+    from app.service._common.auth import TokenAuth
+    from app.setting.service import AuthSetting, McpHostServiceSetting, NodeServiceSetting
 
 
 def _load_node_setting(args: argparse.Namespace) -> tuple[NodeServiceSetting, Path]:
@@ -19,16 +20,35 @@ def _load_node_setting(args: argparse.Namespace) -> tuple[NodeServiceSetting, Pa
     return _node_setting, _setting_path
 
 
+def _load_mcphost_setting(args: argparse.Namespace) -> McpHostServiceSetting:
+    from app.resource._global.setting import GlobalSetting
+
+    GlobalSetting.load(args.setting_path)
+    _res: McpHostServiceSetting = GlobalSetting.get_services().mcphost
+    return _res
+
+
+def _load_auth_setting(args: argparse.Namespace) -> tuple[AuthSetting, Path]:
+    from app.resource._global.setting import GlobalSetting
+
+    GlobalSetting.load(args.setting_path)
+    _services = GlobalSetting.get_services()
+    _setting_path = GlobalSetting.get_setting_path()
+    if args.service == "mcphost":
+        return _services.mcphost.auth, _setting_path
+    return _services.node.auth, _setting_path
+
+
 # --------------------------------------------------
 # fortress auth
 # --------------------------------------------------
 
 
 def _auth_init(args: argparse.Namespace) -> int:
-    from app.service.node.service.auth import NodeAuth
+    from app.service._common.auth import TokenAuth
 
-    _setting, _base_dir = _load_node_setting(args)
-    _created = NodeAuth.generate_master_file(_setting.auth, _base_dir)
+    _auth_setting, _base_dir = _load_auth_setting(args)
+    _created = TokenAuth.generate_master_file(_auth_setting, _base_dir)
     if _created is None:
         print("masterfile already exists, not overwritten", file=sys.stderr)
         return 1
@@ -38,11 +58,11 @@ def _auth_init(args: argparse.Namespace) -> int:
 
 
 def _auth_list(args: argparse.Namespace) -> int:
-    from app.service.node.service.auth import NodeAuth
+    from app.service._common.auth import TokenAuth
 
-    _setting, _base_dir = _load_node_setting(args)
-    _auth = NodeAuth(_setting.auth, base_dir=_base_dir)
-    for _t in _setting.auth.tokens:
+    _auth_setting, _base_dir = _load_auth_setting(args)
+    _auth = TokenAuth(_auth_setting, base_dir=_base_dir)
+    for _t in _auth_setting.tokens:
         print(f"Token '{_t.name}'")
         print(f" - state: {_auth.state(_t.name)}")
         print(f" - expires: {_t.expires or '-'}")
@@ -51,10 +71,10 @@ def _auth_list(args: argparse.Namespace) -> int:
 
 
 def _auth_show(args: argparse.Namespace) -> int:
-    from app.service.node.service.auth import NodeAuth
+    from app.service._common.auth import TokenAuth
 
-    _setting, _base_dir = _load_node_setting(args)
-    _auth = NodeAuth(_setting.auth, base_dir=_base_dir)
+    _auth_setting, _base_dir = _load_auth_setting(args)
+    _auth = TokenAuth(_auth_setting, base_dir=_base_dir)
     try:
         print(_auth.token(args.name))
     except ValueError as e:
@@ -68,16 +88,46 @@ def _auth_show(args: argparse.Namespace) -> int:
 # --------------------------------------------------
 
 
+def _build_auth(
+    service: str,
+    setting: AuthSetting,
+    base_dir: Path,
+) -> TokenAuth:
+    # Only the auth part of services.yaml follows the file, the rest needs a restart
+    from app.resource._global.setting import GlobalSetting
+    from app.service._common.auth import TokenAuth
+    from app.setting.service import ServicesSetting
+
+    _file = GlobalSetting.services_setting_path
+    if _file is None:
+        return TokenAuth(setting, base_dir=base_dir)
+
+    def _reload() -> AuthSetting:
+        _services = ServicesSetting.from_yaml(path=_file)
+        _res: AuthSetting = _services.mcphost.auth if service == "mcphost" else _services.node.auth
+        return _res
+
+    return TokenAuth(
+        setting,
+        base_dir=base_dir,
+        reload=_reload,
+        watch=[_file],
+    )
+
+
 def _node_start(args: argparse.Namespace) -> int:
-    # Imported here so `fortress auth` works without the node extra (uvicorn, duckdb)
-    from app.service.node.service.auth import NodeAuth
+    # Imported here so `fortress auth` works
+    # without the node extra (uvicorn, duckdb)
+    from app.resource._global.setting import GlobalSetting
+    from app.service.machine.service.service import MachineService
     from app.service.node.service.http import serve
     from app.service.node.service.service import NodeService
 
     _setting, _base_dir = _load_node_setting(args)
-    _auth = NodeAuth(_setting.auth, base_dir=_base_dir)
+    _auth = _build_auth("node", _setting.auth, _base_dir)
+    _machine = MachineService(GlobalSetting.get_services().machine)
     serve(
-        service=NodeService(_setting),
+        service=NodeService(_setting, machine=_machine),
         auth=_auth,
         host=args.host,
         port=args.port,
@@ -86,11 +136,43 @@ def _node_start(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------
+# fortress mcphost
+# --------------------------------------------------
+
+
+def _mcphost_start(args: argparse.Namespace) -> int:
+    # Imported here so the other commands work without the mcphost extra (mcp, httpx)
+    from app.service.mcphost.service.http import serve
+    from app.service.mcphost.service.service import McpHostService
+
+    _setting = _load_mcphost_setting(args)
+    try:
+        _auth = _build_auth("mcphost", _setting.auth, _auth_base_dir())
+        _service = McpHostService(_setting, node=args.node, auth=_auth)
+        serve(
+            service=_service,
+            host=args.host,
+            port=args.port,
+            log_level=args.log_level,
+        )
+    except (ValueError, OSError, RuntimeError) as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    return 0
+
+
+def _auth_base_dir() -> Path:
+    from app.resource._global.setting import GlobalSetting
+
+    return GlobalSetting.get_setting_path()
+
+
+# --------------------------------------------------
 # Parser
 # --------------------------------------------------
 
 
-def _build() -> argparse.ArgumentParser:
+def _build_cline() -> argparse.ArgumentParser:
     _common = argparse.ArgumentParser(add_help=False)
     _common.add_argument(
         "--setting-path",
@@ -109,9 +191,16 @@ def _build() -> argparse.ArgumentParser:
     )
 
     # Auth group
+    _service_arg = argparse.ArgumentParser(add_help=False)
+    _service_arg.add_argument(
+        "--service",
+        choices=["node", "mcphost"],
+        default="node",
+        help="whose tokens, the node's (services) or the MCP host's (users), default node",
+    )
     _auth = _groups.add_parser(
         "auth",
-        help="manage the tokens of the node",
+        help="manage the tokens of the node or the MCP host",
     )
     _auth_cmds = _auth.add_subparsers(
         dest="command",
@@ -119,19 +208,19 @@ def _build() -> argparse.ArgumentParser:
     )
     _init = _auth_cmds.add_parser(
         "init",
-        parents=[_common],
+        parents=[_common, _service_arg],
         help="create the master key file",
     )
     _init.set_defaults(handler=_auth_init)
     _list = _auth_cmds.add_parser(
         "list",
-        parents=[_common],
+        parents=[_common, _service_arg],
         help="list the tokens and their state",
     )
     _list.set_defaults(handler=_auth_list)
     _show = _auth_cmds.add_parser(
         "show",
-        parents=[_common],
+        parents=[_common, _service_arg],
         help="print the token of an entry",
     )
     _show.add_argument("name")
@@ -164,11 +253,49 @@ def _build() -> argparse.ArgumentParser:
     )
     _start.set_defaults(handler=_node_start)
 
+    # Mcphost group
+    _mcphost = _groups.add_parser(
+        "mcphost",
+        help="run the MCP host in front of a node",
+    )
+    _mcphost_cmds = _mcphost.add_subparsers(
+        dest="command",
+        required=True,
+    )
+    _mcphost_run = _mcphost_cmds.add_parser(
+        "start",
+        parents=[_common],
+        help="start the MCP host until interrupted",
+    )
+    _mcphost_run.add_argument(
+        "--node",
+        default=None,
+        help="serve only this node of the setting, default all of them",
+    )
+    _mcphost_run.add_argument(
+        "--host",
+        default=None,
+        help="listen host, default from the setting",
+    )
+    _mcphost_run.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="listen port, default from the setting",
+    )
+    _mcphost_run.add_argument(
+        "--log-level",
+        default="info",
+        choices=["critical", "error", "warning", "info", "debug"],
+        help="log level of the HTTP server",
+    )
+    _mcphost_run.set_defaults(handler=_mcphost_start)
+
     return _parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    _args = _build().parse_args(argv)
+    _args = _build_cline().parse_args(argv)
     return _args.handler(_args)
 
 
