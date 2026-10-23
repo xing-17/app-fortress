@@ -162,7 +162,7 @@ class TokenAuth:
             "active", "revoked" or "expired"
         generate_master_file(setting, base_dir) -> Path | None:
             Create the master key file, None when it already exists
-            
+
     Example:
     ----------
     >>> from app.service._common.auth import TokenAuth, AuthSetting, LogStream

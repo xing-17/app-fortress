@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic_core import to_json
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.internal.logstream import LogStream
 from app.service._common.auth import AuthError, Principal, TokenAuth
 
+if TYPE_CHECKING:
+    # Not imported at runtime, the node does not need PyJWT
+    from app.service._common.access import AccessAuth
+
 _PUBLIC_PATHS = frozenset({"/health"})
 _CALLER_HEADER = b"x-fortress-caller"
+_ASSERTION_HEADER = b"cf-access-jwt-assertion"
 
 # Same shape as a token name,
 # delegated caller cannot smuggle in odd characters
@@ -45,6 +51,10 @@ class BearerAuthMiddleware:
 
     The response never says why a token was rejected, `AuthError.reason` only goes to the log.
 
+    With `access`, a request carrying `Cf-Access-Jwt-Assertion` is authenticated by that signed
+    assertion only, a bad one is rejected and never falls back to the bearer token. A request
+    without the header needs a bearer token as before.
+
     Args:
     ----------
         app (ASGIApp):
@@ -55,6 +65,8 @@ class BearerAuthMiddleware:
             Audit log
         public_paths (frozenset[str]):
             Paths served without a token
+        access (AccessAuth | None):
+            Verifier of the Cloudflare Access assertion, None ignores the header
 
     """
 
@@ -64,11 +76,13 @@ class BearerAuthMiddleware:
         auth: TokenAuth,
         log: LogStream,
         public_paths: frozenset[str] = _PUBLIC_PATHS,
+        access: AccessAuth | None = None,
     ) -> None:
         self._app = app
         self._auth = auth
         self._log = log
         self._public_paths = public_paths
+        self._access = access
 
     async def __call__(
         self,
@@ -84,7 +98,7 @@ class BearerAuthMiddleware:
         _client = scope.get("client")
         _address: str = _client[0] if _client else "-"
         try:
-            _principal: Principal = self._verify(scope)
+            _principal: Principal = await self._authenticate(scope)
         except AuthError as e:
             self._log.warning(
                 "auth rejected",
@@ -105,32 +119,53 @@ class BearerAuthMiddleware:
         scope.setdefault("state", {})["principal"] = _principal
         await self._app(scope, receive, send)
 
-    def _verify(
+    async def _authenticate(
         self,
         scope: Scope,
     ) -> Principal:
         _raw: str | None = None
         _caller: str | None = None
+        _assertion: str | None = None
         for _key, _value in scope.get("headers", []):
             if _key == b"authorization" and _raw is None:
                 _raw = _value.decode("latin-1")
             elif _key == _CALLER_HEADER:
                 _caller = _value.decode("latin-1")
-        if _raw is None:
+            elif _key == _ASSERTION_HEADER and _assertion is None:
+                _assertion = _value.decode("latin-1")
+
+        if self._access is not None and _assertion is not None:
+            # Fetching the signing keys is a blocking call
+            _principal: Principal = await run_in_threadpool(self._access.verify, _assertion)
+        else:
+            _principal = self._verify_bearer(_raw)
+        return self._delegate(_principal, _caller)
+
+    def _verify_bearer(
+        self,
+        raw: str | None,
+    ) -> Principal:
+        if raw is None:
             raise AuthError("missing")
-        _scheme, _, _token = _raw.partition(" ")
+        _scheme, _, _token = raw.partition(" ")
         if _scheme.lower() != "bearer":
             raise AuthError("malformed")
-        _principal: Principal = self._auth.verify(_token.strip())
-        if _caller is None:
-            return _principal
+        return self._auth.verify(_token.strip())
 
-        if not _principal.delegate:
+    @staticmethod
+    def _delegate(
+        principal: Principal,
+        caller: str | None,
+    ) -> Principal:
+        if caller is None:
+            return principal
+
+        if not principal.delegate:
             raise AuthError("delegation denied")
-        if not _CALLER_PATTERN.match(_caller):
+        if not _CALLER_PATTERN.match(caller):
             raise AuthError("malformed caller")
         _delegated: Principal = Principal(
-            name=f"{_principal.name}:{_caller}",
-            description=_principal.description,
+            name=f"{principal.name}:{caller}",
+            description=principal.description,
         )
         return _delegated
