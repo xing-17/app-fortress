@@ -101,7 +101,7 @@ class BearerAuthMiddleware:
             _principal: Principal = await self._authenticate(scope)
         except AuthError as e:
             self._log.warning(
-                "auth rejected",
+                f"auth rejected, reason: {e.reason}",
                 metadata={
                     "reason": e.reason,
                     "path": _path,

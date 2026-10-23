@@ -80,10 +80,10 @@ class AccessAuth:
                 options={"require": ["exp", "iat", "iss", "aud"]},
             )
         except jwt.PyJWKClientConnectionError as e:
-            raise AuthError("access keys unavailable") from e
+            raise AuthError(f"access keys unavailable, reason: {e}") from e
         except jwt.PyJWTError as e:
             # The class name is enough for the log, the message may quote the token
-            raise AuthError(f"access assertion {type(e).__name__}") from e
+            raise AuthError(f"access assertion {type(e).__name__}, reason: {e}") from e
 
         _email = _claims.get("email")
         if not isinstance(_email, str):
