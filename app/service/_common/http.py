@@ -12,7 +12,9 @@ from app.service._common.auth import AuthError, Principal, TokenAuth
 
 _PUBLIC_PATHS = frozenset({"/health"})
 _CALLER_HEADER = b"x-fortress-caller"
-# Same shape as a token name, so a delegated caller cannot smuggle in odd characters
+
+# Same shape as a token name,
+# delegated caller cannot smuggle in odd characters
 _CALLER_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}\Z")
 
 
