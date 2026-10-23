@@ -232,6 +232,10 @@ class TokenAuth:
         return _res
 
     def _current(self) -> TokenAuthState:
+        # if reload not enabled, always return the current state
+        # if now < next_check, return the current state
+        # if fail to acquire the reload lock, return the current state
+        # if stamps have changed, reload the state
         _reload = self._reload
         if _reload is None:
             return self._state
@@ -242,9 +246,9 @@ class TokenAuth:
         if not self._reload_lock.acquire(blocking=False):
             return self._state
         try:
-            self._next_check = _now + self._reload_interval
+            self._next_check: float = _now + self._reload_interval
             _old: TokenAuthState = self._state
-            _stamps = self._stamp((_old.masterfile, *self._watch))
+            _stamps: dict[Path, _FileStamp] = self._stamp((_old.masterfile, *self._watch))
             if _stamps != _old.stamps:
                 self._state = self._reloaded(_reload, _old, _stamps)
             return self._state
