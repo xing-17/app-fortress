@@ -5,6 +5,15 @@ import json
 import pytest
 from starlette.testclient import TestClient
 
+from app.service._common.access import AccessAuth
+from app.service._common.tests._assertions import (
+    AUDIENCE,
+    EMAIL,
+    TEAM,
+    StaticKeys,
+    make_key,
+    mint,
+)
 from app.service.mcphost.service.service import McpHostService
 from app.setting.service import McpHostServiceSetting
 
@@ -101,6 +110,105 @@ class TestBearerAuth:
 
     def test_nothing_is_public(self, web):
         assert web.get("/health").status_code == 401
+
+
+class TestPublicHost:
+    @pytest.fixture
+    def public(self, log, fake, user_auth):
+        _setting = McpHostServiceSetting(
+            nodes=[{"name": "centre", "endpoint": "http://centre:8800", "token": "t0ken"}],
+            public_hosts=["mcp.example.com"],
+        )
+        _service = McpHostService(_setting, client=fake, auth=user_auth)
+        _service.start()
+        yield _service.asgi_app()
+        _service.stop()
+
+    def _post(self, app, base_url, headers):
+        with TestClient(app, base_url=base_url) as _client:
+            return _client.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, **headers})
+
+    def test_a_public_host_is_served(self, public, user_auth):
+        _res = self._post(public, "https://mcp.example.com", _bearer(user_auth, "phone"))
+        assert _res.status_code == 200
+
+    def test_loopback_is_still_served(self, public, user_auth):
+        assert self._post(public, _BASE, _bearer(user_auth, "phone")).status_code == 200
+
+    def test_an_unlisted_host_gets_421(self, public, user_auth):
+        _res = self._post(public, "https://evil.example.org", _bearer(user_auth, "phone"))
+        assert _res.status_code == 421
+
+    def test_without_public_hosts_the_public_name_gets_421(self, web, user_auth):
+        _res = web.post(
+            "/mcp", json=_INITIALIZE, headers={**_HEADERS, **_bearer(user_auth, "phone"), "Host": "mcp.example.com"}
+        )
+        assert _res.status_code == 421
+
+    def test_an_unlisted_origin_gets_403(self, public, user_auth):
+        _headers = {**_bearer(user_auth, "phone"), "Origin": "https://evil.example.org"}
+        assert self._post(public, "https://mcp.example.com", _headers).status_code == 403
+
+    def test_the_public_origin_is_served(self, public, user_auth):
+        _headers = {**_bearer(user_auth, "phone"), "Origin": "https://mcp.example.com"}
+        assert self._post(public, "https://mcp.example.com", _headers).status_code == 200
+
+    def test_a_public_host_still_needs_a_token(self, public):
+        assert self._post(public, "https://mcp.example.com", {}).status_code == 401
+
+
+class TestAccessAssertion:
+    @pytest.fixture
+    def signing_key(self):
+        return make_key()
+
+    @pytest.fixture
+    def behind_access(self, log, fake, user_auth, signing_key):
+        _setting = McpHostServiceSetting(
+            nodes=[{"name": "centre", "endpoint": "http://centre:8800", "token": "t0ken"}],
+            access={"team_domain": TEAM, "audience": AUDIENCE, "users": [{"email": EMAIL, "name": "me"}]},
+        )
+        _access = AccessAuth(_setting.access, keys=StaticKeys(signing_key))
+        _service = McpHostService(_setting, client=fake, auth=user_auth, access=_access)
+        _service.start()
+        with TestClient(_service.asgi_app(), base_url=_BASE) as _client:
+            yield _client
+        _service.stop()
+
+    def test_the_assertion_opens_a_session_without_a_bearer_token(self, behind_access, signing_key):
+        _res = behind_access.post(
+            "/mcp", json=_INITIALIZE, headers={**_HEADERS, "Cf-Access-Jwt-Assertion": mint(signing_key)}
+        )
+        assert _res.status_code == 200
+
+    def test_the_user_is_the_access_identity_on_the_node(self, behind_access, fake, signing_key):
+        _session = _open_session(behind_access, {"Cf-Access-Jwt-Assertion": mint(signing_key)})
+        assert "error" not in _call(behind_access, _session, "query", {"sql": "SELECT 1"})
+        assert fake.callers == ["me"]
+
+    def test_a_stranger_signed_by_access_is_rejected(self, behind_access, signing_key):
+        _headers = {**_HEADERS, "Cf-Access-Jwt-Assertion": mint(signing_key, email="stranger@example.com")}
+        assert behind_access.post("/mcp", json=_INITIALIZE, headers=_headers).status_code == 401
+
+    def test_a_forged_assertion_is_rejected(self, behind_access):
+        _headers = {**_HEADERS, "Cf-Access-Jwt-Assertion": mint(make_key())}
+        assert behind_access.post("/mcp", json=_INITIALIZE, headers=_headers).status_code == 401
+
+    def test_the_bearer_token_still_works(self, behind_access, user_auth):
+        _res = behind_access.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, **_bearer(user_auth, "phone")})
+        assert _res.status_code == 200
+
+    def test_the_public_host_still_needs_to_be_listed(self, behind_access, signing_key):
+        _headers = {**_HEADERS, "Cf-Access-Jwt-Assertion": mint(signing_key), "Host": "evil.example.org"}
+        assert behind_access.post("/mcp", json=_INITIALIZE, headers=_headers).status_code == 421
+
+    def test_the_service_builds_its_own_verifier_from_the_setting(self, log, fake, user_auth):
+        _setting = McpHostServiceSetting(
+            nodes=[{"name": "centre", "endpoint": "http://centre:8800", "token": "t0ken"}],
+            access={"team_domain": TEAM, "audience": AUDIENCE, "users": [{"email": EMAIL, "name": "me"}]},
+        )
+        assert isinstance(McpHostService(_setting, client=fake, auth=user_auth)._access, AccessAuth)
+        assert McpHostService(McpHostServiceSetting(), client=fake, auth=user_auth)._access is None
 
 
 class TestCaller:

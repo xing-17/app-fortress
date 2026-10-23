@@ -3,16 +3,29 @@ from __future__ import annotations
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 
 from app.internal.constant.servicekind import ServiceKind
 from app.service._common._service import BaseService
+from app.service._common.access import AccessAuth
 from app.service._common.auth import TokenAuth
 from app.service._common.http import BearerAuthMiddleware
 from app.service.mcphost.service.tools import build_server
 from app.service.node.client.httpnode import HttpNodeClient
 from app.service.node.client.node import NodeClient
 from app.setting.service import McpHostServiceSetting, NodeEndpointSetting
+
+_LOCAL_HOSTS: tuple[str, ...] = (
+    "127.0.0.1:*",
+    "localhost:*",
+    "[::1]:*",
+)
+_LOCAL_ORIGINS: tuple[str, ...] = (
+    "http://127.0.0.1:*",
+    "http://localhost:*",
+    "http://[::1]:*",
+)
 
 
 class McpHostService(BaseService[McpHostServiceSetting]):
@@ -38,6 +51,9 @@ class McpHostService(BaseService[McpHostServiceSetting]):
             a given client is not closed by the service
         auth (TokenAuth | None):
             Verifier of the user tokens, required by `asgi_app`
+        access (AccessAuth | None):
+            Verifier of the Cloudflare Access assertion, defaults to one built from `setting.access`
+            when that is set. A request carrying the assertion is authenticated by it alone.
 
     Attributes:
     ----------
@@ -61,11 +77,15 @@ class McpHostService(BaseService[McpHostServiceSetting]):
         node: str | None = None,
         client: NodeClient | None = None,
         auth: TokenAuth | None = None,
+        access: AccessAuth | None = None,
     ) -> None:
         super().__init__(setting)
         self._node: NodeEndpointSetting = self._select_node(setting, node)
         self._client: NodeClient | None = client
         self._auth: TokenAuth | None = auth
+        if access is None and setting.access is not None:
+            access = AccessAuth(setting.access)
+        self._access: AccessAuth | None = access
         self._owns_client: bool = client is None
         self._server: MCPServer | None = None
 
@@ -123,13 +143,31 @@ class McpHostService(BaseService[McpHostServiceSetting]):
         if self._auth is None:
             _msg: str = f"{self.kind} has no auth, it would serve the data to anyone"
             raise RuntimeError(_msg)
-        # The host decides which Host headers the transport accepts
-        _app: Starlette = self._server.streamable_http_app(host=host or self.setting.host)
+        # The transport rejects any Host or Origin that is neither loopback nor a public host
+        _public: list[str] = list(self.setting.public_hosts)
+        _allowed_hosts: list[str] = [
+            *_LOCAL_HOSTS,  # Include local hosts for development and loopback access
+            *_public,  # Include public hosts specified in the setting
+        ]
+        _allowed_origins: list[str] = [
+            *_LOCAL_ORIGINS,  # Include local origins for development and loopback access
+            *(f"https://{_h}" for _h in _public),  # Include public hosts specified in the setting
+        ]
+        _security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=_allowed_hosts,
+            allowed_origins=_allowed_origins,
+        )
+        _app: Starlette = self._server.streamable_http_app(
+            host=host or self.setting.host,
+            transport_security=_security,
+        )
         _app.add_middleware(
             BearerAuthMiddleware,
             auth=self._auth,
             log=self.log,
             public_paths=frozenset(),
+            access=self._access,
         )
         return _app
 
