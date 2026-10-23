@@ -228,6 +228,30 @@ class TestMetadata:
         assert _res[0]["partitions"] == [{"year": "2023"}]
 
 
+class TestMachine:
+    _URL = "/internal/machine/snapshots"
+
+    def test_needs_a_token(self, client):
+        assert client.get(self._URL).status_code == 401
+
+    def test_lists_the_snapshots(self, client, headers, service):
+        service._machine._record()
+        _res = client.get(self._URL, headers=headers)
+        assert _res.status_code == 200
+        assert len(_res.json()) == 1
+
+    def test_hours_narrows_the_window(self, client, headers, service):
+        service._machine._record()
+        _res = client.get(self._URL, params={"hours": "1"}, headers=headers)
+        assert len(_res.json()) == 1
+
+    @pytest.mark.parametrize("hours", ["abc", "0", "-2"])
+    def test_bad_hours_is_a_400(self, client, headers, hours):
+        _res = client.get(self._URL, params={"hours": hours}, headers=headers)
+        assert _res.status_code == 400
+        assert _res.json()["error"] == "NodeBadRequestError"
+
+
 class TestQuery:
     def test_runs_a_select(self, client, headers, source):
         _write(source, "alpha", "a.parquet", pl.DataFrame({"a": [1, 2]}))

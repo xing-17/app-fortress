@@ -61,10 +61,12 @@ class NodeHttp:
         GET  /internal/datasets/{source}/{dataset}/metadatas[?since=&until=]
         GET  /internal/datasets/{source}/{dataset}/qualities[?since=&until=]
         GET  /internal/datasets/{source}/{dataset}/definitions[?since=&until=]
+        GET  /internal/machine/snapshots[?hours=]
         POST /internal/query            body {"sql": "SELECT ..."}
 
     `since` and `until` are epoch seconds (`modified_at` of an assetfile is one) or an ISO 8601
-    datetime, a datetime without an offset is read as UTC.
+    datetime, a datetime without an offset is read as UTC. `hours` is a number above 0, the
+    machine snapshots of that many past hours, all of them when absent.
 
     Errors:
     ----------
@@ -110,6 +112,7 @@ class NodeHttp:
             Route(f"{_dataset}/metadatas", self._list_metadatas, methods=["GET"]),
             Route(f"{_dataset}/qualities", self._list_qualities, methods=["GET"]),
             Route(f"{_dataset}/definitions", self._list_definitions, methods=["GET"]),
+            Route(f"{_prefix}/machine/snapshots", self._list_machine_snapshots, methods=["GET"]),
             Route(f"{_prefix}/query", self._query, methods=["POST"]),
         ]
         _handlers: dict[Any, Any] = {_exc: self._handle_known_error for _exc in _STATUS}
@@ -271,6 +274,17 @@ class NodeHttp:
             dataset=_dataset,
             **self._window(request),
         )
+        return JsonResponse(_res)
+
+    def _list_machine_snapshots(self, request: Request) -> Response:
+        _raw: str | None = request.query_params.get("hours")
+        _hours: float | None = None
+        if _raw:
+            try:
+                _hours = float(_raw)
+            except ValueError:
+                raise NodeBadRequestError("'hours' must be a number") from None
+        _res = self._service.list_machine_snapshots(_hours)
         return JsonResponse(_res)
 
     async def _query(self, request: Request) -> Response:

@@ -41,6 +41,8 @@ class NodeClient(ABC):
         query(sql, caller=None) -> DRADataResult:
             Run one SELECT on the node, as the identity this client holds, or as `caller` when
             that identity may delegate (the node names the principal `<identity>:<caller>`)
+        list_machine_snapshots(hours=None) -> list[dict]:
+            Snapshots of the node's host machine, oldest first, all of them or those of the last `hours`
         health() -> dict:
             Node state, does not need the node to be healthy
         close() -> None:
@@ -121,6 +123,13 @@ class NodeClient(ABC):
         caller: str | None = None,
     ) -> DRADataResult:
         """Run one SELECT on the node."""
+
+    @abstractmethod
+    def list_machine_snapshots(
+        self,
+        hours: float | None = None,
+    ) -> list[dict[str, Any]]:
+        """Snapshots of the node's host machine, oldest first."""
 
     @abstractmethod
     def health(self) -> dict[str, Any]:

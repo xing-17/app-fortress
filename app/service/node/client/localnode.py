@@ -145,6 +145,16 @@ class LocalNodeClient(NodeClient):
         return self._service.query(_principal, sql)
 
     # --------------------------------------------------
+    # MACHINE: State of the host machine
+    # --------------------------------------------------
+
+    def list_machine_snapshots(
+        self,
+        hours: float | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._service.list_machine_snapshots(hours)
+
+    # --------------------------------------------------
     # HEALTH: Check the health status of the node
     # --------------------------------------------------
 

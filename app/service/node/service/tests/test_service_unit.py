@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import polars as pl
 import pytest
 
+from app.internal.constant.servicestate import ServiceState
 from app.internal.logstream import LogStream
 from app.resource._global.identities import GlobalIdentities
 from app.resource._global.logstreams import GlobalLogStreams
@@ -16,10 +17,15 @@ from app.resource.asset.local.vault import LocalVault
 from app.resource.source._common.tests.fakes.base import FakeSource
 from app.resource.store.file.store import FileStore
 from app.service._common.auth import Principal
+from app.service.machine.service.service import MachineService
 from app.service.node.dra import DRABusyError, DRADataResult, DRARefreshError, DRARejectedError, DRASession
-from app.service.node.service.errors import NodeDatasetNotFoundError, NodeSourceNotFoundError
+from app.service.node.service.errors import (
+    NodeBadRequestError,
+    NodeDatasetNotFoundError,
+    NodeSourceNotFoundError,
+)
 from app.service.node.service.service import NodeService
-from app.setting.service import NodeServiceSetting
+from app.setting.service import MachineServiceSetting, NodeServiceSetting
 
 
 @pytest.fixture(autouse=True)
@@ -214,6 +220,41 @@ class TestDefinitions:
     def test_assetfile_without_metadata_is_skipped(self, service, source):
         _write(source, "beta", "bare.parquet", pl.DataFrame({"a": [1]}), {"year": "2022"}, metadata=False)
         assert service.list_definitions("src", "beta") == []
+
+
+class TestMachine:
+    def test_lists_the_recorded_snapshots(self, service):
+        service._machine._record()
+        _res = service.list_machine_snapshots()
+        assert len(_res) == 1
+        assert _res[0]["mem_total_mb"] > 0
+
+    def test_hours_narrows_the_window(self, service):
+        service._machine._record()
+        assert len(service.list_machine_snapshots(hours=1)) == 1
+
+    @pytest.mark.parametrize("hours", [0, -1, float("nan")])
+    def test_hours_must_be_above_zero(self, service, hours):
+        with pytest.raises(NodeBadRequestError):
+            service.list_machine_snapshots(hours=hours)
+
+    def test_requires_a_running_service(self, log, source):
+        _service = NodeService(NodeServiceSetting())
+        with pytest.raises(RuntimeError, match="not running"):
+            _service.list_machine_snapshots()
+
+    def test_machine_follows_the_node_lifecycle(self, log, source):
+        _service = NodeService(NodeServiceSetting())
+        assert _service._machine.state == ServiceState.CREATED
+        _service.start()
+        assert _service._machine.is_running
+        _service.stop()
+        assert _service._machine.state == ServiceState.STOPPED
+
+    def test_uses_the_given_machine_service(self, log, source):
+        _machine = MachineService(MachineServiceSetting(interval_seconds=30))
+        _service = NodeService(NodeServiceSetting(), machine=_machine)
+        assert _service._machine is _machine
 
 
 class TestQuery:

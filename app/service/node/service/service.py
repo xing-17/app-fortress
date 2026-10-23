@@ -16,6 +16,7 @@ from app.resource.source._common._dataset import BaseDataset
 from app.resource.source._common._source import BaseSource
 from app.service._common._service import BaseService
 from app.service._common.auth import Principal
+from app.service.machine.service.service import MachineService
 from app.service.node.dra import (
     DRADataResult,
     DRAError,
@@ -25,10 +26,11 @@ from app.service.node.dra import (
     DRASession,
 )
 from app.service.node.service.errors import (
+    NodeBadRequestError,
     NodeDatasetNotFoundError,
     NodeSourceNotFoundError,
 )
-from app.setting.service import NodeServiceSetting
+from app.setting.service import MachineServiceSetting, NodeServiceSetting
 
 
 class NodeService(BaseService[NodeServiceSetting]):
@@ -41,12 +43,17 @@ class NodeService(BaseService[NodeServiceSetting]):
     Sessions are pooled by `DRAPool` up to `setting.dra.max_sessions`, see there for the eviction
     rules. When every session is busy a new caller gets `DRABusyError`.
 
+    The node owns a `MachineService` (the state of the host machine over time): it starts and
+    stops with the node.
+
     The DRA views are named "<source>.<dataset>"; catalog methods take `source` and `dataset` apart.
 
     Args:
     ----------
         setting (NodeServiceSetting):
             Node service setting
+        machine (MachineService | None):
+            Machine service the node reports from, defaults to one on the default machine setting
 
     Methods:
     ----------
@@ -69,6 +76,8 @@ class NodeService(BaseService[NodeServiceSetting]):
             assetfiles without metadata are skipped
         query(caller, sql) -> DRADataResult:
             Run one SELECT in the caller's DRA session, created on first use
+        list_machine_snapshots(hours=None) -> list[dict]:
+            Snapshots of the host machine (cpu, memory, disk, network), oldest first
         reset_sessions() -> None:
             Close all idle sessions and retire the busy ones, the next query builds a new one
 
@@ -79,8 +88,12 @@ class NodeService(BaseService[NodeServiceSetting]):
     def __init__(
         self,
         setting: NodeServiceSetting,
+        machine: MachineService | None = None,
     ) -> None:
         super().__init__(setting)
+        if machine is None:
+            machine = MachineService(MachineServiceSetting())
+        self._machine: MachineService = machine
         _dra_max_sessions: int = setting.dra.max_sessions
         _dra_max_idle_seconds: int = setting.dra.max_session_idle_seconds
         self._pool = DRAPool(
@@ -97,9 +110,13 @@ class NodeService(BaseService[NodeServiceSetting]):
     def _start(self) -> None:
         # Load the sources now so a broken setting fails the start
         GlobalSources.list_sources()
+        self._machine.start()
 
     def _stop(self) -> None:
-        self.reset_sessions()
+        try:
+            self.reset_sessions()
+        finally:
+            self._machine.stop()
 
     def health(self) -> dict:
         _res: dict = super().health()
@@ -349,6 +366,20 @@ class NodeService(BaseService[NodeServiceSetting]):
             _groups[_fp].partitions.append(dict(_file.partitions))
 
         return [_group.export() for _group in _groups.values()]
+
+    # --------------------------------------------------
+    # Machine
+    # --------------------------------------------------
+
+    def list_machine_snapshots(
+        self,
+        hours: float | None = None,
+    ) -> list[dict[str, Any]]:
+        self._require_running()
+        # `not > 0` also rejects NaN
+        if hours is not None and not hours > 0:
+            raise NodeBadRequestError("'hours' must be greater than 0")
+        return self._machine.list_snapshots(hours)
 
     # --------------------------------------------------
     # DRA

@@ -149,3 +149,18 @@ class TestContract:
         _res = client.health()
         assert _res["kind"] == "node"
         assert _res["is_running"] is True
+
+    def test_list_machine_snapshots(self, client, service):
+        service._machine._record()
+        _res = client.list_machine_snapshots()
+        assert len(_res) == 1
+        assert _res[0]["mem_total_mb"] > 0
+
+    def test_list_machine_snapshots_window(self, client, service):
+        service._machine._record()
+        assert len(client.list_machine_snapshots(hours=1)) == 1
+        assert len(client.list_machine_snapshots(hours=0.0001)) in (0, 1)
+
+    def test_list_machine_snapshots_rejects_non_positive_hours(self, client):
+        with pytest.raises(NodeBadRequestError):
+            client.list_machine_snapshots(hours=0)

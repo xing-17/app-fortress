@@ -356,6 +356,23 @@ class HttpNodeClient(NodeClient):
         return DRADataResult.model_validate(_payload)
 
     # --------------------------------------------------
+    # MACHINE: State of the host machine
+    # --------------------------------------------------
+
+    def list_machine_snapshots(
+        self,
+        hours: float | None = None,
+    ) -> list[dict[str, Any]]:
+        _params: dict[str, str] | None = None
+        if hours is not None:
+            _params = {"hours": str(hours)}
+        return self._call(
+            method="GET",
+            path="/internal/machine/snapshots",
+            params=_params,
+        )
+
+    # --------------------------------------------------
     # HEALTH: Check the health status of the node
     # --------------------------------------------------
 
