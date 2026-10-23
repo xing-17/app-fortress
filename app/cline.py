@@ -168,6 +168,54 @@ def _auth_base_dir() -> Path:
 
 
 # --------------------------------------------------
+# All service control
+# --------------------------------------------------
+
+
+def _up(args: argparse.Namespace) -> int:
+    import signal
+    import socket
+    import subprocess
+    import time
+
+    _base = [sys.executable, "-m", "app.cline"]
+    _common = ["--setting-path", args.setting_path] if args.setting_path else []
+    _procs: list[subprocess.Popen] = []
+
+    def _wait_port(host: str, port: int, timeout: float = 30.0) -> bool:
+        _end = time.monotonic() + timeout
+        while time.monotonic() < _end:
+            try:
+                with socket.create_connection((host, port), timeout=1):
+                    return True
+            except OSError:
+                time.sleep(0.3)
+        return False
+
+    def _stop(*_: object) -> None:
+        for _p in _procs:
+            if _p.poll() is None:
+                _p.send_signal(signal.SIGINT)
+
+    signal.signal(signal.SIGINT, _stop)
+    signal.signal(signal.SIGTERM, _stop)
+
+    _node_setting, _ = _load_node_setting(args)
+    _procs.append(subprocess.Popen([*_base, "node", "start", *_common]))
+    if not _wait_port(_node_setting.host, _node_setting.port):
+        _stop()
+        print("node did not come up", file=sys.stderr)
+        return 1
+    _procs.append(subprocess.Popen([*_base, "mcphost", "start", *_common]))
+
+    # 任何一个退出就带停另一个
+    while all(_p.poll() is None for _p in _procs):
+        time.sleep(0.5)
+    _stop()
+    return max((_p.wait() for _p in _procs), default=0)
+
+
+# --------------------------------------------------
 # Parser
 # --------------------------------------------------
 
@@ -290,6 +338,14 @@ def _build_cline() -> argparse.ArgumentParser:
         help="log level of the HTTP server",
     )
     _mcphost_run.set_defaults(handler=_mcphost_start)
+
+    # Up command
+    _up_cmd = _groups.add_parser(
+        "up",
+        parents=[_common],
+        help="start all services together",
+    )
+    _up_cmd.set_defaults(handler=_up)
 
     return _parser
 
