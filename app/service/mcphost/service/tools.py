@@ -20,6 +20,7 @@ from app.service.node.dra import (
 from app.service.node.service.errors import (
     NodeBadRequestError,
     NodeDatasetNotFoundError,
+    NodeRunNotFoundError,
     NodeSourceNotFoundError,
     NodeUnauthorizedError,
     NodeUnavailableError,
@@ -27,6 +28,7 @@ from app.service.node.service.errors import (
 
 from .instructions import (
     _GET_QUALITY_DOC,
+    _GET_RUN_DOC,
     _GET_SCHEMA_DOC,
     _INSTRUCTIONS,
     _LIST_DATASETS_DOC,
@@ -49,6 +51,7 @@ _MAX_RUN_LIMIT = 100
 _CALLER_ERRORS = (
     NodeSourceNotFoundError,
     NodeDatasetNotFoundError,
+    NodeRunNotFoundError,
     NodeBadRequestError,
     DRARejectedError,
     DRAQueryError,
@@ -523,6 +526,30 @@ def build_server(
             arguments={"dataset": dataset, "status": status, "limit": limit, "node": node},
             func=_call,
             metrics=lambda r: {"runs": len(r["runs"])},
+            caller=_caller_of(ctx),
+        )
+
+    @_server.tool(name="get_dataset_run", description=_GET_RUN_DOC)
+    def get_dataset_run(
+        ctx: Context,
+        dataset: str,
+        id: str,
+        node: str | None = None,
+    ) -> dict[str, Any]:
+        def _call() -> dict[str, Any]:
+            _source, _name = _split(dataset)
+            _node, _client = _router.locate(_source, _name, node)
+            _run = _client.get_dataset_run(_source, _name, id)
+            return {
+                "node": _node,
+                "dataset": f"{_source}.{_name}",
+                "run": _run,
+            }
+
+        return _guard.run(
+            tool="get_dataset_run",
+            arguments={"dataset": dataset, "id": id, "node": node},
+            func=_call,
             caller=_caller_of(ctx),
         )
 

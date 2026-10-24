@@ -18,6 +18,7 @@ from app.service.node.dra import (
 from app.service.node.service.errors import (
     NodeBadRequestError,
     NodeDatasetNotFoundError,
+    NodeRunNotFoundError,
     NodeUnauthorizedError,
     NodeUnavailableError,
     NodeUnknownError,
@@ -104,6 +105,7 @@ class TestToolList:
             "get_schema",
             "get_quality",
             "list_runs",
+            "get_dataset_run",
             "list_machine_snapshots",
             "query",
         }
@@ -486,6 +488,19 @@ class TestListRuns:
         fake.runs = [self._RUN, self._RUN]
         call(server, "list_runs", {"dataset": "src.alpha"})
         assert log.info.call_args.kwargs["metrics"]["runs"] == 2
+
+
+class TestGetDatasetRun:
+    def test_returns_the_run(self, server, fake):
+        _res = data(call(server, "get_dataset_run", {"dataset": "src.alpha", "id": "run_1"}))
+        assert _res == {"node": "centre", "dataset": "src.alpha", "run": fake.run}
+        assert ("get_dataset_run", ("src", "alpha", "run_1")) in fake.calls
+
+    def test_unknown_run_message_reaches_the_ai(self, server, fake):
+        fake.raises = NodeRunNotFoundError("Run 'x' not found on 'src.alpha'")
+        _res = call(server, "get_dataset_run", {"dataset": "src.alpha", "id": "x"})
+        assert _res.is_error
+        assert "not found" in text(_res)
 
 
 class TestQuery:

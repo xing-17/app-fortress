@@ -7,7 +7,7 @@ The host holds **no data and no logic of its own**. Every tool is answered by a 
 | File | Content |
 |---|---|
 | `service.py` | `McpHostService`, the lifecycle: pick the nodes, check them at start, build the MCP server, mount auth |
-| `tools.py` | `build_server` (the five tools), `NodeRouter` (route one call, fan out to all nodes), `MCPGuard` (timing, logging, error translation), result shaping helpers |
+| `tools.py` | `build_server` (the tools), `NodeRouter` (route one call, fan out to all nodes), `MCPGuard` (timing, logging, error translation), result shaping helpers |
 | `instructions.py` | The texts the AI reads: server instructions and the description of each tool |
 | `http.py` | `serve`: start the service, run uvicorn, stop the service |
 | `tests/` | Unit tests (`fakes.py` holds a fake `NodeClient`) |
@@ -21,7 +21,7 @@ AI client ──► HTTP (streamable MCP)
         BearerAuthMiddleware ──► Principal (which user / device)
                 │
                 ▼
-        MCPServer  (tools: list_nodes, list_datasets, get_schema, get_quality, query)
+        MCPServer  (tools: list_nodes, list_datasets, get_schema, get_quality, list_runs, get_dataset_run, list_machine_snapshots, query)
                 │
                 ▼
         MCPGuard   (log start, time, translate errors, log result)
@@ -175,7 +175,7 @@ mcphost:
 
 ## Tools
 
-The AI is guided to the flow `list_datasets` → `get_schema` → `query`, with `get_quality` to judge completeness. Datasets are always named `<source>.<dataset>`, which is also the table name in SQL (`_split` validates this form).
+The AI is guided to the flow `list_datasets` → `get_schema` → `query`, with `get_quality` to judge completeness and `list_runs` to see how the last runs went. Datasets are always named `<source>.<dataset>`, which is also the table name in SQL (`_split` validates this form).
 
 | Tool | Node calls | Returns |
 |---|---|---|
@@ -183,13 +183,14 @@ The AI is guided to the flow `list_datasets` → `get_schema` → `query`, with 
 | `get_schema(dataset)` | `get_dataset`, `list_definitions` | Description, partition keys, and `definitions`: each distinct schema (columns and types) with its `partition_count` and the min/max of each partition key. Sorted by partition count, the most common schema first |
 | `get_quality(dataset, limit=20)` | `list_qualities` | Per partition file, newest first (limit clamped 1..200): rows, complete rows, duplicates, columns with a NULL rate, constant columns, all-NULL columns. `checked: false` when a file has no quality record |
 | `list_runs(dataset, status?, limit=20)` | `list_runs` | Run records of the dataset, newest first (limit clamped 1..100): status, start/finish time, duration, params, rows/columns written, error of a failed run. `status` is started, completed or failed |
+| `get_dataset_run(dataset, id)` | `get_dataset_run` | The record of one run (id from `list_runs`), `{node, dataset, run}` |
 | `query(sql)` | `query(sql, caller=)` | The rows of ONE read-only SELECT (DuckDB). Capped in rows and size, `truncated` says so |
 
 Notes:
 - `_summarize_quality` reduces the full quality record to key metrics so the answer stays small for the AI.
 - Partition keys are VARCHAR in SQL; the tool descriptions tell the AI to `CAST` them. Columns missing in some partitions read as NULL.
 - The tool functions are plain `def`, the MCP SDK runs them in a worker thread so a slow node call does not block the event loop.
-- **Read-only by construction**: there is no write tool, and SQL validation, session isolation, row/size caps and timeout are the node's DRA engine's job, not the host's.
+- **Read-only by construction**: there is no write tool (starting a dataset run is not exposed here), and SQL validation, session isolation, row/size caps and timeout are the node's DRA engine's job, not the host's.
 - `query` passes the user's name as `caller`, so the node runs the query in a session of its own and audits it by that name.
 
 ## Error handling and logging (`MCPGuard`)
@@ -203,7 +204,7 @@ Every tool call runs through `MCPGuard.run`:
 
 | Error from the node side | Message the AI gets |
 |---|---|
-| Source/dataset not found, bad request, SQL rejected, query failed, query timeout, all sessions busy | The **original message**: it is worded for the caller, so the AI can fix its next call |
+| Source/dataset/run not found, bad request, SQL rejected, query failed, query timeout, all sessions busy | The **original message**: it is worded for the caller, so the AI can fix its next call |
 | Node rejected the host token | Fixed: "The node rejected the token of this host." |
 | Node unreachable or too slow | Fixed: "The node is unreachable or too slow, try again later." |
 | Anything else | Fixed: "Unexpected error in the node host." |

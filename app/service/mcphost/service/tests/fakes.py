@@ -31,6 +31,7 @@ class FakeNodeClient(NodeClient):
         self.definitions: list[dict[str, Any]] = []
         self.qualities: list[dict[str, Any]] = []
         self.runs: list[dict[str, Any]] = []
+        self.run: dict[str, Any] = {"id": "run_1", "status": "started"}
         self.result = DRADataResult(columns=["a"], types=["BIGINT"], rows=[[1]])
         self.node_health: dict[str, Any] = {"state": "running", "is_running": True}
         self.snapshots: list[dict[str, Any]] = []
@@ -83,6 +84,14 @@ class FakeNodeClient(NodeClient):
     def list_runs(self, source, dataset, status=None, limit=None):
         self._call("list_runs", source, dataset, status, limit)
         return list(self.runs)
+
+    def submit_dataset_run(self, source, dataset, params=None):
+        self._call("submit_dataset_run", source, dataset, params)
+        return self.run
+
+    def get_dataset_run(self, source, dataset, id):
+        self._call("get_dataset_run", source, dataset, id)
+        return self.run
 
     def query(self, sql, caller=None):
         self._call("query", sql)
