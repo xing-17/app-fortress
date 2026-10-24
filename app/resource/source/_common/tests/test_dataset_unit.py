@@ -4,6 +4,7 @@ import polars as pl
 import pytest
 
 from app.internal.constant.assetfilekind import AssetFileKind
+from app.internal.constant.computestatus import ComputeStatus
 from app.internal.constant.frequencyoption import FrequencyOption
 from app.internal.constant.sourceprovider import SourceProvider
 from app.resource.source._common.tests.fakes.ok.alpha import AlphaDataset
@@ -64,6 +65,82 @@ class TestDatasetRun:
         _messages = [r.getMessage() for r in log_stream.collector.records]
         assert any("run failed: boom" in m for m in _messages)
         assert not any("run completed" in m for m in _messages)
+
+
+class TestDatasetRunRecords:
+    def test_no_records_before_any_run(self, dataset):
+        assert dataset.list_runs() == []
+
+    def test_completed_run_is_recorded(self, dataset):
+        _files = dataset.run(params={"k": "v"})
+        _runs = dataset.list_runs()
+        assert len(_runs) == 1
+        assert _runs[0].status == ComputeStatus.COMPLETED
+        assert _runs[0].provider == str(SourceProvider.TUSHARE)
+        assert _runs[0].dataset == "alpha"
+        assert _runs[0].params == {"k": "v"}
+        assert _runs[0].assetfiles == [_files[0].uri]
+        assert (_runs[0].height, _runs[0].width) == (3, 2)
+        assert _runs[0].finished_at is not None
+
+    def test_failed_run_is_recorded_and_reraised(self, dataset, monkeypatch):
+        def _boom(self, params=None):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(type(dataset), "extract", _boom)
+        with pytest.raises(RuntimeError, match="boom"):
+            dataset.run()
+        _runs = dataset.list_runs()
+        assert len(_runs) == 1
+        assert _runs[0].status == ComputeStatus.FAILED
+        assert _runs[0].error == "boom"
+        assert _runs[0].assetfiles == []
+
+    def test_get_run_returns_the_record_of_the_id(self, dataset):
+        dataset.run()
+        _run = dataset.list_runs()[0]
+        assert dataset.get_run(_run.id).export() == _run.export()
+
+    def test_get_run_of_unknown_id_returns_none(self, dataset):
+        assert dataset.get_run("run-missing") is None
+
+    def test_runs_are_stored_in_the_run_table(self, dataset):
+        dataset.run()
+        assert dataset.get_run_table().path.parent == dataset.database.path
+        assert dataset.get_run_table().path.stem == dataset._run_table_name
+
+    def test_list_runs_is_newest_first(self, dataset):
+        dataset.run()
+        dataset.run()
+        dataset.run()
+        _started = [r.started_at for r in dataset.list_runs()]
+        assert _started == sorted(_started, reverse=True)
+        assert len(_started) == 3
+
+    def test_list_runs_limit_keeps_the_newest(self, dataset):
+        for _ in range(3):
+            dataset.run()
+        _all = dataset.list_runs()
+        assert [r.id for r in dataset.list_runs(limit=2)] == [r.id for r in _all[:2]]
+
+    def test_list_runs_filters_by_status(self, dataset, monkeypatch):
+        dataset.run()
+
+        def _boom(self, params=None):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(type(dataset), "extract", _boom)
+        with pytest.raises(RuntimeError):
+            dataset.run()
+        assert len(dataset.list_runs()) == 2
+        assert [r.status for r in dataset.list_runs(status=ComputeStatus.FAILED)] == [ComputeStatus.FAILED]
+        assert [r.status for r in dataset.list_runs(status=ComputeStatus.COMPLETED)] == [ComputeStatus.COMPLETED]
+
+    def test_run_records_are_capped(self, dataset, monkeypatch):
+        monkeypatch.setattr(type(dataset), "_max_run_records", 2)
+        for _ in range(3):
+            dataset.run()
+        assert len(dataset.list_runs()) == 2
 
 
 class TestDatasetAssetfiles:

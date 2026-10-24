@@ -17,6 +17,7 @@ from app.internal.util.stopwatch import IStopwatch
 from app.resource.asset._common._asset import BaseAsset
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.source._common._base import GovernedSourceResource
+from app.resource.source._common._run import DatasetRun
 from app.resource.store._common._database import BaseDatabase
 from app.resource.store._common._table import BaseTable
 
@@ -50,7 +51,7 @@ class BaseDataset(
         asset (BaseAsset):
             Asset holding the dataset files
         database (BaseDatabase):
-            Database holding the dataset metadata
+            Database holding the dataset metadata and the run records
         log_stream (LogStream):
             Log stream shared by the source
         tags (dict[str, str]):
@@ -66,6 +67,8 @@ class BaseDataset(
             Write the transformed data into assetfiles.
         run(params: dict[str, Any] | None = None) -> list[BaseAssetfile]:
             Run extract, transform and write in order, logging metrics and duration.
+            Every call is recorded as a DatasetRun: STARTED before the steps, then COMPLETED or FAILED.
+            A failure is re-raised after the record is written.
         write_assetfile(assetfile: BaseAssetfile, bytes: bytes) -> BaseAssetfile:
             Write raw bytes into an assetfile.
         read_assetfile(assetfile: BaseAssetfile) -> bytes:
@@ -82,6 +85,13 @@ class BaseDataset(
             Read the metadata of an assetfile from its metadata table.
         list_metadatas(since: datetime | float | None = None, until: datetime | float | None = None) -> list[AssetfileMetadata]:
             Read the metadata of all assetfiles matching the filter.
+        get_run_table() -> BaseTable:
+            Get the run record table of the dataset database, keyed by run id.
+            Once it holds more than 200 records the oldest are dropped.
+        get_run(id: str) -> DatasetRun | None:
+            Get the run record of the given id, None if there is none.
+        list_runs(status: str | None = None, limit: int | None = None) -> list[DatasetRun]:
+            List the run records, newest first, optionally filtered by status and capped at limit.
         list_qualities(since: datetime | float | None = None, until: datetime | float | None = None) -> list[tuple[BaseAssetfile, DataframeQuality]]:
             Quality of each assetfile matching the filter, assetfiles without metadata are skipped.
         list_definitions(since: datetime | float | None = None, until: datetime | float | None = None) -> list[DefinitionGroup]:
@@ -106,6 +116,8 @@ class BaseDataset(
 
     # ---------- Enforced PRIVATE class variables ----------
     _metadata_key: ClassVar[str] = "__METADATA__"
+    _run_table_name: ClassVar[str] = "__RUN_RECORD__"
+    _max_run_records: ClassVar[int] = 200
 
     # --------------------------------------------------
     # Instance variables section
@@ -167,6 +179,12 @@ class BaseDataset(
         self,
         params: dict[str, Any] | None = None,
     ) -> list[BaseAssetfile]:
+        _run: DatasetRun = DatasetRun(
+            provider=str(self.provider),
+            dataset=self.name,
+            params=params or {},
+        )
+        self._write_run(run=_run)
         IStopwatch.tick()
         try:
             _df: pl.DataFrame = self.extract(params=params)
@@ -183,11 +201,27 @@ class BaseDataset(
                 tags={"step": "run"},
             )
         except Exception as e:
-            self.log_stream.error(msg=f"Dataset {self.name} run failed: {e}", tags={"step": "run"})
+            _run.fail(e)
+            self._write_run(run=_run)
+            self.log_stream.error(
+                msg=f"Dataset {self.name} run failed: {e}",
+                tags={"step": "run"},
+            )
             raise
         finally:
             _duration: float = IStopwatch.tock()
-        self.log_stream.info(msg=f"Dataset {self.name} run completed in {_duration:.2f}s", tags={"step": "run"})
+
+        # Records the final state of the run
+        _run.complete(
+            assetfiles=[f.uri for f in _files],
+            height=_df.height,
+            width=_df.width,
+        )
+        self._write_run(run=_run)
+        self.log_stream.info(
+            msg=f"Dataset {self.name} run completed in {_duration:.2f}s",
+            tags={"step": "run"},
+        )
         return _files
 
     # --------------------------------------------------
@@ -282,6 +316,56 @@ class BaseDataset(
                 continue
             _res.append(_metadata)
         return _res
+
+    # --------------------------------------------------
+    # Run management Ops section
+    # --------------------------------------------------
+
+    def get_run_table(self) -> BaseTable:
+        return self.database.table(
+            name=self._run_table_name,
+            ttl_hours=None,
+            max_items=self._max_run_records,
+        )
+
+    def get_run(
+        self,
+        id: str,
+    ) -> DatasetRun | None:
+        _run_table: BaseTable = self.get_run_table()
+        _content = _run_table.read(key=id, strict=False)
+        if _content is None:
+            return None
+        else:
+            return DatasetRun.from_dict(_content)
+
+    def list_runs(
+        self,
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[DatasetRun]:
+        _run_table: BaseTable = self.get_run_table()
+        _contents = _run_table.read(strict=False) or {}
+        _res: list[DatasetRun] = []
+        for _content in _contents.values():
+            _run: DatasetRun = DatasetRun.from_dict(_content)
+            if status is not None and _run.status != status:
+                continue
+            _res.append(_run)
+        _res.sort(key=lambda _r: _r.started_at, reverse=True)
+        if limit is not None and limit < len(_res):
+            _res = _res[:limit]
+        return _res
+
+    def _write_run(
+        self,
+        run: DatasetRun,
+    ) -> None:
+        _run_table: BaseTable = self.get_run_table()
+        _run_table.write(
+            key=run.id,
+            data=run.export(),
+        )
 
     def export(self) -> dict[str, Any]:
         _res: dict[str, Any] = self.model_dump(
