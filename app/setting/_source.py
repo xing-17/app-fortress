@@ -45,6 +45,11 @@ class AbstractSourceSetting(IAbstractTaggedSetting):
         default="",
         description="[Optional] The description of the data source.",
     )
+    max_threads: int = Field(
+        default=1,
+        description="[Optional] The maximum number of threads to run datasets",
+        ge=1,  # Minimum value for max_threads is 1
+    )
     log: LogSetting | None = Field(
         default=None,
         description="[Optional] The log configuration for the data source.",

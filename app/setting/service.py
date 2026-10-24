@@ -260,6 +260,11 @@ class NodeServiceSetting(AbstractServiceSetting):
         ge=1,
         le=65535,
     )
+    max_threads: int = Field(
+        default=2,
+        description="[Optional] The maximum number of threads to run source in parallel",
+        ge=1,
+    )
     dra: DRASetting = Field(
         default_factory=DRASetting,
         description="[Optional] Query sandbox limits",
