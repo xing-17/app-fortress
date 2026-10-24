@@ -143,6 +143,64 @@ class TestDatasetRunRecords:
         assert len(dataset.list_runs()) == 2
 
 
+class TestDatasetStartRun:
+    def test_start_run_writes_a_started_record_with_owner(self, dataset):
+        _run = dataset.start_run(params={"k": "v"}, owner="n1")
+        _read = dataset.get_run(_run.id)
+        assert _read.status == ComputeStatus.STARTED
+        assert (_read.params, _read.owner) == ({"k": "v"}, "n1")
+
+    def test_run_reuses_the_given_run(self, dataset):
+        _run = dataset.start_run(owner="n1")
+        dataset.run(run=_run)
+        _runs = dataset.list_runs()
+        assert [r.id for r in _runs] == [_run.id]
+        assert _runs[0].status == ComputeStatus.COMPLETED
+        assert _runs[0].owner == "n1"
+
+    def test_run_without_a_run_has_no_owner(self, dataset):
+        dataset.run()
+        assert dataset.list_runs()[0].owner is None
+
+
+class TestDatasetFailRun:
+    def test_fail_run_records_the_failure(self, dataset):
+        _run = dataset.start_run()
+        dataset.fail_run(_run, "gone")
+        assert dataset.get_run(_run.id).status == ComputeStatus.FAILED
+        assert dataset.get_run(_run.id).error == "gone"
+
+    def test_fail_run_is_a_no_op_on_a_finished_run(self, dataset):
+        _run = dataset.start_run()
+        dataset.fail_run(_run, "first")
+        dataset.fail_run(_run, "second")
+        assert dataset.get_run(_run.id).error == "first"
+
+
+class TestDatasetRecoverRuns:
+    def test_fails_the_started_runs_of_the_owner(self, dataset):
+        _run = dataset.start_run(owner="n1")
+        _recovered = dataset.recover_runs(owner="n1")
+        assert [r.id for r in _recovered] == [_run.id]
+        assert dataset.get_run(_run.id).status == ComputeStatus.FAILED
+        assert "restart" in dataset.get_run(_run.id).error
+
+    def test_keeps_the_runs_of_other_owners_and_of_no_owner(self, dataset):
+        _other = dataset.start_run(owner="n2")
+        _none = dataset.start_run()
+        assert dataset.recover_runs(owner="n1") == []
+        assert dataset.get_run(_other.id).status == ComputeStatus.STARTED
+        assert dataset.get_run(_none.id).status == ComputeStatus.STARTED
+
+    def test_keeps_the_finished_runs(self, dataset):
+        dataset.run(run=dataset.start_run(owner="n1"))
+        assert dataset.recover_runs(owner="n1") == []
+        assert dataset.list_runs()[0].status == ComputeStatus.COMPLETED
+
+    def test_no_records_recovers_nothing(self, dataset):
+        assert dataset.recover_runs(owner="n1") == []
+
+
 class TestDatasetAssetfiles:
     def test_write_and_read_assetfile_round_trip(self, dataset):
         _file = dataset.asset.assetfile("data.parquet")

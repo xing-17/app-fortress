@@ -65,10 +65,15 @@ class BaseDataset(
             Transform the extracted data.
         write(df: pl.DataFrame) -> list[BaseAssetfile]:
             Write the transformed data into assetfiles.
-        run(params: dict[str, Any] | None = None) -> list[BaseAssetfile]:
+        start_run(params: dict[str, Any] | None = None, owner: str | None = None) -> DatasetRun:
+            Create a DatasetRun and write it as STARTED, without running anything.
+        run(params: dict[str, Any] | None = None, run: DatasetRun | None = None) -> list[BaseAssetfile]:
             Run extract, transform and write in order, logging metrics and duration.
             Every call is recorded as a DatasetRun: STARTED before the steps, then COMPLETED or FAILED.
+            Pass the run of `start_run` to keep its id, otherwise one is started here.
             A failure is re-raised after the record is written.
+        fail_run(run: DatasetRun, error: Exception | str) -> None:
+            Record an unfinished run as FAILED, no-op when it is already finished.
         write_assetfile(assetfile: BaseAssetfile, bytes: bytes) -> BaseAssetfile:
             Write raw bytes into an assetfile.
         read_assetfile(assetfile: BaseAssetfile) -> bytes:
@@ -92,6 +97,8 @@ class BaseDataset(
             Get the run record of the given id, None if there is none.
         list_runs(status: str | None = None, limit: int | None = None) -> list[DatasetRun]:
             List the run records, newest first, optionally filtered by status and capped at limit.
+        recover_runs(owner: str) -> list[DatasetRun]:
+            Fail the STARTED runs of the owner, left behind by a process that went away.
         list_qualities(since: datetime | float | None = None, until: datetime | float | None = None) -> list[tuple[BaseAssetfile, DataframeQuality]]:
             Quality of each assetfile matching the filter, assetfiles without metadata are skipped.
         list_definitions(since: datetime | float | None = None, until: datetime | float | None = None) -> list[DefinitionGroup]:
@@ -175,16 +182,40 @@ class BaseDataset(
         df: pl.DataFrame,
     ) -> list[BaseAssetfile]: ...
 
-    def run(
+    def start_run(
         self,
         params: dict[str, Any] | None = None,
-    ) -> list[BaseAssetfile]:
+        owner: str | None = None,
+    ) -> DatasetRun:
         _run: DatasetRun = DatasetRun(
             provider=str(self.provider),
             dataset=self.name,
             params=params or {},
+            owner=owner,
         )
         self._write_run(run=_run)
+        return _run
+
+    def fail_run(
+        self,
+        run: DatasetRun,
+        error: Exception | str,
+    ) -> None:
+        if run.is_finished:
+            return
+        run.fail(error)
+        self._write_run(run=run)
+
+    def run(
+        self,
+        params: dict[str, Any] | None = None,
+        run: DatasetRun | None = None,
+    ) -> list[BaseAssetfile]:
+        if run is None:
+            _run: DatasetRun = self.start_run(params=params)
+        else:
+            _run: DatasetRun = run
+
         IStopwatch.tick()
         try:
             _df: pl.DataFrame = self.extract(params=params)
@@ -355,6 +386,22 @@ class BaseDataset(
         _res.sort(key=lambda _r: _r.started_at, reverse=True)
         if limit is not None and limit < len(_res):
             _res = _res[:limit]
+        return _res
+
+    def recover_runs(
+        self,
+        owner: str,
+    ) -> list[DatasetRun]:
+        # Runs of other owners may be alive in another process sharing the store
+        _run_table: BaseTable = self.get_run_table()
+        _contents = _run_table.read(strict=False) or {}
+        _res: list[DatasetRun] = []
+        for _content in _contents.values():
+            _run: DatasetRun = DatasetRun.from_dict(_content)
+            if _run.is_finished or _run.owner != owner:
+                continue
+            self.fail_run(_run, "Interrupted by a restart of the node")
+            _res.append(_run)
         return _res
 
     def _write_run(

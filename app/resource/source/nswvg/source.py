@@ -105,6 +105,7 @@ class NSWVGSource(BaseSource):
             name=setting.name,
             provision_path=setting.provision_path,
             description=setting.description,
+            max_threads=setting.max_threads,
             vault=setting.vault,
             store=setting.store,
             log_stream=setting.log,

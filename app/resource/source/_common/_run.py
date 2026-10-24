@@ -28,6 +28,9 @@ class DatasetRun(IAbstractDomain):
             Name of the dataset
         params (dict[str, Any]):
             JSON parameters the run was called with
+        owner (str | None):
+            Node that started the run, None for a run started outside a node.
+            A node only recovers (fails) the STARTED runs it owns after a restart
         assetfiles (list[str]):
             URIs of the assetfiles written by a completed run, empty otherwise
         height (int | None):
@@ -86,6 +89,10 @@ class DatasetRun(IAbstractDomain):
     params: dict[str, Any] = Field(
         default_factory=dict,
         description="The parameters used for the dataset run",
+    )
+    owner: str | None = Field(
+        default=None,
+        description="The node that started the dataset run",
     )
     assetfiles: list[str] = Field(
         default_factory=list,

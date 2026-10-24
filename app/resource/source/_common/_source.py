@@ -61,6 +61,8 @@ class BaseSource(
             Source name
         description (str | None):
             Source description
+        max_threads (int):
+            Datasets of the source a node runs at the same time, default is 1
         vault (BaseVault | AbstractVaultSetting | str):
             Source landing vault, resolved through GlobalVaults
         store (BaseStore | AbstractStoreSetting | str):
@@ -120,6 +122,11 @@ class BaseSource(
     description: str | None = Field(
         default=None,
         description="[Optional] Source description.",
+    )
+    max_threads: int = Field(
+        default=1,
+        ge=1,
+        description="[Optional] Datasets of the source run at the same time",
     )
     provision_path: Path | str | None = Field(
         default=None,

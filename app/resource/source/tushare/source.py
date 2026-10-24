@@ -124,6 +124,7 @@ class TushareSource(BaseSource):
             key=setting.key,
             ttl_hours=setting.session_ttl_hours,
             description=setting.description,
+            max_threads=setting.max_threads,
             vault=setting.vault,
             store=setting.store,
             log_stream=setting.log,
