@@ -26,6 +26,8 @@ class NodeClient(ABC):
             Sources with their dataset names
         get_source(source) -> dict:
             One source with its dataset names
+        list_logs(source, limit=None) -> list[dict]:
+            Log events of a source, newest first, capped at `limit` when given
         list_datasets(source=None) -> list[dict]:
             Datasets of one source or all
         get_dataset(source, dataset) -> dict:
@@ -66,6 +68,14 @@ class NodeClient(ABC):
         source: str,
     ) -> dict[str, Any]:
         """One source with its dataset names."""
+
+    @abstractmethod
+    def list_logs(
+        self,
+        source: str,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Log events of a source, newest first."""
 
     @abstractmethod
     def list_datasets(

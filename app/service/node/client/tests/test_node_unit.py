@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import polars as pl
 import pytest
 
+from app.internal.logstream import LogStream
 from app.service.node.client.node import NodeClient
 from app.service.node.dra import DRABusyError, DRADataResult, DRAQueryError, DRARejectedError
 from app.service.node.service.errors import (
@@ -45,6 +46,23 @@ class TestContract:
     def test_get_unknown_source_raises(self, client):
         with pytest.raises(NodeSourceNotFoundError):
             client.get_source("nope")
+
+    def test_list_logs(self, client, source, tmp_path):
+        # The `log` fixture mocks the stream of the source, give it a real one that writes a file
+        _stream = LogStream(name="src", file_path=tmp_path / "logs", console_verbose=False)
+        object.__setattr__(source, "log_stream", _stream)
+        _stream.info("first")
+        _stream.info("second")
+        assert [e["msg"] for e in client.list_logs("src")] == ["second", "first"]
+        assert [e["msg"] for e in client.list_logs("src", limit=1)] == ["second"]
+
+    def test_list_logs_of_unknown_source_raises(self, client):
+        with pytest.raises(NodeSourceNotFoundError):
+            client.list_logs("nope")
+
+    def test_list_logs_rejects_non_positive_limit(self, client):
+        with pytest.raises(NodeBadRequestError):
+            client.list_logs("src", limit=0)
 
     def test_list_datasets_of_all_and_one_source(self, client):
         assert sorted(d["dataset"] for d in client.list_datasets()) == ["src.alpha", "src.beta"]

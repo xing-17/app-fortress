@@ -80,6 +80,8 @@ class NodeService(BaseService[NodeServiceSetting]):
             Sources with their dataset names
         get_source(source) -> dict:
             One source with its dataset names
+        list_logs(source, limit=None) -> list[dict]:
+            Log events of a source, newest first, capped at `limit` when given
         list_datasets(source=None) -> list[dict]:
             Datasets of one source or all
         get_dataset(source, dataset) -> dict:
@@ -234,6 +236,18 @@ class NodeService(BaseService[NodeServiceSetting]):
         self._require_running()
         _source: BaseSource = self._resolve_source(source)
         return self._retrieve_source_info(_source)
+
+    def list_logs(
+        self,
+        source: str,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        self._require_running()
+        # `not > 0` also rejects NaN
+        if limit is not None and not limit > 0:
+            raise NodeBadRequestError("'limit' must be greater than 0")
+        _source: BaseSource = self._resolve_source(source)
+        return _source.list_logs(limit=limit)
 
     # Dataset Info
     def _retrieve_dataset_info(

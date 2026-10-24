@@ -55,6 +55,16 @@ class LocalNodeClient(NodeClient):
     ) -> dict[str, Any]:
         return self._service.get_source(source)
 
+    def list_logs(
+        self,
+        source: str,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._service.list_logs(
+            source=source,
+            limit=limit,
+        )
+
     def list_datasets(
         self,
         source: str | None = None,

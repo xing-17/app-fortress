@@ -60,6 +60,7 @@ class NodeHttp:
         GET  /health
         GET  /internal/sources
         GET  /internal/sources/{source}
+        GET  /internal/sources/{source}/logs[?limit=]
         GET  /internal/datasets[?source=]
         GET  /internal/datasets/{source}/{dataset}
         GET  /internal/datasets/{source}/{dataset}/assetfiles[?since=&until=]
@@ -118,6 +119,7 @@ class NodeHttp:
             Route("/health", self._health, methods=["GET"]),
             Route(f"{_prefix}/sources", self._list_sources, methods=["GET"]),
             Route(f"{_prefix}/sources/{{source}}", self._get_source, methods=["GET"]),
+            Route(f"{_prefix}/sources/{{source}}/logs", self._list_logs, methods=["GET"]),
             Route(f"{_prefix}/datasets", self._list_datasets, methods=["GET"]),
             Route(_dataset, self._get_dataset, methods=["GET"]),
             Route(f"{_dataset}/assetfiles", self._list_assetfiles, methods=["GET"]),
@@ -238,6 +240,18 @@ class NodeHttp:
     def _get_source(self, request: Request) -> Response:
         _source: str = request.path_params["source"]
         _res: dict = self._service.get_source(_source)
+        return JsonResponse(_res)
+
+    def _list_logs(self, request: Request) -> Response:
+        _source: str = request.path_params["source"]
+        _raw: str | None = request.query_params.get("limit")
+        _limit: int | None = None
+        if _raw:
+            try:
+                _limit = int(_raw)
+            except ValueError:
+                raise NodeBadRequestError("'limit' must be an integer") from None
+        _res: list[dict[str, Any]] = self._service.list_logs(_source, _limit)
         return JsonResponse(_res)
 
     def _list_datasets(self, request: Request) -> Response:

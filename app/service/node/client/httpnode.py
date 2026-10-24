@@ -255,6 +255,21 @@ class HttpNodeClient(NodeClient):
             path=_source_path,
         )
 
+    def list_logs(
+        self,
+        source: str,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        _source_seg: str = self._segment(source)
+        _params: dict[str, str] | None = None
+        if limit is not None:
+            _params = {"limit": str(limit)}
+        return self._call(
+            method="GET",
+            path=f"/internal/sources/{_source_seg}/logs",
+            params=_params,
+        )
+
     def list_datasets(
         self,
         source: str | None = None,
