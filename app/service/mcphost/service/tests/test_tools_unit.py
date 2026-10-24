@@ -105,6 +105,7 @@ class TestToolList:
             "get_schema",
             "get_quality",
             "list_runs",
+            "list_logs",
             "get_dataset_run",
             "list_machine_snapshots",
             "query",
@@ -198,6 +199,27 @@ class TestListNodes:
         assert "secret-host" not in text(_res)
 
 
+class TestListLogs:
+    def test_returns_the_logs_of_the_source(self, server, fake):
+        fake.logs = [{"msg": "a"}, {"msg": "b"}]
+        _res = data(call(server, "list_logs", {"source": "src"}))
+        assert _res == {"node": "centre", "source": "src", "logs": fake.logs}
+
+    def test_default_limit_is_passed(self, server, fake):
+        call(server, "list_logs", {"source": "src"})
+        assert ("list_logs", ("src", 50)) in fake.calls
+
+    @pytest.mark.parametrize(("limit", "expected"), [(0, 1), (10, 10), (10_000, 500)])
+    def test_limit_is_clamped(self, server, fake, limit, expected):
+        call(server, "list_logs", {"source": "src", "limit": limit})
+        assert ("list_logs", ("src", expected)) in fake.calls
+
+    def test_unknown_source_is_an_error(self, server):
+        _res = call(server, "list_logs", {"source": "nope"})
+        assert _res.is_error
+        assert "Source 'nope' not found" in text(_res)
+
+
 class TestListDatasets:
     def test_maps_the_fields_the_ai_needs(self, server):
         _res = data(call(server, "list_datasets"))
@@ -286,6 +308,13 @@ class TestMultipleNodes:
         _res = call(server, "list_datasets", {"source": "nope"})
         assert _res.is_error
         assert "not found on any node" in text(_res)
+
+    def test_logs_are_routed_to_the_node_that_holds_the_source(self, server, snt, sh):
+        sh.logs = [{"msg": "x"}]
+        _res = data(call(server, "list_logs", {"source": "nswvg"}))
+        assert _res["node"] == "sh"
+        assert _res["logs"] == [{"msg": "x"}]
+        assert "list_logs" not in [c[0] for c in snt.calls]
 
     def test_schema_is_routed_to_the_node_that_holds_the_dataset(self, server, snt, sh):
         _res = data(call(server, "get_schema", {"dataset": "nswvg.psi"}))

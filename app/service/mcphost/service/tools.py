@@ -32,6 +32,7 @@ from .instructions import (
     _GET_SCHEMA_DOC,
     _INSTRUCTIONS,
     _LIST_DATASETS_DOC,
+    _LIST_LOGS_DOC,
     _LIST_MACHINE_SNAPSHOTS_DOC,
     _LIST_NODES_DOC,
     _LIST_RUNS_DOC,
@@ -45,6 +46,8 @@ _DEFAULT_QUALITY_LIMIT = 20
 _MAX_QUALITY_LIMIT = 200
 _DEFAULT_RUN_LIMIT = 20
 _MAX_RUN_LIMIT = 100
+_DEFAULT_LOG_LIMIT = 50
+_MAX_LOG_LIMIT = 500
 
 # The node words these for the caller
 # AI sees them as they are and can adjust its next call
@@ -313,6 +316,37 @@ class NodeRouter:
                 )
         return _res
 
+    def locate_source(
+        self,
+        source: str,
+        node: str | None = None,
+    ) -> tuple[str, NodeClient]:
+        if node is not None or len(self._clients) == 1:
+            return self.get(node)
+
+        _outcomes: list[_Outcome] = self.fan_out(lambda c: c.get_source(source))
+        _found: list[str] = []
+
+        for o in _outcomes:
+            if o.error is None:
+                _found.append(o.node)
+
+        _down: list[str] = []
+        for o in _outcomes:
+            if o.error is not None and not isinstance(o.error, _NOT_FOUND):
+                _down.append(o.node)
+
+        if len(_found) == 1:
+            return self.get(_found[0])
+        if len(_found) > 1:
+            _msg: str = f"source '{source}' is on nodes {_found}, pass `node` to choose one"
+            raise NodeBadRequestError(_msg)
+        if _down:
+            _msg: str = f"source '{source}' was not found, nodes not answering: {_down}"
+            raise NodeBadRequestError(_msg)
+        _msg: str = f"Source '{source}' not found on any node"
+        raise NodeSourceNotFoundError(_msg)
+
     def locate(
         self,
         source: str,
@@ -346,7 +380,7 @@ class NodeRouter:
 
         # Some nodes were down
         if _down:
-            _msg = f"dataset '{_dataset}' was not found, nodes not answering: {_down}"
+            _msg: str = f"dataset '{_dataset}' was not found, nodes not answering: {_down}"
             raise NodeBadRequestError(_msg)
 
         # No nodes have the dataset and no nodes were down
@@ -499,6 +533,31 @@ def build_server(
             "get_quality",
             {"dataset": dataset, "limit": limit, "node": node},
             _call,
+            caller=_caller_of(ctx),
+        )
+
+    @_server.tool(name="list_logs", description=_LIST_LOGS_DOC)
+    def list_logs(
+        ctx: Context,
+        source: str,
+        limit: int = _DEFAULT_LOG_LIMIT,
+        node: str | None = None,
+    ) -> dict[str, Any]:
+        def _call() -> dict[str, Any]:
+            _limit: int = max(1, min(limit, _MAX_LOG_LIMIT))
+            _node, _client = _router.locate_source(source, node)
+            _logs = _client.list_logs(source, limit=_limit)
+            return {
+                "node": _node,
+                "source": source,
+                "logs": _logs,
+            }
+
+        return _guard.run(
+            tool="list_logs",
+            arguments={"source": source, "limit": limit, "node": node},
+            func=_call,
+            metrics=lambda r: {"logs": len(r["logs"])},
             caller=_caller_of(ctx),
         )
 

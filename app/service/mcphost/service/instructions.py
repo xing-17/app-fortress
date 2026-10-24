@@ -8,6 +8,7 @@ Typical flow: list_datasets -> get_schema -> query. Use get_quality to check com
 trusting a dataset. Use list_runs to see whether the last runs of a dataset completed or failed,
 and get_dataset_run to read one of them by id.
 Use list_nodes to see which nodes exist and which of them are reachable.
+Use list_logs to read the latest log events of a source when a dataset misbehaves.
 Use list_machine_snapshots to see how loaded the machine of a node was (cpu, memory, disk, network).
 A query runs on ONE node and can not join datasets of different nodes: pass `node` to `query`
 when several nodes are served.
@@ -81,6 +82,16 @@ statement is allowed: no multiple statements, no writes, no SET, ATTACH or file 
 Results are NOT saved, keep what you need from the answer. The result is capped in rows and size:
 when `truncated` is true the rows are incomplete, aggregate or filter in SQL instead of
 reading everything. The query is interrupted when it runs too long.
+"""
+
+_LIST_LOGS_DOC = """\
+Show the latest log events of a source, newest first: what its datasets did while fetching,
+writing and checking data, with warnings and errors.
+
+`source` is the source name, the part of a dataset name before the dot. The node that holds it is
+found automatically; pass `node` only when the same source exists on several nodes. `limit` caps
+the number of events (default 50, at most 500), the oldest are dropped. The list is empty when the
+source keeps no log file.
 """
 
 _LIST_MACHINE_SNAPSHOTS_DOC = """\

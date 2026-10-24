@@ -35,6 +35,7 @@ class FakeNodeClient(NodeClient):
         self.result = DRADataResult(columns=["a"], types=["BIGINT"], rows=[[1]])
         self.node_health: dict[str, Any] = {"state": "running", "is_running": True}
         self.snapshots: list[dict[str, Any]] = []
+        self.logs: list[dict[str, Any]] = []
 
     def _call(self, name: str, *args: Any) -> None:
         self.calls.append((name, args))
@@ -47,7 +48,16 @@ class FakeNodeClient(NodeClient):
 
     def get_source(self, source):
         self._call("get_source", source)
-        return self.sources[0]
+        for _s in self.sources:
+            if _s["name"] == source:
+                return _s
+        raise NodeSourceNotFoundError(f"Source '{source}' not found on this node")
+
+    def list_logs(self, source, limit=None):
+        self._call("list_logs", source, limit)
+        if not any(s["name"] == source for s in self.sources):
+            raise NodeSourceNotFoundError(f"Source '{source}' not found on this node")
+        return list(self.logs)
 
     def list_datasets(self, source=None):
         self._call("list_datasets", source)
