@@ -93,7 +93,8 @@ def _build_auth(
     setting: AuthSetting,
     base_dir: Path,
 ) -> TokenAuth:
-    # Only the auth part of services.yaml follows the file, the rest needs a restart
+    # Only the auth part of services.yaml follows the file
+    # the rest needs a restart
     from app.resource._global.setting import GlobalSetting
     from app.service._common.auth import TokenAuth
     from app.setting.service import ServicesSetting
@@ -104,7 +105,10 @@ def _build_auth(
 
     def _reload() -> AuthSetting:
         _services = ServicesSetting.from_yaml(path=_file)
-        _res: AuthSetting = _services.mcphost.auth if service == "mcphost" else _services.node.auth
+        if service == "mcphost":
+            _res: AuthSetting = _services.mcphost.auth
+        else:
+            _res: AuthSetting = _services.node.auth
         return _res
 
     return TokenAuth(
@@ -127,7 +131,11 @@ def _node_start(args: argparse.Namespace) -> int:
     _auth = _build_auth("node", _setting.auth, _base_dir)
     _machine = MachineService(GlobalSetting.get_services().machine)
     serve(
-        service=NodeService(_setting, machine=_machine),
+        service=NodeService(
+            setting=_setting,
+            machine=_machine,
+            node=GlobalSetting.get_system().node,
+        ),
         auth=_auth,
         host=args.host,
         port=args.port,

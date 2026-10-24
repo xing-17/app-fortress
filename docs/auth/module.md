@@ -180,13 +180,13 @@ from app.service._common.http import BearerAuthMiddleware
 TokenAuth.generate_master_file(setting, base_dir=Path("settings"))
 
 auth = TokenAuth(
-    setting,                                    # AuthSetting
-    base_dir=Path("settings"),                  # masterfile 相对路径的基准
-    reload=load_auth_setting,                   # 可选，开启热加载
+    setting,  # AuthSetting
+    base_dir=Path("settings"),  # masterfile 相对路径的基准
+    reload=load_auth_setting,  # 可选，开启热加载
     watch=[Path("settings/services.yaml")],
 )
-token = auth.token("codex")        # 派生令牌（只有 active 条目可以）
-principal = auth.verify(token)     # 返回 Principal，失败抛 AuthError
+token = auth.token("codex")  # 派生令牌（只有 active 条目可以）
+principal = auth.verify(token)  # 返回 Principal，失败抛 AuthError
 
 app = BearerAuthMiddleware(asgi_app, auth=auth, log=log)
 
