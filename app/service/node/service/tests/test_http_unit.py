@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import io
+import threading
+import time
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
@@ -13,7 +15,7 @@ from app.resource._global.identities import GlobalIdentities
 from app.resource._global.logstreams import GlobalLogStreams
 from app.resource._global.sources import GlobalSources
 from app.resource.asset.local.vault import LocalVault
-from app.resource.source._common.tests.fakes.base import FakeSource
+from app.resource.source._common.tests.fakes.base import FakeDataset, FakeSource
 from app.resource.store.file.store import FileStore
 from app.service._common.auth import TokenAuth
 from app.service.node.dra import (
@@ -255,6 +257,74 @@ class TestRuns:
 
     def test_unknown_dataset_is_404(self, client, headers):
         assert client.get("/internal/datasets/src/nope/runs", headers=headers).status_code == 404
+
+
+class TestSubmitAndGetRun:
+    _URL = "/internal/datasets/src/alpha/runs"
+
+    @pytest.fixture
+    def gate(self, monkeypatch):
+        # Every dataset run blocks in extract until the gate opens
+        _gate = threading.Event()
+
+        def _extract(self, params=None):
+            _gate.wait(10)
+            return pl.DataFrame({"a": [1]})
+
+        monkeypatch.setattr(FakeDataset, "extract", _extract)
+        yield _gate
+        _gate.set()
+
+    def test_submit_answers_202_with_a_started_record(self, client, headers, gate):
+        _res = client.post(self._URL, json={"params": {"k": "v"}}, headers=headers)
+        assert _res.status_code == 202
+        assert _res.json()["status"] == "started"
+        assert _res.json()["params"] == {"k": "v"}
+
+    def test_submit_without_a_body_runs_with_no_params(self, client, headers, gate):
+        _res = client.post(self._URL, headers=headers)
+        assert _res.status_code == 202
+        assert not _res.json()["params"]
+
+    def test_run_can_be_polled_until_it_completes(self, client, headers, gate):
+        _id = client.post(self._URL, headers=headers).json()["id"]
+        assert client.get(f"{self._URL}/{_id}", headers=headers).json()["status"] == "started"
+        gate.set()
+        for _ in range(200):
+            _res = client.get(f"{self._URL}/{_id}", headers=headers).json()
+            if _res["status"] != "started":
+                break
+            time.sleep(0.05)
+        assert _res["status"] == "completed"
+
+    def test_same_dataset_twice_is_503(self, client, headers, gate):
+        client.post(self._URL, headers=headers)
+        _res = client.post(self._URL, headers=headers)
+        assert _res.status_code == 503
+        assert _res.json()["error"] == "NodeBusyError"
+
+    def test_unknown_run_is_404(self, client, headers):
+        _res = client.get(f"{self._URL}/run-missing", headers=headers)
+        assert _res.status_code == 404
+        assert _res.json()["error"] == "NodeRunNotFoundError"
+
+    def test_unknown_dataset_is_404(self, client, headers):
+        assert client.post("/internal/datasets/src/nope/runs", headers=headers).status_code == 404
+        assert client.get("/internal/datasets/src/nope/runs/x", headers=headers).status_code == 404
+
+    @pytest.mark.parametrize("body", ["not json", "[1]", '{"params": [1]}'])
+    def test_bad_body_is_400(self, client, headers, body):
+        _res = client.post(self._URL, content=body, headers=headers)
+        assert _res.status_code == 400
+        assert _res.json()["error"] == "NodeBadRequestError"
+
+    def test_too_large_body_is_413(self, client, headers):
+        _res = client.post(self._URL, content=b"x" * 1_000_001, headers=headers)
+        assert _res.status_code == 413
+
+    def test_both_routes_need_a_token(self, client):
+        assert client.post(self._URL).status_code == 401
+        assert client.get(f"{self._URL}/x").status_code == 401
 
 
 class TestMachine:

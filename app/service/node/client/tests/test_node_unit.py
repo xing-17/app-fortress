@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
 
 import polars as pl
@@ -10,6 +11,7 @@ from app.service.node.dra import DRABusyError, DRADataResult, DRAQueryError, DRA
 from app.service.node.service.errors import (
     NodeBadRequestError,
     NodeDatasetNotFoundError,
+    NodeRunNotFoundError,
     NodeSourceNotFoundError,
 )
 
@@ -125,6 +127,33 @@ class TestContract:
     def test_list_runs_with_a_bad_status_raises(self, client):
         with pytest.raises(NodeBadRequestError):
             client.list_runs("src", "alpha", status="nope")
+
+    def test_submit_dataset_run_and_get_it_back(self, client):
+        _run = client.submit_dataset_run("src", "alpha", {"date": "2024-01-01"})
+        assert _run["params"] == {"date": "2024-01-01"}
+        for _ in range(200):
+            _res = client.get_dataset_run("src", "alpha", _run["id"])
+            if _res["status"] != "started":
+                break
+            time.sleep(0.05)
+        assert _res["id"] == _run["id"]
+        assert _res["status"] == "completed"
+        assert [r["id"] for r in client.list_runs("src", "alpha")] == [_run["id"]]
+
+    def test_submit_dataset_run_without_params(self, client):
+        assert not client.submit_dataset_run("src", "alpha")["params"]
+
+    def test_submit_dataset_run_of_unknown_dataset_raises(self, client):
+        with pytest.raises(NodeDatasetNotFoundError):
+            client.submit_dataset_run("src", "nope")
+
+    def test_get_unknown_dataset_run_raises(self, client):
+        with pytest.raises(NodeRunNotFoundError):
+            client.get_dataset_run("src", "alpha", "run-missing")
+
+    def test_get_dataset_run_of_unknown_dataset_raises(self, client):
+        with pytest.raises(NodeDatasetNotFoundError):
+            client.get_dataset_run("src", "nope", "x")
 
     def test_query(self, client, source):
         write_assetfile(source, "alpha", "a.parquet", pl.DataFrame({"a": [1, 2, 3]}))

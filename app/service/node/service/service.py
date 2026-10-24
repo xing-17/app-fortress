@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 
@@ -29,7 +31,9 @@ from app.service.node.dra import (
 )
 from app.service.node.service.errors import (
     NodeBadRequestError,
+    NodeBusyError,
     NodeDatasetNotFoundError,
+    NodeRunNotFoundError,
     NodeSourceNotFoundError,
 )
 from app.setting.service import MachineServiceSetting, NodeServiceSetting
@@ -51,6 +55,13 @@ class NodeService(BaseService[NodeServiceSetting]):
     The node owns a `MachineService` (the state of the host machine over time): it starts and
     stops with the node.
 
+    Dataset runs are started in the background, `submit_dataset_run` returns the run record at once.
+    A source runs at most `source.max_threads` datasets at a time, the node runs at most
+    `setting.max_threads` sources at a time, and a dataset never runs twice at the same time.
+    A submit over any of these limits is refused with `NodeBusyError`, nothing is queued.
+    On start the node fails the STARTED runs it left behind (see `node`), on stop it waits for the
+    runs in flight.
+
     The DRA views are named "<source>.<dataset>"; catalog methods take `source` and `dataset` apart.
 
     Args:
@@ -59,6 +70,9 @@ class NodeService(BaseService[NodeServiceSetting]):
             Node service setting
         machine (MachineService | None):
             Machine service the node reports from, defaults to one on the default machine setting
+        node (str):
+            Node name, stamped on the runs it starts as their owner. Keep it stable across restarts,
+            it is how the node finds its own interrupted runs, default is "centre"
 
     Methods:
     ----------
@@ -81,6 +95,10 @@ class NodeService(BaseService[NodeServiceSetting]):
             assetfiles without metadata are skipped
         list_runs(source, dataset, status=None, limit=None) -> list[dict]:
             Run records of a dataset, newest first, optionally of one status and capped at limit
+        submit_dataset_run(source, dataset, params=None) -> dict:
+            Start a run of a dataset in the background, returns its STARTED record
+        get_dataset_run(source, dataset, id) -> dict:
+            Record of one run, poll it until its status is completed or failed
         query(caller, sql) -> DRADataResult:
             Run one SELECT in the caller's DRA session, created on first use
         list_machine_snapshots(hours=None) -> list[dict]:
@@ -96,11 +114,22 @@ class NodeService(BaseService[NodeServiceSetting]):
         self,
         setting: NodeServiceSetting,
         machine: MachineService | None = None,
+        node: str = "centre",
     ) -> None:
         super().__init__(setting)
         if machine is None:
             machine = MachineService(MachineServiceSetting())
         self._machine: MachineService = machine
+        self._node: str = node
+
+        # Runs in flight, as (source, dataset)
+        # one pool per source, both guarded by the lock
+        self._run_lock = threading.Lock()
+        self._active: set[tuple[str, str]] = set()
+        self._run_pools: dict[str, ThreadPoolExecutor] = {}
+
+        # DRA session pool for this node
+        # used to query ALL datasets
         _dra_max_sessions: int = setting.dra.max_sessions
         _dra_max_idle_seconds: int = setting.dra.max_session_idle_seconds
         self._pool = DRAPool(
@@ -112,18 +141,25 @@ class NodeService(BaseService[NodeServiceSetting]):
 
     def _require_running(self) -> None:
         if not self.is_running:
-            raise RuntimeError(f"{self.kind} is not running, state is {self.state}")
+            _msg: str = f"{self.kind} is not running, state is {self.state}"
+            raise RuntimeError(_msg)
 
     def _start(self) -> None:
         # Load the sources now so a broken setting fails the start
-        GlobalSources.list_sources()
+        _sources: list[BaseSource] = GlobalSources.list_sources()
+        self._recover_runs(_sources)
         self._machine.start()
 
     def _stop(self) -> None:
         try:
-            self.reset_sessions()
+            # Runs in flight are waited for
+            # a new submit is refused since the node is not running
+            self._wait_runs()
         finally:
-            self._machine.stop()
+            try:
+                self.reset_sessions()
+            finally:
+                self._machine.stop()
 
     def health(self) -> dict:
         _res: dict = super().health()
@@ -135,7 +171,10 @@ class NodeService(BaseService[NodeServiceSetting]):
         self,
         source: str,
     ) -> BaseSource:
-        _source: BaseSource | None = GlobalSources.get_source(source, strict=False)
+        _source: BaseSource | None = GlobalSources.get_source(
+            name=source,
+            strict=False,
+        )
         if _source is None:
             _msg: str = f"Source '{source}' not found on this node"
             raise NodeSourceNotFoundError(_msg)
@@ -417,6 +456,177 @@ class NodeService(BaseService[NodeServiceSetting]):
             limit=limit,
         )
         return [self._retrieve_run_info(_run) for _run in _runs]
+
+    def get_dataset_run(
+        self,
+        source: str,
+        dataset: str,
+        id: str,
+    ) -> dict[str, Any]:
+        self._require_running()
+        _dataset: BaseDataset = self._resolve(source, dataset)
+        _run: DatasetRun | None = _dataset.get_run(id)
+        if _run is None:
+            _msg: str = f"Run '{id}' not found on '{source}.{dataset}'"
+            raise NodeRunNotFoundError(_msg)
+        return self._retrieve_run_info(_run)
+
+    # --------------------------------------------------
+    # Run
+    # --------------------------------------------------
+
+    def submit_dataset_run(
+        self,
+        source: str,
+        dataset: str,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        self._require_running()
+        if params is not None and not isinstance(params, dict):
+            raise NodeBadRequestError("'params' must be a JSON object")
+
+        _source: BaseSource = self._resolve_source(source)
+        _dataset: BaseDataset = self._resolve_dataset(_source, dataset)
+        _key: tuple[str, str] = (_source.name, _dataset.name)
+        self._reserve(_source, _key)
+
+        _run: DatasetRun | None = None
+        try:
+            # The record is written before the thread starts, so the id is pollable at once
+            _run = _dataset.start_run(
+                params=params,
+                owner=self._node,
+            )
+            self._pool_of(_source).submit(
+                self._execute,
+                _dataset,
+                _run,
+                params,
+                _key,
+            )
+        except BaseException as e:
+            if _run is not None:
+                self._fail_quietly(_dataset, _run, e)
+            self._release(_key)
+            raise
+        return self._retrieve_run_info(_run)
+
+    def _reserve(
+        self,
+        source: BaseSource,
+        key: tuple[str, str],
+    ) -> None:
+        with self._run_lock:
+            # Do not allow the same dataset to run concurrently
+            if key in self._active:
+                _msg: str = f"Dataset '{key[0]}.{key[1]}' is already running"
+                raise NodeBusyError(_msg)
+
+            # Check if the source has reached its maximum number of concurrent runs
+            # Gather all currently running sources
+            _running: set[str] = set()
+            for _s, _ in self._active:
+                _running.add(_s)
+            _of_source: int = sum(1 for _s, _ in self._active if _s == source.name)
+            if _of_source >= source.max_threads:
+                _msg: str = f"Source '{source.name}' is at its limit of {source.max_threads} running dataset(s)"
+                raise NodeBusyError(_msg)
+
+            # Check if the node has reached its maximum number of concurrent sources
+            _max_threads: int = self.setting.max_threads
+            if source.name not in _running and len(_running) >= _max_threads:
+                _msg: str = f"Node is at its limit of {_max_threads} running source(s)"
+                raise NodeBusyError(_msg)
+            self._active.add(key)
+
+    def _release(
+        self,
+        key: tuple[str, str],
+    ) -> None:
+        with self._run_lock:
+            self._active.discard(key)
+
+    def _pool_of(
+        self,
+        source: BaseSource,
+    ) -> ThreadPoolExecutor:
+        with self._run_lock:
+            _pool: ThreadPoolExecutor | None = self._run_pools.get(source.name)
+            if _pool is None:
+                _pool = ThreadPoolExecutor(
+                    max_workers=source.max_threads,
+                    thread_name_prefix=f"run-{source.name}",
+                )
+                self._run_pools[source.name] = _pool
+            return _pool
+
+    def _execute(
+        self,
+        dataset: BaseDataset,
+        run: DatasetRun,
+        params: dict[str, Any] | None,
+        key: tuple[str, str],
+    ) -> None:
+        try:
+            dataset.run(params=params, run=run)
+        except Exception as e:
+            # A failed step is already recorded
+            # logged by `run`, only a failure outside the steps lands here
+            if not run.is_finished:
+                self._fail_quietly(dataset, run, e)
+        finally:
+            self._release(key)
+
+    def _fail_quietly(
+        self,
+        dataset: BaseDataset,
+        run: DatasetRun,
+        error: BaseException,
+    ) -> None:
+        _meta: dict[str, Any] = {
+            "dataset": dataset.name,
+            "run": run.id,
+            "error": type(error).__name__,
+        }
+        try:
+            dataset.fail_run(run, str(error))
+        except Exception as e:
+            # The record stays STARTED until the next start of the node recovers it
+            _meta["record_error"] = type(e).__name__
+        self.log.warning(f"dataset run failed: {dataset.name}", metadata=_meta)
+
+    def _wait_runs(self) -> None:
+        with self._run_lock:
+            _pools: list[ThreadPoolExecutor] = list(self._run_pools.values())
+            self._run_pools.clear()
+        for _pool in _pools:
+            _pool.shutdown(wait=True)
+
+    def _recover_runs(
+        self,
+        sources: list[BaseSource],
+    ) -> None:
+        # Fail the runs a previous process of this node left STARTED, nothing of ours is running yet
+        for _source in sources:
+            for _dataset in _source.list_datasets():
+                _name: str = f"{_source.name}.{_dataset.name}"
+                try:
+                    _recovered: list[DatasetRun] = _dataset.recover_runs(owner=self._node)
+                except Exception as e:
+                    # One unreadable store must not keep the node from starting
+                    self.log.warning(
+                        f"cannot recover runs: {_name}",
+                        metadata={
+                            "dataset": _name,
+                            "error": type(e).__name__,
+                        },
+                    )
+                    continue
+                if _recovered:
+                    self.log.warning(
+                        f"recovered {len(_recovered)} interrupted run(s): {_name}",
+                        metadata={"dataset": _name, "runs": [_r.id for _r in _recovered]},
+                    )
 
     # --------------------------------------------------
     # Machine

@@ -18,7 +18,9 @@ from app.service.node.dra import (
 from app.service.node.dra.result import DRADataResult
 from app.service.node.service.errors import (
     NodeBadRequestError,
+    NodeBusyError,
     NodeDatasetNotFoundError,
+    NodeRunNotFoundError,
     NodeSourceNotFoundError,
     NodeUnauthorizedError,
     NodeUnavailableError,
@@ -32,6 +34,8 @@ _NAMED_ERRORS: dict[str, type[Exception]] = {
     for _type in (
         NodeSourceNotFoundError,
         NodeDatasetNotFoundError,
+        NodeRunNotFoundError,
+        NodeBusyError,
         NodeBadRequestError,
         DRARejectedError,
         DRAQueryError,
@@ -352,6 +356,34 @@ class HttpNodeClient(NodeClient):
             method="GET",
             path=f"{_dataset_path}/runs",
             params=_params,
+        )
+
+    def submit_dataset_run(
+        self,
+        source: str,
+        dataset: str,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        _dataset_path: str = self._dataset_path(source, dataset)
+        _body: dict[str, Any] = {}
+        if params is not None:
+            _body["params"] = params
+        return self._call(
+            method="POST",
+            path=f"{_dataset_path}/runs",
+            body=_body,
+        )
+
+    def get_dataset_run(
+        self,
+        source: str,
+        dataset: str,
+        id: str,
+    ) -> dict[str, Any]:
+        _dataset_path: str = self._dataset_path(source, dataset)
+        return self._call(
+            method="GET",
+            path=f"{_dataset_path}/runs/{self._segment(id)}",
         )
 
     # --------------------------------------------------

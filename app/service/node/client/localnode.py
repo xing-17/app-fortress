@@ -141,6 +141,30 @@ class LocalNodeClient(NodeClient):
             limit=limit,
         )
 
+    def submit_dataset_run(
+        self,
+        source: str,
+        dataset: str,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return self._service.submit_dataset_run(
+            source=source,
+            dataset=dataset,
+            params=params,
+        )
+
+    def get_dataset_run(
+        self,
+        source: str,
+        dataset: str,
+        id: str,
+    ) -> dict[str, Any]:
+        return self._service.get_dataset_run(
+            source=source,
+            dataset=dataset,
+            id=id,
+        )
+
     # --------------------------------------------------
     # DRA: Data Retrieval API
     # --------------------------------------------------

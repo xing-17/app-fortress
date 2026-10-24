@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any
 
@@ -23,7 +24,9 @@ from app.service.node.dra import (
 )
 from app.service.node.service.errors import (
     NodeBadRequestError,
+    NodeBusyError,
     NodeDatasetNotFoundError,
+    NodeRunNotFoundError,
     NodeSourceNotFoundError,
 )
 from app.service.node.service.service import NodeService
@@ -34,6 +37,8 @@ _MAX_BODY_BYTES = 1_000_000
 _STATUS: dict[type[Exception], int] = {
     NodeSourceNotFoundError: 404,
     NodeDatasetNotFoundError: 404,
+    NodeRunNotFoundError: 404,
+    NodeBusyError: 503,
     DRARejectedError: 400,
     DRAQueryError: 400,
     DRAQueryTimeoutError: 408,
@@ -47,8 +52,8 @@ class NodeHttp:
     HTTP face of `NodeService`, a thin mapping with no logic of its own
 
     Every route except `GET /health` needs a bearer token. Catalog routes are plain `def`
-    endpoints so Starlette runs them in its thread pool; `POST /internal/query` has to read the
-    body and hands the blocking call to the pool itself.
+    endpoints so Starlette runs them in its thread pool; `POST /internal/query` and
+    `POST .../runs` have to read the body and hand the blocking call to the pool themselves.
 
     Routes:
     ----------
@@ -62,6 +67,8 @@ class NodeHttp:
         GET  /internal/datasets/{source}/{dataset}/qualities[?since=&until=]
         GET  /internal/datasets/{source}/{dataset}/definitions[?since=&until=]
         GET  /internal/datasets/{source}/{dataset}/runs[?status=&limit=]
+        POST /internal/datasets/{source}/{dataset}/runs  body {"params": {...}} or empty
+        GET  /internal/datasets/{source}/{dataset}/runs/{id}
         GET  /internal/machine/snapshots[?hours=]
         POST /internal/query            body {"sql": "SELECT ..."}
 
@@ -69,14 +76,17 @@ class NodeHttp:
     datetime, a datetime without an offset is read as UTC. `hours` is a number above 0, the
     machine snapshots of that many past hours, all of them when absent. `status` is one of
     started, completed, failed; `limit` is an integer of at least 1, the newest runs come first.
+    `POST .../runs` starts a run in the background and answers `202` with its STARTED record,
+    poll `GET .../runs/{id}` until the status is completed or failed.
 
     Errors:
     ----------
         401: missing or invalid token, same body for every cause
         400: malformed request, DRARejectedError, DRAQueryError
-        404: unknown source or dataset
+        404: unknown source, dataset or run
         408: DRAQueryTimeoutError
-        503: DRABusyError, every session is running a query
+        503: DRABusyError (every session is running a query), NodeBusyError (a run limit is reached
+             or the dataset is already running, retry later)
         500: anything else, the body carries no detail
 
     Args:
@@ -115,6 +125,8 @@ class NodeHttp:
             Route(f"{_dataset}/qualities", self._list_qualities, methods=["GET"]),
             Route(f"{_dataset}/definitions", self._list_definitions, methods=["GET"]),
             Route(f"{_dataset}/runs", self._list_runs, methods=["GET"]),
+            Route(f"{_dataset}/runs", self._submit_dataset_run, methods=["POST"]),
+            Route(f"{_dataset}/runs/{{id}}", self._get_dataset_run, methods=["GET"]),
             Route(f"{_prefix}/machine/snapshots", self._list_machine_snapshots, methods=["GET"]),
             Route(f"{_prefix}/query", self._query, methods=["POST"]),
         ]
@@ -298,6 +310,38 @@ class NodeHttp:
         )
         return JsonResponse(_res)
 
+    def _get_dataset_run(self, request: Request) -> Response:
+        _res = self._service.get_dataset_run(
+            source=request.path_params["source"],
+            dataset=request.path_params["dataset"],
+            id=request.path_params["id"],
+        )
+        return JsonResponse(_res)
+
+    async def _submit_dataset_run(self, request: Request) -> Response:
+        _body: bytes | None = await self._read_body(request)
+        if _body is None:
+            return JsonResponse({"error": "request too large"}, status_code=413)
+
+        # An empty body is a run without params
+        _params: Any = None
+        if _body.strip():
+            try:
+                _payload: Any = json.loads(_body)
+            except ValueError:
+                raise NodeBadRequestError("body must be JSON") from None
+            if not isinstance(_payload, dict):
+                raise NodeBadRequestError('body must be {"params": {...}}')
+            _params = _payload.get("params")
+
+        _res = await run_in_threadpool(
+            self._service.submit_dataset_run,
+            request.path_params["source"],
+            request.path_params["dataset"],
+            _params,
+        )
+        return JsonResponse(_res, status_code=202)
+
     def _list_machine_snapshots(self, request: Request) -> Response:
         _raw: str | None = request.query_params.get("hours")
         _hours: float | None = None
@@ -309,13 +353,20 @@ class NodeHttp:
         _res = self._service.list_machine_snapshots(_hours)
         return JsonResponse(_res)
 
-    async def _query(self, request: Request) -> Response:
+    @staticmethod
+    async def _read_body(request: Request) -> bytes | None:
+        # None when the body is over the limit
         _length: str | None = request.headers.get("content-length")
         if _length is not None and _length.isdigit() and int(_length) > _MAX_BODY_BYTES:
-            return JsonResponse({"error": "request too large"}, status_code=413)
+            return None
 
         _body: bytes = await request.body()
         if len(_body) > _MAX_BODY_BYTES:
+            return None
+        return _body
+
+    async def _query(self, request: Request) -> Response:
+        if await self._read_body(request) is None:
             return JsonResponse({"error": "request too large"}, status_code=413)
 
         try:

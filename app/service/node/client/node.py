@@ -14,8 +14,8 @@ class NodeClient(ABC):
 
     Methods mirror `NodeService`, so every implementation answers the same questions with the
     same shapes and raises the same errors (`NodeSourceNotFoundError`, `NodeDatasetNotFoundError`,
-    `NodeBadRequestError`, `DRARejectedError`, `DRAQueryError`, `DRAQueryTimeoutError`,
-    `DRABusyError`). A remote implementation also raises `NodeUnauthorizedError`,
+    `NodeRunNotFoundError`, `NodeBusyError`, `NodeBadRequestError`, `DRARejectedError`, `DRAQueryError`,
+    `DRAQueryTimeoutError`, `DRABusyError`). A remote implementation also raises `NodeUnauthorizedError`,
     `NodeUnavailableError` and `NodeUnknownError`.
 
     `since` and `until` are epoch seconds (`modified_at` of an assetfile is one) or a datetime.
@@ -40,6 +40,10 @@ class NodeClient(ABC):
             Definitions grouped by fingerprint with the partitions that carry each of them
         list_runs(source, dataset, status=None, limit=None) -> list[dict]:
             Run records of a dataset, newest first, optionally of one status and capped at limit
+        submit_dataset_run(source, dataset, params=None) -> dict:
+            Start a run of a dataset in the background, returns its STARTED record
+        get_dataset_run(source, dataset, id) -> dict:
+            Record of one run, poll it until its status is completed or failed
         query(sql, caller=None) -> DRADataResult:
             Run one SELECT on the node, as the identity this client holds, or as `caller` when
             that identity may delegate (the node names the principal `<identity>:<caller>`)
@@ -127,6 +131,24 @@ class NodeClient(ABC):
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """Run records of a dataset, newest first."""
+
+    @abstractmethod
+    def submit_dataset_run(
+        self,
+        source: str,
+        dataset: str,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Start a run of a dataset in the background, returns its STARTED record."""
+
+    @abstractmethod
+    def get_dataset_run(
+        self,
+        source: str,
+        dataset: str,
+        id: str,
+    ) -> dict[str, Any]:
+        """Record of one run."""
 
     @abstractmethod
     def query(

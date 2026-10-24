@@ -17,15 +17,16 @@ A host needs the same things from a node (browse the catalog, run a SELECT, chec
 
 ## What it does
 
-- **One interface, two transports.** Methods mirror `NodeService`: `list_sources`, `get_source`, `list_datasets`, `get_dataset`, `list_assetfiles`, `list_metadatas`, `list_qualities`, `list_definitions`, `list_runs`, `query`, `health`, `close`. Context manager supported.
+- **One interface, two transports.** Methods mirror `NodeService`: `list_sources`, `get_source`, `list_datasets`, `get_dataset`, `list_assetfiles`, `list_metadatas`, `list_qualities`, `list_definitions`, `list_runs`, `submit_dataset_run`, `get_dataset_run`, `query`, `health`, `close`. Context manager supported.
 - **Same shapes, same errors.** Every implementation returns the same dicts and `DRADataResult`, and raises the same domain errors, so a host's error handling does not depend on the transport.
 - **`HttpNodeClient`** maps method calls to `/internal/...` routes, authenticates with a bearer token, and turns the response back into what the node raised or returned.
+- **Runs.** `submit_dataset_run(source, dataset, params=None)` starts a run in the background and returns its STARTED record (HTTP: `POST .../runs`, `202`); `get_dataset_run(source, dataset, id)` returns one record (HTTP: `GET .../runs/{id}`). The client never waits: poll `get_dataset_run` until the status is `completed` or `failed`. `list_runs` lists the records of a dataset.
 - **`LocalNodeClient`** delegates straight to `NodeService`, no HTTP and no token.
 - **Caller delegation.** `query(sql, caller=...)` says on whose behalf a host queries. The node names the principal `<identity>:<caller>`, so each caller gets its own DRA session. Over HTTP this is the `X-Fortress-Caller` header and only works if the token may delegate; locally the name is composed client-side. Without `caller`, all queries of one client share one DRA session.
 
 ## Errors
 
-All implementations raise: `NodeSourceNotFoundError`, `NodeDatasetNotFoundError`, `NodeBadRequestError`, `DRARejectedError`, `DRAQueryError`, `DRAQueryTimeoutError`, `DRABusyError`.
+All implementations raise: `NodeSourceNotFoundError`, `NodeDatasetNotFoundError`, `NodeRunNotFoundError`, `NodeBusyError`, `NodeBadRequestError`, `DRARejectedError`, `DRAQueryError`, `DRAQueryTimeoutError`, `DRABusyError`.
 
 `HttpNodeClient` also raises:
 
@@ -41,7 +42,7 @@ Mapping order: if the body names a known error (`error` + `message`), that type 
 
 - **Interface first.** A new capability goes into `NodeClient` and both implementations, mirroring `NodeService`. Hosts type against `NodeClient`, never a concrete client.
 - **Behaviour parity.** Implementations must not diverge in return shapes or in the shared errors. Transport-only errors stay in the remote one.
-- **Read-only.** Catalog reads and one SELECT. No writes, no node administration.
+- **One write.** Catalog reads, one SELECT, and `submit_dataset_run` (starts a run; `NodeBusyError` when the node refuses it, retry later). No other writes, no node administration.
 - **No business logic.** Transport and translation only. Validation and authorization belong to the node.
 - **Time window.** `since` / `until` are epoch seconds or a datetime. A naive datetime is sent as UTC, not in the node's zone.
 - **Path safety.** Source and dataset names are percent-encoded, `/` included, so a name is always one path segment.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import threading
 import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -15,14 +16,16 @@ from app.resource._global.logstreams import GlobalLogStreams
 from app.resource._global.sources import GlobalSources
 from app.resource.asset.local.vault import LocalVault
 from app.resource.source._common._run import DatasetRun
-from app.resource.source._common.tests.fakes.base import FakeSource
+from app.resource.source._common.tests.fakes.base import FakeDataset, FakeSource
 from app.resource.store.file.store import FileStore
 from app.service._common.auth import Principal
 from app.service.machine.service.service import MachineService
 from app.service.node.dra import DRABusyError, DRADataResult, DRARefreshError, DRARejectedError, DRASession
 from app.service.node.service.errors import (
     NodeBadRequestError,
+    NodeBusyError,
     NodeDatasetNotFoundError,
+    NodeRunNotFoundError,
     NodeSourceNotFoundError,
 )
 from app.service.node.service.service import NodeService
@@ -288,6 +291,198 @@ class TestRuns:
     def test_unknown_dataset_raises(self, service):
         with pytest.raises(NodeDatasetNotFoundError):
             service.list_runs("src", "nope")
+
+
+class TestSubmitDatasetRun:
+    @pytest.fixture
+    def gate(self, service, monkeypatch):
+        # Every dataset run blocks in extract until the gate opens
+        _gate = threading.Event()
+
+        def _extract(self, params=None):
+            _gate.wait(10)
+            return pl.DataFrame({"a": [1]})
+
+        monkeypatch.setattr(FakeDataset, "extract", _extract)
+        yield _gate
+        _gate.set()
+
+    @staticmethod
+    def _wait(service, source, dataset, id):
+        for _ in range(200):
+            _res = service.get_dataset_run(source, dataset, id)
+            if _res["status"] != "started":
+                return _res
+            time.sleep(0.05)
+        raise AssertionError("run did not finish")
+
+    @staticmethod
+    def _second_source(tmp_path, name="src2", max_threads=1):
+        return FakeSource(
+            name=name,
+            max_threads=max_threads,
+            vault=LocalVault(name="v2", path=tmp_path / "vault2"),
+            store=FileStore(name="s2", path=str(tmp_path / "store2")),
+            log_stream=LogStream(name=name, console_verbose=False),
+        )
+
+    def test_returns_a_started_record_at_once(self, service, gate):
+        _res = service.submit_dataset_run("src", "alpha", {"k": "v"})
+        assert _res["status"] == "started"
+        assert _res["params"] == {"k": "v"}
+        assert service.get_dataset_run("src", "alpha", _res["id"])["status"] == "started"
+
+    def test_run_completes_in_the_background(self, service, gate):
+        _id = service.submit_dataset_run("src", "alpha")["id"]
+        gate.set()
+        _done = self._wait(service, "src", "alpha", _id)
+        assert _done["status"] == "completed"
+        assert _done["assetfile_count"] == 1
+
+    def test_run_is_owned_by_the_node(self, log, source, gate):
+        _service = NodeService(NodeServiceSetting(), node="n1")
+        _service.start()
+        try:
+            _id = _service.submit_dataset_run("src", "alpha")["id"]
+            assert source.dataset("alpha").get_run(_id).owner == "n1"
+        finally:
+            gate.set()
+            _service.stop()
+
+    def test_a_failed_run_is_reported_failed(self, service, monkeypatch):
+        def _boom(self, params=None):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(FakeDataset, "extract", _boom)
+        _id = service.submit_dataset_run("src", "alpha")["id"]
+        _done = self._wait(service, "src", "alpha", _id)
+        assert (_done["status"], _done["error"]) == ("failed", "boom")
+
+    def test_same_dataset_cannot_run_twice(self, service, gate):
+        service.submit_dataset_run("src", "alpha")
+        with pytest.raises(NodeBusyError, match="already running"):
+            service.submit_dataset_run("src", "alpha")
+
+    def test_dataset_can_run_again_once_finished(self, service, gate):
+        _id = service.submit_dataset_run("src", "alpha")["id"]
+        gate.set()
+        self._wait(service, "src", "alpha", _id)
+        # The slot is released after the record is final, give the worker a moment
+        for _ in range(100):
+            try:
+                _second = service.submit_dataset_run("src", "alpha")
+                break
+            except NodeBusyError:
+                time.sleep(0.02)
+        else:
+            raise AssertionError("slot was not released")
+        assert _second["id"] != _id
+
+    def test_source_limit_refuses_another_dataset(self, service, gate):
+        service.submit_dataset_run("src", "alpha")
+        with pytest.raises(NodeBusyError, match="Source 'src'"):
+            service.submit_dataset_run("src", "beta")
+
+    def test_source_limit_follows_max_threads(self, service, tmp_path, gate):
+        GlobalSources.sources = {"wide": self._second_source(tmp_path, "wide", max_threads=2)}
+        service.submit_dataset_run("wide", "alpha")
+        service.submit_dataset_run("wide", "beta")
+
+    def test_node_limit_refuses_another_source(self, log, source, tmp_path, gate):
+        GlobalSources.sources = {
+            "src": source,
+            "src2": self._second_source(tmp_path, "src2"),
+            "src3": self._second_source(tmp_path, "src3"),
+        }
+        _service = NodeService(NodeServiceSetting(max_threads=2))
+        _service.start()
+        try:
+            _service.submit_dataset_run("src", "alpha")
+            _service.submit_dataset_run("src2", "alpha")
+            with pytest.raises(NodeBusyError, match="Node"):
+                _service.submit_dataset_run("src3", "alpha")
+        finally:
+            gate.set()
+            _service.stop()
+
+    def test_a_refused_submit_writes_no_record(self, service, source, gate):
+        service.submit_dataset_run("src", "alpha")
+        with pytest.raises(NodeBusyError):
+            service.submit_dataset_run("src", "beta")
+        assert source.dataset("beta").list_runs() == []
+
+    def test_params_must_be_an_object(self, service):
+        with pytest.raises(NodeBadRequestError, match="params"):
+            service.submit_dataset_run("src", "alpha", ["x"])
+
+    def test_unknown_source_and_dataset_raise(self, service):
+        with pytest.raises(NodeSourceNotFoundError):
+            service.submit_dataset_run("nope", "alpha")
+        with pytest.raises(NodeDatasetNotFoundError):
+            service.submit_dataset_run("src", "nope")
+
+    def test_requires_a_running_service(self, log, source):
+        with pytest.raises(RuntimeError, match="not running"):
+            NodeService(NodeServiceSetting()).submit_dataset_run("src", "alpha")
+
+    def test_stop_waits_for_the_runs_in_flight(self, log, source, gate):
+        _service = NodeService(NodeServiceSetting())
+        _service.start()
+        _id = _service.submit_dataset_run("src", "alpha")["id"]
+        threading.Timer(0.3, gate.set).start()
+        _service.stop()
+        assert source.dataset("alpha").get_run(_id).status == "completed"
+
+
+class TestGetDatasetRun:
+    def test_returns_the_record(self, service, source):
+        _dataset = source.dataset("alpha")
+        _dataset.run()
+        _id = _dataset.list_runs()[0].id
+        _res = service.get_dataset_run("src", "alpha", _id)
+        assert (_res["id"], _res["status"]) == (_id, "completed")
+
+    def test_unknown_run_raises(self, service):
+        with pytest.raises(NodeRunNotFoundError):
+            service.get_dataset_run("src", "alpha", "run-missing")
+
+    def test_unknown_source_and_dataset_raise(self, service):
+        with pytest.raises(NodeSourceNotFoundError):
+            service.get_dataset_run("nope", "alpha", "x")
+        with pytest.raises(NodeDatasetNotFoundError):
+            service.get_dataset_run("src", "nope", "x")
+
+    def test_requires_a_running_service(self, log, source):
+        with pytest.raises(RuntimeError, match="not running"):
+            NodeService(NodeServiceSetting()).get_dataset_run("src", "alpha", "x")
+
+
+class TestRecoverRunsOnStart:
+    def test_fails_the_runs_the_node_left_started(self, log, source):
+        _dataset = source.dataset("alpha")
+        _run = _dataset.start_run(owner="n1")
+        _service = NodeService(NodeServiceSetting(), node="n1")
+        _service.start()
+        _service.stop()
+        assert _dataset.get_run(_run.id).status == "failed"
+
+    def test_keeps_the_runs_of_another_node(self, log, source):
+        _dataset = source.dataset("alpha")
+        _run = _dataset.start_run(owner="n2")
+        _service = NodeService(NodeServiceSetting(), node="n1")
+        _service.start()
+        _service.stop()
+        assert _dataset.get_run(_run.id).status == "started"
+
+    def test_an_unreadable_store_does_not_block_the_start(self, log, source, monkeypatch):
+        def _boom(self, owner):
+            raise OSError("store down")
+
+        monkeypatch.setattr(FakeDataset, "recover_runs", _boom)
+        _service = NodeService(NodeServiceSetting())
+        _service.start()
+        assert _service.is_running
+        _service.stop()
 
 
 class TestMachine:
