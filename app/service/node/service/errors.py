@@ -9,6 +9,14 @@ class NodeDatasetNotFoundError(LookupError):
     """Dataset does not exist on this node"""
 
 
+class NodeRunNotFoundError(LookupError):
+    """Dataset run does not exist on this node"""
+
+
+class NodeBusyError(RuntimeError):
+    """Node cannot take the dataset run now, the caller may retry later"""
+
+
 class NodeBadRequestError(ValueError):
     """Bad request made to this node"""
 
