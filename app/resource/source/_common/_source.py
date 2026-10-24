@@ -266,6 +266,16 @@ class BaseSource(
                 self._datasets = _result
             return list(self._datasets)
 
+    def list_logs(
+        self,
+        limit: int | None = 500,
+    ) -> list:
+        with self._lock:
+            _result: list = []
+            for _record in self.log_stream.read(limit=limit):
+                _result.append(_record)
+            return _result
+
     def show(self) -> None:
         self.log_stream.info(f"Source {self.provider} {self.name}")
         for dataset_name in self.list_dataset_names():
