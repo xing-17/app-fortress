@@ -156,7 +156,9 @@ class DatasetRun(IAbstractDomain):
         self._check_transition(ComputeStatus.COMPLETED)
         self.status = ComputeStatus.COMPLETED
         self.finished_at = self._current()
-        self.assetfiles, self.height, self.width = assetfiles, height, width
+        self.assetfiles = assetfiles
+        self.height = height
+        self.width = width
 
     def fail(
         self,
