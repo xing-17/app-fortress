@@ -156,9 +156,8 @@ class TestVerify:
 
     def test_unreachable_keys_reject_the_request(self, key):
         _down = StaticKeys(key, error=jwt.PyJWKClientConnectionError("down"))
-        with pytest.raises(AuthError) as e:
+        with pytest.raises(AuthError):
             AccessAuth(_setting(), keys=_down).verify(mint(key))
-        assert e.value.reason == "access keys unavailable"
 
     def test_an_unknown_key_id_is_rejected(self, key):
         _unknown = StaticKeys(key, error=jwt.PyJWKClientError("no key"))

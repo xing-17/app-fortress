@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from app.internal.constant.assetfilekind import AssetFileKind
+from app.internal.constant.computestatus import ComputeStatus
 from app.internal.constant.servicekind import ServiceKind
 from app.internal.model.definition.dataframe import DataframeDefinition
 from app.internal.model.definition.group import DefinitionGroup
@@ -13,6 +14,7 @@ from app.resource._global.sources import GlobalSources
 from app.resource.asset import DRAMount
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.source._common._dataset import BaseDataset
+from app.resource.source._common._run import DatasetRun
 from app.resource.source._common._source import BaseSource
 from app.service._common._service import BaseService
 from app.service._common.auth import Principal
@@ -31,6 +33,9 @@ from app.service.node.service.errors import (
     NodeSourceNotFoundError,
 )
 from app.setting.service import MachineServiceSetting, NodeServiceSetting
+
+# A failure message may carry paths or URLs, only its head leaves the node
+_MAX_RUN_ERROR_CHARS = 500
 
 
 class NodeService(BaseService[NodeServiceSetting]):
@@ -74,6 +79,8 @@ class NodeService(BaseService[NodeServiceSetting]):
         list_definitions(source, dataset, since=None, until=None) -> list[dict]:
             Definitions grouped by fingerprint with the partitions that carry each of them,
             assetfiles without metadata are skipped
+        list_runs(source, dataset, status=None, limit=None) -> list[dict]:
+            Run records of a dataset, newest first, optionally of one status and capped at limit
         query(caller, sql) -> DRADataResult:
             Run one SELECT in the caller's DRA session, created on first use
         list_machine_snapshots(hours=None) -> list[dict]:
@@ -366,6 +373,50 @@ class NodeService(BaseService[NodeServiceSetting]):
             _groups[_fp].partitions.append(dict(_file.partitions))
 
         return [_group.export() for _group in _groups.values()]
+
+    # Run Info
+
+    def _retrieve_run_info(
+        self,
+        run: DatasetRun,
+    ) -> dict[str, Any]:
+        # Assetfile URIs are not exposed (same as `_retrieve_assetfile_info`), only how many
+        _error: str | None = run.error
+        if _error is not None:
+            _error = _error[:_MAX_RUN_ERROR_CHARS]
+        return {
+            "id": run.id,
+            "status": str(run.status),
+            "params": run.params,
+            "assetfile_count": len(run.assetfiles),
+            "height": run.height,
+            "width": run.width,
+            "error": _error,
+            "started_at": run.started_at,
+            "finished_at": run.finished_at,
+            "duration": run.duration,
+        }
+
+    def list_runs(
+        self,
+        source: str,
+        dataset: str,
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        self._require_running()
+        _statuses: list[str] = [str(_s) for _s in ComputeStatus]
+        if status is not None and status not in _statuses:
+            raise NodeBadRequestError(f"'status' must be one of {_statuses}")
+        if limit is not None and limit < 1:
+            raise NodeBadRequestError("'limit' must be at least 1")
+
+        _dataset: BaseDataset = self._resolve(source, dataset)
+        _runs: list[DatasetRun] = _dataset.list_runs(
+            status=status,
+            limit=limit,
+        )
+        return [self._retrieve_run_info(_run) for _run in _runs]
 
     # --------------------------------------------------
     # Machine

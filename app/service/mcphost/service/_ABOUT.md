@@ -182,6 +182,7 @@ The AI is guided to the flow `list_datasets` → `get_schema` → `query`, with 
 | `list_datasets(source?)` | `list_datasets` | dataset, description, frequency, partition keys |
 | `get_schema(dataset)` | `get_dataset`, `list_definitions` | Description, partition keys, and `definitions`: each distinct schema (columns and types) with its `partition_count` and the min/max of each partition key. Sorted by partition count, the most common schema first |
 | `get_quality(dataset, limit=20)` | `list_qualities` | Per partition file, newest first (limit clamped 1..200): rows, complete rows, duplicates, columns with a NULL rate, constant columns, all-NULL columns. `checked: false` when a file has no quality record |
+| `list_runs(dataset, status?, limit=20)` | `list_runs` | Run records of the dataset, newest first (limit clamped 1..100): status, start/finish time, duration, params, rows/columns written, error of a failed run. `status` is started, completed or failed |
 | `query(sql)` | `query(sql, caller=)` | The rows of ONE read-only SELECT (DuckDB). Capped in rows and size, `truncated` says so |
 
 Notes:

@@ -41,6 +41,8 @@ NodeService
 
 `list_definitions` groups assetfiles by definition fingerprint and lists the partitions carrying each one; assetfiles without metadata or fingerprint are skipped.
 
+`list_runs(source, dataset, status=None, limit=None)` returns the `DatasetRun` records of a dataset, newest first (HTTP: `GET /internal/datasets/{source}/{dataset}/runs[?status=&limit=]`). `status` must be started, completed or failed and `limit` at least 1, else `400`. Assetfile URIs are not exposed, only `assetfile_count`, and a failure `error` is cut to 500 characters.
+
 ## Machine path
 
 `list_machine_snapshots(hours=None)` answers from the `MachineService` the node owns (it starts and stops with the node). That service samples cpu, memory, swap, disk, network and the node process every `interval_seconds` (60) and keeps `retention_hours` (12) of snapshots in memory, both in `MachineServiceSetting`. `hours=None` returns everything kept, otherwise the last `hours`; the HTTP route is `GET /internal/machine/snapshots[?hours=]`.

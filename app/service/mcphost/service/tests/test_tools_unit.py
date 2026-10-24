@@ -103,6 +103,7 @@ class TestToolList:
             "list_datasets",
             "get_schema",
             "get_quality",
+            "list_runs",
             "list_machine_snapshots",
             "query",
         }
@@ -440,6 +441,51 @@ class TestGetQuality:
         _res = call(server, "get_quality", {"dataset": "alpha"})
         assert _res.is_error
         assert "<source>.<dataset>" in text(_res)
+
+
+class TestListRuns:
+    _RUN = {"id": "run_1", "status": "completed", "started_at": 1.0, "finished_at": 2.0, "error": None}
+
+    def test_returns_the_runs_of_the_dataset(self, server, fake):
+        fake.runs = [self._RUN]
+        _res = data(call(server, "list_runs", {"dataset": "src.alpha"}))
+        assert _res == {"node": "centre", "dataset": "src.alpha", "runs": [self._RUN]}
+
+    def test_default_limit_and_no_status(self, server, fake):
+        call(server, "list_runs", {"dataset": "src.alpha"})
+        assert ("list_runs", ("src", "alpha", None, 20)) in fake.calls
+
+    def test_status_goes_to_the_node(self, server, fake):
+        call(server, "list_runs", {"dataset": "src.alpha", "status": "failed", "limit": 5})
+        assert ("list_runs", ("src", "alpha", "failed", 5)) in fake.calls
+
+    def test_limit_is_clamped(self, server, fake):
+        call(server, "list_runs", {"dataset": "src.alpha", "limit": 0})
+        call(server, "list_runs", {"dataset": "src.alpha", "limit": 10_000})
+        assert ("list_runs", ("src", "alpha", None, 1)) in fake.calls
+        assert ("list_runs", ("src", "alpha", None, 100)) in fake.calls
+
+    def test_malformed_dataset_name(self, server):
+        _res = call(server, "list_runs", {"dataset": "alpha"})
+        assert _res.is_error
+        assert "<source>.<dataset>" in text(_res)
+
+    def test_bad_status_message_reaches_the_ai(self, server, fake):
+        fake.raises = NodeBadRequestError("'status' must be one of ['started', 'completed', 'failed']")
+        _res = call(server, "list_runs", {"dataset": "src.alpha", "status": "nope"})
+        assert _res.is_error
+        assert "'status' must be one of" in text(_res)
+
+    def test_unknown_dataset_is_an_error(self, server, fake):
+        fake.raises = NodeDatasetNotFoundError("Dataset 'src.nope' not found on this node")
+        _res = call(server, "list_runs", {"dataset": "src.nope"})
+        assert _res.is_error
+        assert "not found" in text(_res)
+
+    def test_the_run_count_is_logged(self, server, fake, log):
+        fake.runs = [self._RUN, self._RUN]
+        call(server, "list_runs", {"dataset": "src.alpha"})
+        assert log.info.call_args.kwargs["metrics"]["runs"] == 2
 
 
 class TestQuery:

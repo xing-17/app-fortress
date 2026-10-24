@@ -32,6 +32,7 @@ from .instructions import (
     _LIST_DATASETS_DOC,
     _LIST_MACHINE_SNAPSHOTS_DOC,
     _LIST_NODES_DOC,
+    _LIST_RUNS_DOC,
     _QUERY_DOC,
 )
 
@@ -40,6 +41,8 @@ T = TypeVar("T")
 _MAX_LOGGED_SQL = 500
 _DEFAULT_QUALITY_LIMIT = 20
 _MAX_QUALITY_LIMIT = 200
+_DEFAULT_RUN_LIMIT = 20
+_MAX_RUN_LIMIT = 100
 
 # The node words these for the caller
 # AI sees them as they are and can adjust its next call
@@ -493,6 +496,33 @@ def build_server(
             "get_quality",
             {"dataset": dataset, "limit": limit, "node": node},
             _call,
+            caller=_caller_of(ctx),
+        )
+
+    @_server.tool(name="list_runs", description=_LIST_RUNS_DOC)
+    def list_runs(
+        ctx: Context,
+        dataset: str,
+        status: str | None = None,
+        limit: int = _DEFAULT_RUN_LIMIT,
+        node: str | None = None,
+    ) -> dict[str, Any]:
+        def _call() -> dict[str, Any]:
+            _source, _name = _split(dataset)
+            _limit: int = max(1, min(limit, _MAX_RUN_LIMIT))
+            _node, _client = _router.locate(_source, _name, node)
+            _runs = _client.list_runs(_source, _name, status=status, limit=_limit)
+            return {
+                "node": _node,
+                "dataset": f"{_source}.{_name}",
+                "runs": _runs,
+            }
+
+        return _guard.run(
+            tool="list_runs",
+            arguments={"dataset": dataset, "status": status, "limit": limit, "node": node},
+            func=_call,
+            metrics=lambda r: {"runs": len(r["runs"])},
             caller=_caller_of(ctx),
         )
 

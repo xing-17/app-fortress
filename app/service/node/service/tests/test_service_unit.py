@@ -14,6 +14,7 @@ from app.resource._global.identities import GlobalIdentities
 from app.resource._global.logstreams import GlobalLogStreams
 from app.resource._global.sources import GlobalSources
 from app.resource.asset.local.vault import LocalVault
+from app.resource.source._common._run import DatasetRun
 from app.resource.source._common.tests.fakes.base import FakeSource
 from app.resource.store.file.store import FileStore
 from app.service._common.auth import Principal
@@ -220,6 +221,73 @@ class TestDefinitions:
     def test_assetfile_without_metadata_is_skipped(self, service, source):
         _write(source, "beta", "bare.parquet", pl.DataFrame({"a": [1]}), {"year": "2022"}, metadata=False)
         assert service.list_definitions("src", "beta") == []
+
+
+class TestRuns:
+    def test_lists_the_runs_of_a_dataset(self, service, source):
+        _dataset = source.dataset("alpha")
+        _dataset.run(params={"date": "2024-01-01"})
+        _res = service.list_runs("src", "alpha")
+        assert len(_res) == 1
+        assert _res[0]["status"] == "completed"
+        assert _res[0]["params"] == {"date": "2024-01-01"}
+        assert _res[0]["assetfile_count"] == 1
+        assert _res[0]["height"] == 3
+        assert _res[0]["width"] == 2
+        assert _res[0]["error"] is None
+        assert _res[0]["finished_at"] >= _res[0]["started_at"]
+
+    def test_does_not_expose_the_assetfile_uris(self, service, source):
+        source.dataset("alpha").run()
+        _res = service.list_runs("src", "alpha")
+        assert "assetfiles" not in _res[0]
+        assert "provider" not in _res[0]
+
+    def test_dataset_without_runs_is_empty(self, service):
+        assert service.list_runs("src", "alpha") == []
+
+    def test_newest_first_and_limit(self, service, source):
+        _dataset = source.dataset("alpha")
+        for _ in range(3):
+            _dataset.run()
+        _all = service.list_runs("src", "alpha")
+        assert [r["started_at"] for r in _all] == sorted((r["started_at"] for r in _all), reverse=True)
+        assert len(service.list_runs("src", "alpha", limit=2)) == 2
+
+    def test_status_filter(self, service, source):
+        _dataset = source.dataset("alpha")
+        _dataset.run()
+        _failed = DatasetRun(provider="tushare", dataset="alpha")
+        _failed.fail("boom")
+        _dataset._write_run(_failed)
+        assert [r["error"] for r in service.list_runs("src", "alpha", status="failed")] == ["boom"]
+        assert len(service.list_runs("src", "alpha", status="completed")) == 1
+        assert service.list_runs("src", "alpha", status="started") == []
+
+    def test_a_long_error_is_clipped(self, service, source):
+        _dataset = source.dataset("alpha")
+        _failed = DatasetRun(provider="tushare", dataset="alpha")
+        _failed.fail("x" * 5000)
+        _dataset._write_run(_failed)
+        assert len(service.list_runs("src", "alpha")[0]["error"]) == 500
+
+    @pytest.mark.parametrize("status", ["done", "COMPLETED", ""])
+    def test_unknown_status_raises(self, service, status):
+        with pytest.raises(NodeBadRequestError, match="status"):
+            service.list_runs("src", "alpha", status=status)
+
+    @pytest.mark.parametrize("limit", [0, -1])
+    def test_limit_must_be_at_least_one(self, service, limit):
+        with pytest.raises(NodeBadRequestError, match="limit"):
+            service.list_runs("src", "alpha", limit=limit)
+
+    def test_unknown_source_raises(self, service):
+        with pytest.raises(NodeSourceNotFoundError):
+            service.list_runs("nope", "alpha")
+
+    def test_unknown_dataset_raises(self, service):
+        with pytest.raises(NodeDatasetNotFoundError):
+            service.list_runs("src", "nope")
 
 
 class TestMachine:

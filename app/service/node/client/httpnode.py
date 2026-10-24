@@ -335,6 +335,25 @@ class HttpNodeClient(NodeClient):
             params=self._window(since, until),
         )
 
+    def list_runs(
+        self,
+        source: str,
+        dataset: str,
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        _dataset_path: str = self._dataset_path(source, dataset)
+        _params: dict[str, str] = {}
+        if status is not None:
+            _params["status"] = status
+        if limit is not None:
+            _params["limit"] = str(limit)
+        return self._call(
+            method="GET",
+            path=f"{_dataset_path}/runs",
+            params=_params,
+        )
+
     # --------------------------------------------------
     # DRA: Data Retrieval API
     # --------------------------------------------------

@@ -104,6 +104,28 @@ class TestContract:
         assert sorted(p["year"] for p in _by_size[1]["partitions"]) == ["2022", "2023"]
         assert [p["year"] for p in _by_size[2]["partitions"]] == ["2024"]
 
+    def test_list_runs(self, client, source):
+        source.dataset("alpha").run(params={"date": "2024-01-01"})
+        _res = client.list_runs("src", "alpha")
+        assert len(_res) == 1
+        assert _res[0]["status"] == "completed"
+        assert _res[0]["params"] == {"date": "2024-01-01"}
+
+    def test_list_runs_filters(self, client, source):
+        _dataset = source.dataset("alpha")
+        _dataset.run()
+        _dataset.run()
+        assert len(client.list_runs("src", "alpha", limit=1)) == 1
+        assert client.list_runs("src", "alpha", status="failed") == []
+
+    def test_list_runs_of_unknown_dataset_raises(self, client):
+        with pytest.raises(NodeDatasetNotFoundError):
+            client.list_runs("src", "nope")
+
+    def test_list_runs_with_a_bad_status_raises(self, client):
+        with pytest.raises(NodeBadRequestError):
+            client.list_runs("src", "alpha", status="nope")
+
     def test_query(self, client, source):
         write_assetfile(source, "alpha", "a.parquet", pl.DataFrame({"a": [1, 2, 3]}))
         _res = client.query("SELECT max(a) AS top FROM src.alpha")

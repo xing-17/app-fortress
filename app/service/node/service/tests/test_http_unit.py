@@ -228,6 +228,35 @@ class TestMetadata:
         assert _res[0]["partitions"] == [{"year": "2023"}]
 
 
+class TestRuns:
+    _URL = "/internal/datasets/src/alpha/runs"
+
+    def test_lists_the_runs(self, client, headers, source):
+        source.dataset("alpha").run()
+        _res = client.get(self._URL, headers=headers)
+        assert _res.status_code == 200
+        assert [r["status"] for r in _res.json()] == ["completed"]
+
+    def test_status_and_limit_are_applied(self, client, headers, source):
+        _dataset = source.dataset("alpha")
+        _dataset.run()
+        _dataset.run()
+        assert len(client.get(self._URL, params={"limit": "1"}, headers=headers).json()) == 1
+        assert client.get(self._URL, params={"status": "failed"}, headers=headers).json() == []
+
+    def test_needs_a_token(self, client):
+        assert client.get(self._URL).status_code == 401
+
+    @pytest.mark.parametrize("params", [{"limit": "abc"}, {"limit": "0"}, {"status": "nope"}])
+    def test_bad_parameters_are_a_400(self, client, headers, params):
+        _res = client.get(self._URL, params=params, headers=headers)
+        assert _res.status_code == 400
+        assert _res.json()["error"] == "NodeBadRequestError"
+
+    def test_unknown_dataset_is_404(self, client, headers):
+        assert client.get("/internal/datasets/src/nope/runs", headers=headers).status_code == 404
+
+
 class TestMachine:
     _URL = "/internal/machine/snapshots"
 

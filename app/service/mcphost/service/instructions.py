@@ -5,7 +5,8 @@ Read-only access to the data assets of one or more Fortress nodes.
 
 Datasets are named "<source>.<dataset>" and are tables in SQL under that exact name.
 Typical flow: list_datasets -> get_schema -> query. Use get_quality to check completeness before
-trusting a dataset. Use list_nodes to see which nodes exist and which of them are reachable.
+trusting a dataset. Use list_runs to see whether the last runs of a dataset completed or failed.
+Use list_nodes to see which nodes exist and which of them are reachable.
 Use list_machine_snapshots to see how loaded the machine of a node was (cpu, memory, disk, network).
 A query runs on ONE node and can not join datasets of different nodes: pass `node` to `query`
 when several nodes are served.
@@ -45,6 +46,17 @@ and the columns that contain NULLs or hold a single value.
 `dataset` is "<source>.<dataset>". The node that holds it is found automatically; pass `node` only
 when the same dataset exists on several nodes. Only the `limit` most recently modified files are
 returned. A file with `"checked": false` has no quality record.
+"""
+
+_LIST_RUNS_DOC = """\
+Show the run records of a dataset, newest first: when each run started and finished, how long it
+took, its status (started, completed, failed), the parameters it was called with, the rows and
+columns it wrote and, for a failed run, the error.
+
+`dataset` is "<source>.<dataset>". The node that holds it is found automatically; pass `node` only
+when the same dataset exists on several nodes. Pass `status` to keep only one status, `limit` to
+cap the number of runs (default 20, at most 100). A run that stays `started` for long may have
+died without recording its end. The node keeps only its latest runs per dataset.
 """
 
 _QUERY_DOC = """\

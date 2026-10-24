@@ -17,7 +17,7 @@ A host needs the same things from a node (browse the catalog, run a SELECT, chec
 
 ## What it does
 
-- **One interface, two transports.** Methods mirror `NodeService`: `list_sources`, `get_source`, `list_datasets`, `get_dataset`, `list_assetfiles`, `list_metadatas`, `list_qualities`, `list_definitions`, `query`, `health`, `close`. Context manager supported.
+- **One interface, two transports.** Methods mirror `NodeService`: `list_sources`, `get_source`, `list_datasets`, `get_dataset`, `list_assetfiles`, `list_metadatas`, `list_qualities`, `list_definitions`, `list_runs`, `query`, `health`, `close`. Context manager supported.
 - **Same shapes, same errors.** Every implementation returns the same dicts and `DRADataResult`, and raises the same domain errors, so a host's error handling does not depend on the transport.
 - **`HttpNodeClient`** maps method calls to `/internal/...` routes, authenticates with a bearer token, and turns the response back into what the node raised or returned.
 - **`LocalNodeClient`** delegates straight to `NodeService`, no HTTP and no token.

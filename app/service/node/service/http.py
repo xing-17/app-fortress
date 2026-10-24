@@ -61,12 +61,14 @@ class NodeHttp:
         GET  /internal/datasets/{source}/{dataset}/metadatas[?since=&until=]
         GET  /internal/datasets/{source}/{dataset}/qualities[?since=&until=]
         GET  /internal/datasets/{source}/{dataset}/definitions[?since=&until=]
+        GET  /internal/datasets/{source}/{dataset}/runs[?status=&limit=]
         GET  /internal/machine/snapshots[?hours=]
         POST /internal/query            body {"sql": "SELECT ..."}
 
     `since` and `until` are epoch seconds (`modified_at` of an assetfile is one) or an ISO 8601
     datetime, a datetime without an offset is read as UTC. `hours` is a number above 0, the
-    machine snapshots of that many past hours, all of them when absent.
+    machine snapshots of that many past hours, all of them when absent. `status` is one of
+    started, completed, failed; `limit` is an integer of at least 1, the newest runs come first.
 
     Errors:
     ----------
@@ -112,6 +114,7 @@ class NodeHttp:
             Route(f"{_dataset}/metadatas", self._list_metadatas, methods=["GET"]),
             Route(f"{_dataset}/qualities", self._list_qualities, methods=["GET"]),
             Route(f"{_dataset}/definitions", self._list_definitions, methods=["GET"]),
+            Route(f"{_dataset}/runs", self._list_runs, methods=["GET"]),
             Route(f"{_prefix}/machine/snapshots", self._list_machine_snapshots, methods=["GET"]),
             Route(f"{_prefix}/query", self._query, methods=["POST"]),
         ]
@@ -273,6 +276,25 @@ class NodeHttp:
             source=_source,
             dataset=_dataset,
             **self._window(request),
+        )
+        return JsonResponse(_res)
+
+    def _list_runs(self, request: Request) -> Response:
+        _source: str = request.path_params["source"]
+        _dataset: str = request.path_params["dataset"]
+        _status: str | None = request.query_params.get("status") or None
+        _raw: str | None = request.query_params.get("limit")
+        _limit: int | None = None
+        if _raw:
+            try:
+                _limit = int(_raw)
+            except ValueError:
+                raise NodeBadRequestError("'limit' must be an integer") from None
+        _res = self._service.list_runs(
+            source=_source,
+            dataset=_dataset,
+            status=_status,
+            limit=_limit,
         )
         return JsonResponse(_res)
 

@@ -127,6 +127,20 @@ class LocalNodeClient(NodeClient):
             until=until,
         )
 
+    def list_runs(
+        self,
+        source: str,
+        dataset: str,
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._service.list_runs(
+            source=source,
+            dataset=dataset,
+            status=status,
+            limit=limit,
+        )
+
     # --------------------------------------------------
     # DRA: Data Retrieval API
     # --------------------------------------------------

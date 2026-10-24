@@ -38,6 +38,8 @@ class NodeClient(ABC):
             Each assetfile with its quality, None when it has no metadata
         list_definitions(source, dataset, since=None, until=None) -> list[dict]:
             Definitions grouped by fingerprint with the partitions that carry each of them
+        list_runs(source, dataset, status=None, limit=None) -> list[dict]:
+            Run records of a dataset, newest first, optionally of one status and capped at limit
         query(sql, caller=None) -> DRADataResult:
             Run one SELECT on the node, as the identity this client holds, or as `caller` when
             that identity may delegate (the node names the principal `<identity>:<caller>`)
@@ -115,6 +117,16 @@ class NodeClient(ABC):
         until: datetime | float | None = None,
     ) -> list[dict[str, Any]]:
         """Definitions grouped by fingerprint with the partitions that carry each of them."""
+
+    @abstractmethod
+    def list_runs(
+        self,
+        source: str,
+        dataset: str,
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Run records of a dataset, newest first."""
 
     @abstractmethod
     def query(
