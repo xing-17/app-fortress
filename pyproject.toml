@@ -52,6 +52,8 @@ mcphost = [
 webhost = [
     "app-fortress[node]",
     "httpx",
+    "jinja2",
+    "pyjwt[crypto]",
 ]
 
 [project.scripts]
@@ -68,6 +70,9 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["app*"]
 exclude = ["logs*", "tests*"]
+
+[tool.setuptools.package-data]
+"app.service.webhost.service" = ["templates/*.html", "static/*", "logo/*"]
 
 [tool.ruff]
 line-length = 120
