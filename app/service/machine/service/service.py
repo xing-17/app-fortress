@@ -141,7 +141,9 @@ class MachineService(BaseService[MachineServiceSetting]):
             timestamp=time.time(),
             cpu_percent=psutil.cpu_percent(interval=None),
             mem_percent=_memory.percent,
-            mem_used_mb=round(_memory.used / _MB),
+            # `used` is active+wired on macOS and ignores the compressor
+            # so derive it from `available` like `percent`
+            mem_used_mb=round((_memory.total - _memory.available) / _MB),
             mem_total_mb=round(_memory.total / _MB),
             swap_percent=_swap.percent,
             disk_percent=_disk.percent,
