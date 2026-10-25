@@ -201,9 +201,8 @@ class TestRun:
         week.run()
         assert len(week.run({"mode": "full"})) == 2
 
-    def test_no_items_returns_empty_and_logs(self, week, log_stream):
+    def test_no_items_returns_empty(self, week, log_stream):
         assert week.run() == []
-        assert any("No items discovered" in _r.getMessage() for _r in log_stream.collector.records)
 
     def test_unknown_mode_raises(self, week):
         with pytest.raises(ValueError, match="Unknown run mode"):
@@ -212,7 +211,7 @@ class TestRun:
     def test_failure_keeps_files_already_written(self, week):
         _add_week(week, "20260105")
         make_item(week.provision_path, "20260112", {"bad.DAT": dat("B;001;100")})
-        with pytest.raises(ValueError, match="unexpected B record"):
+        with pytest.raises(RuntimeError, match="1 of 2 items failed.*20260112"):
             week.run()
         assert [_f.partitions["date"] for _f in week.list_assetfiles()] == ["2026-01-05"]
 

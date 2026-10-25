@@ -14,6 +14,7 @@ from app.internal.model.metadata.assetfile import AssetfileMetadata
 from app.internal.util.dataframe import IDataframe
 from app.resource.asset._common._assetfile import BaseAssetfile
 from app.resource.source._common._dataset import BaseDataset
+from app.resource.source._common._run import DatasetRun
 from app.resource.source.nswvg.provision import NSWVGProvisionItem, NSWVGProvisionKind
 
 
@@ -139,8 +140,10 @@ class NSWVGDataset(BaseDataset):
         self,
         mode: NSWVGRunMode = NSWVGRunMode.DELTA,
     ) -> list[NSWVGProvisionItem]:
+        self.log_stream.info(f"Discovering provision items in mode '{mode}'")
         _provs: list[NSWVGProvisionItem] = self.list_provision_items()
         if mode == NSWVGRunMode.FULL:
+            self.log_stream.info(f"Running in FULL, returning {len(_provs)} items.")
             return _provs
 
         _a_ptns: list[dict[str, str]] = []
@@ -151,6 +154,7 @@ class NSWVGDataset(BaseDataset):
         for _p in _provs:
             if _p.partitions not in _a_ptns:
                 _delta.append(_p)
+        self.log_stream.info(f"Running in DELTA, returning {len(_delta)} items.")
         return _delta
 
     def _parse_mode(
@@ -239,14 +243,44 @@ class NSWVGDataset(BaseDataset):
     def run(
         self,
         params: dict[str, Any] | None = None,
+        run: DatasetRun | None = None,
     ) -> list[BaseAssetfile]:
-        _params: dict[str, Any] = params or {}
-        _mode: NSWVGRunMode = self._parse_mode(_params.get("mode"))
-        _items: list[NSWVGProvisionItem] = self.discover(mode=_mode)
-        if not _items:
-            self.log_stream.info(f"No items discovered in {_mode} mode")
-            return []
+        if run is not None:
+            _run: DatasetRun = run
+        else:
+            _run = self.start_run(params=params)
+
         _files: list[BaseAssetfile] = []
-        for _item in _items:
-            _files.extend(super().run({"key": _item.key}))
+        _failed: dict[str, Exception] = {}
+        _height: int = 0
+        _width: int = 0
+        try:
+            _mode: NSWVGRunMode = self._parse_mode((params or {}).get("mode"))
+            _items: list[NSWVGProvisionItem] = self.discover(mode=_mode)
+            for _item in _items:
+                try:
+                    _df: pl.DataFrame = self.extract({"key": _item.key})
+                    _df = self.transform(_df)
+                    _files.extend(self.write(_df))
+                    _height += _df.height
+                    _width = max(_width, _df.width)
+                    self.log_stream.info(f"Item '{_item.key}' processed OK.")
+                except Exception as e:
+                    _failed[_item.key] = e
+                    self.log_stream.error(f"Item '{_item.key}' failed: {e}")
+        except Exception as e:
+            self.fail_run(_run, e)
+            raise
+
+        if _failed:
+            _msg: str = f"{len(_failed)} of {len(_items)} items failed: {sorted(_failed)}"
+            self.fail_run(_run, _msg)
+            raise RuntimeError(_msg)
+
+        _run.complete(
+            assetfiles=[_f.uri for _f in _files],
+            height=_height,
+            width=_width,
+        )
+        self._write_run(run=_run)
         return _files
