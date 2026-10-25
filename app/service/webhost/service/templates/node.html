@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import machine, chips %}
+{% from "_macros.html" import chips %}
 {% block title %}Fortress · {{ node }}{% endblock %}
 {% block body %}
   <section class="hero">
@@ -10,16 +10,16 @@
     </div>
     <p class="muted mono small">{{ endpoint }}</p>
     {% if running %}
-      <div class="actions"><a href="/n/{{ node|urlencode }}/query">query</a></div>
+      <div class="actions">
+        <a href="/n/{{ node|urlencode }}/machine">machine</a>
+        <a href="/n/{{ node|urlencode }}/query">query</a>
+      </div>
     {% endif %}
   </section>
 
   {% if not running %}
     <p class="warn">The node is not running.</p>
-  {% else %}
-    <section class="panel">{{ machine(snapshot) }}</section>
   {% endif %}
-  {% for n in notes %}<p class="warn small">{{ n }}</p>{% endfor %}
 
   {% for s in sources %}
       <section class="source" id="s-{{ s.name }}">

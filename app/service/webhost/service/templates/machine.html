@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import chart, chips %}
+{% block title %}Fortress · {{ node }} · machine{% endblock %}
+{% block body %}
+  <section class="hero">
+    <div class="row">
+      <span class="dot {{ health.get('state', 'unknown') }}"></span>
+      <h1>{{ node }} <span class="muted">· machine</span></h1>
+      <span class="state {{ health.get('state', 'unknown') }}">{{ health.get("state", "unknown") }}</span>
+    </div>
+    <p class="muted mono small">{{ endpoint }}</p>
+    <div class="actions">
+      <a href="/n/{{ node|urlencode }}">sources</a>
+      {% if running %}<a href="/n/{{ node|urlencode }}/query">query</a>{% endif %}
+    </div>
+  </section>
+
+  {% if not running %}
+    <p class="warn">The node is not running.</p>
+  {% else %}
+    <nav class="tabs ranges">
+      {% for h in ranges %}
+        <a class="{{ 'on' if h == hours else '' }}" href="/n/{{ node|urlencode }}/machine?hours={{ h }}">{{ h }}h</a>
+      {% endfor %}
+    </nav>
+    {% for n in notes %}<p class="warn small">{{ n }}</p>{% endfor %}
+
+    {% if not view %}
+      <p class="muted">no machine data in the last {{ hours }}h</p>
+    {% else %}
+      <div class="tiles">
+        {% for t in view.tiles %}
+          <div class="tile">
+            <span class="k">{{ t.label }}</span>
+            <span class="v mono">{{ t.value }}</span>
+            <span class="d muted small mono">{{ t.detail or "\u00a0" }}</span>
+            {% if t.pct is not none %}
+              <svg class="bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">
+                <rect class="bg" width="100" height="4"/>
+                <rect class="fg {{ 'hot' if t.pct >= 90 else ('warm' if t.pct >= 75 else '') }}" width="{{ [t.pct, 100]|min }}" height="4"/>
+              </svg>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      {{ chips(view.info) }}
+
+      {% if not view.charts %}
+        <p class="muted">not enough samples for a curve yet</p>
+      {% else %}
+        {% for c in view.large %}{{ chart(c) }}{% endfor %}
+        {% if view.small %}
+          <div class="chart-grid">{% for c in view.small %}{{ chart(c) }}{% endfor %}</div>
+        {% endif %}
+        <script type="application/json" id="machine-data">{{ view.data|tojson }}</script>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{% endblock %}

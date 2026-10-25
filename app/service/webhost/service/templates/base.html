@@ -25,6 +25,7 @@
 
           {% if n == node %}
             <div class="sub">
+              <a class="item {{ 'on' if page == 'machine' else '' }}" href="/n/{{ n|urlencode }}/machine">Machine</a>
               <a class="item {{ 'on' if page == 'query' else '' }}" href="/n/{{ n|urlencode }}/query">Query</a>
 
               {% if nav %}<div class="group">Sources</div>{% endif %}

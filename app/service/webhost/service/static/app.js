@@ -127,6 +127,62 @@
     });
   });
 
+  // ---- Machine charts: a cursor and the readings under it ----
+  const machineData = $("#machine-data");
+  if (machineData) {
+    const data = JSON.parse(machineData.textContent);
+    const nearest = (x) => {
+      let lo = 0;
+      let hi = data.t.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (data.t[mid] < x) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo > 0 && x - data.t[lo - 1] < data.t[lo] - x ? lo - 1 : lo;
+    };
+
+    document.querySelectorAll(".plot").forEach((plot) => {
+      const chart = data.charts[plot.dataset.chart];
+      const cursor = $(".cursor", plot);
+      const tip = $(".tip", plot);
+      if (!chart) return;
+
+      plot.addEventListener("mousemove", (event) => {
+        const box = plot.getBoundingClientRect();
+        const x = Math.min(Math.max((event.clientX - box.left) / box.width, 0), 1);
+        const i = nearest(x);
+        cursor.hidden = false;
+        cursor.style.left = data.t[i] * 100 + "%";
+
+        const head = document.createElement("div");
+        head.className = "t";
+        head.textContent = data.labels[i];
+        const rows = chart.series.map((s) => {
+          const row = document.createElement("div");
+          row.className = s.cls;
+          const v = s.values[i];
+          row.textContent = `${s.label} ${v === null ? "-" : v} ${chart.unit}`;
+          return row;
+        });
+        tip.replaceChildren(head, ...rows);
+        tip.hidden = false;
+        // The tip flips to the left of the cursor near the right edge
+        if (data.t[i] > 0.6) {
+          tip.style.left = "auto";
+          tip.style.right = (1 - data.t[i]) * 100 + "%";
+        } else {
+          tip.style.right = "auto";
+          tip.style.left = data.t[i] * 100 + "%";
+        }
+      });
+      plot.addEventListener("mouseleave", () => {
+        cursor.hidden = true;
+        tip.hidden = true;
+      });
+    });
+  }
+
   // ---- Query ----
   const form = $("#query-form");
   if (form) {

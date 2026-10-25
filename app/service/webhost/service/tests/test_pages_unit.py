@@ -106,6 +106,9 @@ class TestNode:
         fake.sources = [{"name": "src", "provider": "fake", "vault": "local-vault", "datasets": ["alpha"]}]
         assert "local-vault" in signed_in.get("/n/centre", headers=HTML).text
 
+    def test_node_links_to_machine(self, signed_in):
+        assert 'href="/n/centre/machine"' in signed_in.get("/n/centre", headers=HTML).text
+
     def test_unknown_node_is_404(self, signed_in):
         _res = signed_in.get("/n/nope", headers=HTML)
         assert _res.status_code == 404

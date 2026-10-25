@@ -39,7 +39,7 @@ from app.service.node.service.errors import (
     NodeUnavailableError,
     NodeUnknownError,
 )
-from app.service.webhost.service import shape
+from app.service.webhost.service import machine, shape
 from app.service.webhost.service.auth import (
     COOKIE_NAME,
     SESSION_TTL_SECONDS,
@@ -51,7 +51,6 @@ from app.setting.service import NodeEndpointSetting
 _ROOT = Path(__file__).parent
 _PROBE_TIMEOUT_SECONDS = 6.0
 _MACHINE_HOURS = 1.0
-_NODE_MACHINE_HOURS = 6.0
 _RUN_LIMIT = 30
 _LOG_LIMIT = 200
 _MAX_LISTED = 300
@@ -165,6 +164,7 @@ class WebPages:
             Route("/login", self.login, methods=["POST"]),
             Route("/logout", self.logout, methods=["POST"]),
             Route("/n/{node}", self.node_page, methods=["GET"]),
+            Route("/n/{node}/machine", self.machine_page, methods=["GET"]),
             Route("/n/{node}/s/{source}/logs", self.source_logs, methods=["GET"]),
             Route(_dataset, self.dataset_page, methods=["GET"]),
             Route(f"{_dataset}/runs", self.submit_run, methods=["POST"]),
@@ -417,9 +417,8 @@ class WebPages:
         _health: dict[str, Any] = _client.health()
         _running: bool = bool(_health.get("is_running"))
 
-        _notes: list[str] = []
         _sources: list[dict[str, Any]] = []
-        _machine: dict[str, Any] | None = None
+        _navs: list[dict[str, Any]] = []
         if _running:
             _datasets: list[dict[str, Any]] = _client.list_datasets()
             _by_source: dict[str, list[dict[str, Any]]] = {}
@@ -433,15 +432,12 @@ class WebPages:
                         "items": _by_source.get(_source["name"], []),
                     }
                 )
-            _machine = self._machine(_client, _NODE_MACHINE_HOURS, _notes)
-
-        _navs: list[dict[str, Any]] = []
-        for _s in _sources:
-            _source: dict[str, Any] = {
-                "name": _s["name"],
-                "datasets": list(_s.get("datasets", [])),
-            }
-            _navs.append(_source)
+                _navs.append(
+                    {
+                        "name": _source["name"],
+                        "datasets": list(_source.get("datasets", [])),
+                    }
+                )
 
         return self._render(
             request,
@@ -453,7 +449,44 @@ class WebPages:
             health=_health,
             running=_running,
             sources=_sources,
-            snapshot=_machine,
+            refresh=30,
+        )
+
+    def machine_page(self, request: Request) -> Response:
+        _node: str = request.path_params["node"]
+        _client: NodeClient = self._client(_node)
+        _health: dict[str, Any] = _client.health()
+        _running: bool = bool(_health.get("is_running"))
+
+        _hours: int = machine.DEFAULT_HOURS
+        try:
+            _asked: int = int(request.query_params.get("hours", ""))
+        except ValueError:
+            _asked = _hours
+        if _asked in machine.HOURS:
+            _hours = _asked
+
+        _notes: list[str] = []
+        _view: dict[str, Any] | None = None
+        if _running:
+            try:
+                _snaps: list[dict[str, Any]] = _client.list_machine_snapshots(hours=_hours)
+                _view = machine.machine_view(_snaps, self._zone)
+            except Exception as e:
+                _notes.append(_describe(e))
+
+        return self._render(
+            request,
+            "machine.html",
+            page="machine",
+            node=_node,
+            nav=self._nav(_client) if _running else [],
+            endpoint=self._nodes[_node].endpoint,
+            health=_health,
+            running=_running,
+            view=_view,
+            hours=_hours,
+            ranges=machine.HOURS,
             notes=_notes,
             refresh=30,
         )

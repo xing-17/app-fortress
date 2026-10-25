@@ -8,6 +8,7 @@
   --orange: #ff8a3d;
   --green: #3ddc84;
   --red: #ff5c5c;
+  --blue: #5aa9ff;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
 }
@@ -122,6 +123,47 @@ main.bare { max-width: none; padding: 0 24px; }
 .trend { flex: 1; display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 8px; }
 .spark { width: 100%; height: 28px; }
 .spark polyline { fill: none; stroke: var(--orange); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+
+/* Node machine page */
+.ranges { margin-bottom: 22px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; margin-bottom: 6px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; display: grid; gap: 3px; }
+.tile .k { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.tile .v { font-size: 24px; font-weight: 600; }
+.tile .bar { margin-top: 6px; }
+
+.chart-card { padding: 18px 22px 14px; }
+.chart-card header { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-left: auto; }
+.lg { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+.lg b { width: 10px; height: 10px; border-radius: 3px; background: var(--orange); }
+.lg.s1 b { background: var(--blue); }
+.lg .mono { color: var(--muted); }
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 24px; }
+.chart-grid .chart-card { margin-bottom: 0; }
+.plot-wrap { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; }
+.yaxis { position: relative; color: var(--muted); }
+.yaxis span { position: absolute; right: 0; transform: translateY(-50%); }
+.plot { position: relative; cursor: crosshair; }
+.plot svg { width: 100%; height: 240px; display: block; background: #151515; border-radius: 6px; }
+.chart-card.small .plot svg { height: 150px; }
+.plot .ln { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.plot .area { fill: rgba(255, 138, 61, 0.14); stroke: none; }
+.plot .area.s1 { fill: rgba(90, 169, 255, 0.12); }
+.plot polyline { fill: none; stroke: var(--orange); stroke-width: 1.8; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.plot polyline.s1 { stroke: var(--blue); }
+.cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(239, 232, 218, 0.45); pointer-events: none; }
+.tip {
+  position: absolute; top: 8px; z-index: 2; pointer-events: none; white-space: nowrap;
+  background: #0f0f0f; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px;
+}
+.tip .t { color: var(--muted); margin-bottom: 2px; }
+.tip .s0 { color: var(--orange); }
+.tip .s1 { color: var(--blue); }
+.xaxis { position: relative; height: 18px; margin: 6px 0 0 62px; }
+.xaxis span { position: absolute; transform: translateX(-50%); }
+.xaxis span:first-child { transform: none; }
+.xaxis span:last-child { transform: translateX(-100%); }
 
 /* Chips and tables */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }

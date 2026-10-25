@@ -41,6 +41,43 @@
   {% endif %}
 {% endmacro %}
 
+{% macro chart(c) %}
+  <article class="panel chart-card {{ c.size }}">
+    <header>
+      <h3>{{ c.title }}</h3>
+      <span class="muted small mono">{{ c.unit }}</span>
+      <div class="legend">
+        {% for s in c.series %}
+          <span class="lg {{ s.cls }}"><b></b>{{ s.label }}
+            <span class="mono small">now {{ s.last }} · min {{ s.min }} · avg {{ s.avg }} · max {{ s.max }}</span>
+          </span>
+        {% endfor %}
+      </div>
+    </header>
+    <div class="plot-wrap">
+      <div class="yaxis small mono">
+        {% for t in c.ticks %}<span style="top: {{ '%.2f'|format(t.top) }}%">{{ t.text }}</span>{% endfor %}
+      </div>
+      <div class="plot" data-chart="{{ c.id }}">
+        <svg viewBox="0 0 1000 240" preserveAspectRatio="none" aria-hidden="true">
+          {% for t in c.ticks %}<line class="ln" x1="0" x2="1000" y1="{{ '%.1f'|format(t.y) }}" y2="{{ '%.1f'|format(t.y) }}"/>{% endfor %}
+          {% for s in c.series %}
+            {% for a in s.areas %}<polygon class="area {{ s.cls }}" points="{{ a }}"/>{% endfor %}
+          {% endfor %}
+          {% for s in c.series %}
+            {% for l in s.lines %}<polyline class="{{ s.cls }}" points="{{ l }}"/>{% endfor %}
+          {% endfor %}
+        </svg>
+        <div class="cursor" hidden></div>
+        <div class="tip small mono" hidden></div>
+      </div>
+    </div>
+    <div class="xaxis small mono muted">
+      {% for t in c.times %}<span style="left: {{ '%.1f'|format(t.left) }}%">{{ t.text }}</span>{% endfor %}
+    </div>
+  </article>
+{% endmacro %}
+
 {% macro rate(pct) %}
   {% if pct is none %}
     <span class="muted">-</span>
