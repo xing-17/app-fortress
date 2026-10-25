@@ -3,7 +3,6 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-import tushare
 from pydantic import Field, PrivateAttr, model_validator
 
 from app.internal.abstract.domain import IAbstractDomain
@@ -74,6 +73,10 @@ class TushareSession(IAbstractDomain):
         return _current >= self._expire_at
 
     def connect(self) -> Any:
+        try:
+            import tushare  # optional extra: keeps FC packages light when unused
+        except ImportError as _e:
+            raise ImportError("tushare is not installed; run: pip install 'app-fortress[tushare]'") from _e
         with self._lock:
             self._api = tushare.pro_api(self.key)
             self._connect_at: float = IClock.current_timestamp(timezone="UTC")

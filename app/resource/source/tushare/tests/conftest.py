@@ -8,7 +8,6 @@ import pytest
 from app.internal.logstream import LogStream
 from app.resource._global.identities import GlobalIdentities
 from app.resource.asset.local.vault import LocalVault
-from app.resource.source.tushare import session as session_module
 from app.resource.source.tushare.session import TushareSession
 from app.resource.store.file.store import FileStore
 
@@ -48,7 +47,7 @@ def _isolate(monkeypatch):
 @pytest.fixture
 def api(monkeypatch):
     _api = FakeApi()
-    monkeypatch.setattr(session_module.tushare, "pro_api", lambda *_a, **_k: _api)
+    monkeypatch.setattr("tushare.pro_api", lambda *_a, **_k: _api)
     return _api
 
 

@@ -29,7 +29,7 @@ class TestSessionConnect:
             _count["n"] += 1
             return api
 
-        monkeypatch.setattr("app.resource.source.tushare.session.tushare.pro_api", _pro_api)
+        monkeypatch.setattr("tushare.pro_api", _pro_api)
         assert session.api is api
         assert session.api is api
         assert _count["n"] == 1
@@ -46,7 +46,7 @@ class TestSessionConnect:
             _count["n"] += 1
             return object()
 
-        monkeypatch.setattr("app.resource.source.tushare.session.tushare.pro_api", _pro_api)
+        monkeypatch.setattr("tushare.pro_api", _pro_api)
         _ = session.api
         session._expire_at = 0.0
         _ = session.api
