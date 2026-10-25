@@ -4,11 +4,7 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // Times arrive as UTC text, show them in the reader's zone
-  document.querySelectorAll("time[data-ts]").forEach((el) => {
-    const date = new Date(Number(el.dataset.ts) * 1000);
-    if (!isNaN(date)) el.textContent = date.toLocaleString();
-  });
+  // Times arrive already in the host's display timezone, do not convert them here
 
   const refresh = Number(document.body.dataset.refresh || 0);
   if (refresh > 0) {

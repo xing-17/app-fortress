@@ -66,5 +66,5 @@
 {% endmacro %}
 
 {% macro stamp(value) %}
-  {% if value is number %}<time data-ts="{{ value }}">{{ value|utc }}</time>{% else %}-{% endif %}
+  {% if value is number %}<time>{{ value|local }}</time>{% else %}-{% endif %}
 {% endmacro %}
