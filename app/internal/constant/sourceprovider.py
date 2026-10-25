@@ -12,12 +12,14 @@ class SourceProvider(StrEnum):
         TUSHARE: China Tushare (3rd party).
         NSWVG: New South Wales Valuer General (government).
         ABS: Australia ABS (government).
+        RBA: Reserve Bank of Australia (government).
 
     """
 
     TUSHARE = "tushare"
     NSWVG = "nswvg"
     ABS = "abs"
+    RBA = "rba"
 
 
 class SourceProviderType(StrEnum):
