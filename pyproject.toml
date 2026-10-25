@@ -16,13 +16,14 @@ dependencies = [
     "pyyaml",
     "polars",
     "requests",
-    "pyarrow",
-
-    # ---------- Source Dependencies ----------
-    "tushare"
+    "pyarrow"
 ]
 
 [project.optional-dependencies]
+# ---------- Source Dependencies ----------
+tushare = ["tushare"]
+
+# ---------- Platform Dependencies ----------
 aliyun = [
     "alibabacloud-oss-v2",
     "alibabacloud-fc20230330",
@@ -30,6 +31,8 @@ aliyun = [
     "alibabacloud-credentials>=1.0,<2"
 ]
 dev = [
+    "app-fortress[tushare]",
+    "pandas",
     "pytest",
     "pytest-benchmark",
     "httpx",
