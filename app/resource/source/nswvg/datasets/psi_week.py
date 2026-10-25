@@ -34,6 +34,6 @@ class WeekPSIDataset(NSWVGDataset):
 
     name: ClassVar[str] = "psi_week"
     partitions: ClassVar[list[str]] = ["date"]
-    description: ClassVar[str] = "Dataset for NSW VG weekly PSI."
+    description: ClassVar[str] = "Dataset for NSW VG weekly property sales information."
     frequency: ClassVar[FrequencyOption] = FrequencyOption.WEEK
     provision_kind: ClassVar[NSWVGProvisionKind] = NSWVGProvisionKind.WEEK
