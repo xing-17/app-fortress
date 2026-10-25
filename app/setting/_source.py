@@ -97,6 +97,7 @@ class ABSSourceSetting(AbstractSourceSetting):
     ----------
         name (str): The name of the data source.
         description (str): The description of the data source.
+        timeout_seconds (float): The timeout of a single ABS API request in seconds (> 0).
         provision_path (Path | str | None): The provision path for manual downloads.
         log (LogSetting | None): The log configuration for the data source.
         vault (UnionVaultSetting | str): The vault configuration or name.
@@ -114,6 +115,11 @@ class ABSSourceSetting(AbstractSourceSetting):
     # -- store: UnionStoreSetting | str
     # -- tags: dict[str, str]
     provider: Literal[SourceProvider.ABS] = SourceProvider.ABS
+    timeout_seconds: float = Field(
+        default=60,
+        description="[Optional] The timeout of a single ABS API request in seconds.",
+        gt=0,
+    )
 
 
 class NSWVGSourceSetting(AbstractSourceSetting):
