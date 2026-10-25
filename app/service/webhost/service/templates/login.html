@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Fortress · sign in{% endblock %}
+{% block bare %}
+  <form class="login" method="post" action="/login">
+    <h1>FORTRESS</h1>
+    <p class="muted small">Paste an access token.</p>
+    <input type="hidden" name="next" value="{{ next }}">
+    <input type="password" name="token" autocomplete="current-password" autofocus required>
+    {% if error %}<p class="warn small">{{ error }}</p>{% endif %}
+    <button class="primary" type="submit">sign in</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Fortress · query {{ node }}{% endblock %}
+{% block body %}
+  <section class="hero">
+    <h1>Query</h1>
+    <p class="muted small">SELECT only. All queries of this console share one session on the node.</p>
+  </section>
+
+  <div class="split">
+    <aside class="panel tables">
+      <h3>tables</h3>
+      <input id="table-filter" type="search" placeholder="filter" autocomplete="off" spellcheck="false">
+      <div class="table-list">
+        {% for s in nav %}
+          <div class="table-group" data-group>
+            <div class="group">{{ s.name }}</div>
+            {% for d in s.datasets %}
+              <button class="table-pick" type="button" data-table="{{ s.name }}.{{ d }}">{{ d }}</button>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="muted small">none mounted</p>
+        {% endfor %}
+      </div>
+    </aside>
+
+    <section>
+      <form id="query-form" data-url="/n/{{ node|urlencode }}/query">
+        <textarea id="sql" rows="9" spellcheck="false" placeholder="SELECT * FROM source.dataset LIMIT 100"></textarea>
+        <div class="row">
+          <button id="query-run" class="primary" type="submit">run</button>
+          <span class="muted small">Ctrl/Cmd + Enter</span>
+          <span id="query-meta" class="small"></span>
+        </div>
+      </form>
+      <div id="query-error" class="warn"></div>
+      <div id="query-result" class="scroll"></div>
+    </section>
+  </div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import machine %}
+{% block title %}Fortress · nodes{% endblock %}
+{% block body %}
+  <section class="hero">
+    <h1>{{ cards|length }} node{{ "" if cards|length == 1 else "s" }}</h1>
+    <p class="muted">{{ cards|selectattr("running")|list|length }} running</p>
+  </section>
+
+  <div class="grid">
+    {% for c in cards %}
+      <article class="card {{ '' if c.running else 'down' }}">
+        <div class="row">
+          <span class="dot {{ c.state }}"></span>
+          <h2><a href="/n/{{ c.name|urlencode }}">{{ c.name }}</a></h2>
+          <span class="state {{ c.state }}">{{ c.state }}</span>
+        </div>
+        <div class="muted mono small">{{ c.endpoint }}</div>
+
+        {% if c.reachable %}
+          <dl class="stats">
+            <div><dt>sources</dt><dd>{{ c.sources if c.sources is not none else "-" }}</dd></div>
+            <div><dt>datasets</dt><dd>{{ c.datasets if c.datasets is not none else "-" }}</dd></div>
+            <div><dt>sessions</dt><dd>{{ c.health.get("busy_sessions", "-") }}/{{ c.health.get("sessions", "-") }}</dd></div>
+          </dl>
+          {% if c.running %}{{ machine(c.machine) }}{% endif %}
+          {% for n in c.notes %}<p class="warn small">{{ n }}</p>{% endfor %}
+          {% if c.running %}
+            <div class="actions"><a href="/n/{{ c.name|urlencode }}/query">query</a></div>
+          {% endif %}
+        {% else %}
+          <p class="warn">{{ c.error }}</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+{% endblock %}

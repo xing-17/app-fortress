@@ -1,0 +1,70 @@
+{% macro meter(label, pct, detail) %}
+  {% if pct is not none %}
+  <div class="meter">
+    <span class="k">{{ label }}</span>
+    <svg class="bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">
+      <rect class="bg" width="100" height="4"/>
+      <rect class="fg {{ 'hot' if pct >= 90 else ('warm' if pct >= 75 else '') }}" width="{{ [pct, 100]|min }}" height="4"/>
+    </svg>
+    <span class="v">{{ '%.0f'|format(pct) }}%</span>
+    <span class="d">{{ detail }}</span>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro trend(values, label) %}
+  {% set points = spark(values) %}
+  {% if points %}
+  <div class="trend">
+    <span class="k">{{ label }}</span>
+    <svg class="spark" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">
+      <polyline points="{{ points }}"/>
+    </svg>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro machine(m) %}
+  {% if m %}
+    {% set s = m.last %}
+    <div class="machine">
+      {{ meter("cpu", s.get("cpu_percent"), "") }}
+      {{ meter("mem", s.get("mem_percent"), (s.get("mem_used_mb")|mb) ~ " / " ~ (s.get("mem_total_mb")|mb)) }}
+      {{ meter("disk", s.get("disk_percent"), (s.get("disk_used_mb")|mb) ~ " / " ~ (s.get("disk_total_mb")|mb)) }}
+      <div class="trends">
+        {{ trend(m.cpu, "cpu") }}
+        {{ trend(m.mem, "mem") }}
+      </div>
+    </div>
+  {% else %}
+    <p class="muted">no machine data</p>
+  {% endif %}
+{% endmacro %}
+
+{% macro rate(pct) %}
+  {% if pct is none %}
+    <span class="muted">-</span>
+  {% else %}
+    <span class="rate">
+      <svg class="bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">
+        <rect class="bg" width="100" height="4"/>
+        <rect class="fg {{ 'hot' if pct < 50 else ('warm' if pct < 95 else '') }}" width="{{ [pct, 100]|min }}" height="4"/>
+      </svg>
+      <span class="mono small">{{ '%.1f'|format(pct) }}%</span>
+    </span>
+  {% endif %}
+{% endmacro %}
+
+{% macro chips(pairs) %}
+  <div class="chips">
+    {% for k, v in pairs %}<span class="chip"><i>{{ k }}</i>{{ v }}</span>{% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro partition_chips(values) %}
+  {% for k, v in (values or {}).items() %}<span class="chip small"><i>{{ k }}</i>{{ v }}</span>{% endfor %}
+{% endmacro %}
+
+{% macro stamp(value) %}
+  {% if value is number %}<time data-ts="{{ value }}">{{ value|utc }}</time>{% else %}-{% endif %}
+{% endmacro %}

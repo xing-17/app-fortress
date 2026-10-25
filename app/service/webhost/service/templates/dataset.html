@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% from "_macros.html" import chips, partition_chips, stamp, rate %}
+{% set base = "/n/" ~ (node|urlencode) ~ "/d/" ~ (source|urlencode) ~ "/" ~ (dataset|urlencode) %}
+{% block title %}Fortress · {{ source }}.{{ dataset }}{% endblock %}
+{% block body %}
+  <section class="hero">
+    <h1>{{ source }}.{{ dataset }}</h1>
+    {{ chips(facts) }}
+    {% if info.description %}<p class="muted">{{ info.description }}</p>{% endif %}
+    {% if info.partitions %}
+      <p class="small"><span class="muted">partitioned by</span>
+        {% for p in info.partitions %}<span class="chip small">{{ p }}</span>{% endfor %}</p>
+    {% endif %}
+  </section>
+
+  <nav class="tabs">
+    {% for t in tabs %}
+      <a href="{{ base }}?tab={{ t }}" class="{{ 'on' if t == tab else '' }}">{{ t }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if tab == "partitions" %}
+    <section class="panel">
+      <dl class="stats">
+        <div><dt>assetfiles</dt><dd>{{ total }}</dd></div>
+        <div><dt>size</dt><dd>{{ size|size }}</dd></div>
+        <div><dt>latest write</dt><dd>{{ stamp(latest) }}</dd></div>
+      </dl>
+      {% if spans %}
+        <table class="list">
+          <thead><tr><th>key</th><th>distinct</th><th>first</th><th>last</th></tr></thead>
+          <tbody>
+            {% for s in spans %}
+              <tr><td>{{ s.key }}</td><td>{{ s.count }}</td><td class="mono">{{ s.first }}</td><td class="mono">{{ s.last }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    </section>
+    {% if files %}
+      <table class="list">
+        <thead><tr><th>partition</th><th>file</th><th>size</th><th>modified</th></tr></thead>
+        <tbody>
+          {% for f in files %}
+            <tr>
+              <td>{{ partition_chips(f.partitions) }}</td>
+              <td class="mono small">{{ f.name }}</td>
+              <td>{{ f.size|size }}</td>
+              <td>{{ stamp(f.modified_at) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if total > files|length %}<p class="muted small">newest {{ files|length }} of {{ total }}</p>{% endif %}
+    {% else %}
+      <p class="muted">no assetfiles yet</p>
+    {% endif %}
+
+  {% elif tab == "quality" %}
+    <dl class="stats quality-stats">
+      <div><dt>records</dt><dd>{{ total }}</dd></div>
+      <div><dt>healthy</dt><dd>{{ counts.ok }}</dd></div>
+      <div><dt>warnings</dt><dd class="{{ 'warn' if counts.warn else '' }}">{{ counts.warn }}</dd></div>
+      <div><dt>problems</dt><dd class="{{ 'err' if counts.bad else '' }}">{{ counts.bad }}</dd></div>
+      <div><dt>no metadata</dt><dd>{{ counts.missing }}</dd></div>
+      <div><dt>rows covered</dt><dd>{{ rows_total|num }}</dd></div>
+      <div class="push">
+        {% if only_issues %}
+          <a href="{{ base }}?tab=quality">show all</a>
+        {% else %}
+          <a href="{{ base }}?tab=quality&only=issues">only issues</a>
+        {% endif %}
+      </div>
+    </dl>
+
+    {% if items %}
+      <div class="qlist">
+        <div class="qrow qhead">
+          <span></span><span>partition</span><span class="r">rows</span><span class="r">cols</span><span>completeness</span><span>findings</span><span class="r">checked</span>
+        </div>
+        {% for it in items %}
+          {% set v = it.view %}
+          {% if v is none %}
+            <div class="qrow muted">
+              <span class="dot none"></span>
+              <span>{{ partition_chips(it.partitions) }}</span>
+              <span class="r">-</span><span class="r">-</span><span>-</span><span>no metadata</span><span class="r">-</span>
+            </div>
+          {% else %}
+            <details class="q">
+              <summary class="qrow">
+                <span class="dot q-{{ v.status }}"></span>
+                <span>{{ partition_chips(it.partitions) }}</span>
+                <span class="r mono">{{ v.height|num }}</span>
+                <span class="r mono">{{ v.width }}</span>
+                <span>{{ rate(v.complete) }}</span>
+                <span class="findings">
+                  {% for f in v.issues %}<span class="badge {{ v.status }}">{{ f }}</span>{% else %}<span class="muted small">clean</span>{% endfor %}
+                </span>
+                <span class="r small muted">{{ stamp(v.created_at) }}</span>
+              </summary>
+
+              <div class="qbody">
+                <p class="small muted">
+                  {{ v.complete_rows|num }} complete rows · {{ v.duplicate_rows|num }} duplicate rows
+                  {% if it.file %}· <span class="mono">{{ it.file }}</span>{% endif %}
+                </p>
+                <table class="list cols">
+                  <thead>
+                    <tr><th>column</th><th>type</th><th>complete</th><th class="r">nulls</th><th class="r">unique</th><th class="r">duplicates</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {% for c in v.columns %}
+                      <tr>
+                        <td class="mono">{{ c.name }}</td>
+                        <td class="muted small mono">{{ c.type }}</td>
+                        <td>{{ rate(c.complete) }}</td>
+                        <td class="r mono {{ 'warn' if c.null_count else 'muted' }}">{{ c.null_count|num }}</td>
+                        <td class="r mono">{{ c.unique_count|num }}</td>
+                        <td class="r mono muted">{{ c.duplicate_count|num }}</td>
+                        <td>{% for f in c.flags %}<span class="chip small">{{ f }}</span>{% endfor %}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% if total > items|length and not only_issues %}<p class="muted small">newest {{ items|length }} of {{ total }}</p>{% endif %}
+    {% else %}
+      <p class="muted">{{ "nothing needs attention" if only_issues else "no quality records" }}</p>
+    {% endif %}
+
+  {% elif tab == "definitions" %}
+    {% for g in groups %}
+      <section class="panel">
+        <div class="row">
+          <h3 class="mono">{{ g.fingerprint[:12] }}</h3>
+          <span class="muted small">{{ g.partitions|length }} partition(s)</span>
+        </div>
+        <div class="chips">
+          {% for c in g.columns %}<span class="chip small">{{ c|column }}</span>{% endfor %}
+        </div>
+        <details>
+          <summary>partitions</summary>
+          <div class="chips">
+            {% for p in g.partitions %}<span class="chip small">{{ p|brief }}</span>{% endfor %}
+          </div>
+        </details>
+      </section>
+    {% else %}
+      <p class="muted">no definitions yet</p>
+    {% endfor %}
+
+  {% else %}
+    <section class="panel run-panel" data-run-url="{{ base }}/runs">
+      <div class="row">
+        <h3>Run</h3>
+        <span class="muted small">starts a run on the node in the background</span>
+      </div>
+      <textarea id="run-params" rows="3" spellcheck="false" placeholder='params as JSON, optional, e.g. {"date": "2024-01-01"}'></textarea>
+      <div class="row">
+        <button id="run-button" class="primary" type="button" data-name="{{ source }}.{{ dataset }}">run dataset</button>
+        <span id="run-status" class="small"></span>
+      </div>
+    </section>
+
+    {% if runs %}
+      <table class="list" id="runs">
+        <thead><tr><th>run</th><th>status</th><th>started</th><th>took</th><th>output</th><th>error</th></tr></thead>
+        <tbody>
+          {% for r in runs %}
+            <tr {% if r.status == "started" %}data-poll="{{ base }}/runs/{{ r.id|urlencode }}"{% endif %}>
+              <td class="mono small">{{ r.id }}</td>
+              <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+              <td>{{ stamp(r.started_at) }}</td>
+              <td>{{ r.duration|duration }}</td>
+              <td class="small">{% if r.height is not none %}{{ r.height }} × {{ r.width }}{% else %}-{% endif %}</td>
+              <td class="err small">{{ r.error or "" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">no runs yet</p>
+    {% endif %}
+  {% endif %}
+{% endblock %}

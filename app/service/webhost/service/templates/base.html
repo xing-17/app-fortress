@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>{% block title %}Fortress{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body data-refresh="{{ refresh }}">
+  {% if bare %}
+    <main class="bare">{% block bare %}{% endblock %}</main>
+  {% else %}
+  <div class="shell">
+    <aside class="side">
+      <a class="brand" href="/">FORTRESS</a>
+
+      <nav class="tree">
+        <a class="item {{ 'on' if page == 'home' else '' }}" href="/">Home</a>
+
+        <div class="group">Nodes</div>
+        {% for n in node_names %}
+          <a class="item {{ 'on' if n == node and page == 'node' else '' }}" href="/n/{{ n|urlencode }}">{{ n }}</a>
+
+          {% if n == node %}
+            <div class="sub">
+              <a class="item {{ 'on' if page == 'query' else '' }}" href="/n/{{ n|urlencode }}/query">Query</a>
+
+              {% if nav %}<div class="group">Sources</div>{% endif %}
+              {% for s in nav %}
+                <details class="src" {{ 'open' if s.name == source else '' }}>
+                  <summary><a href="/n/{{ n|urlencode }}#s-{{ s.name|urlencode }}">{{ s.name }}</a></summary>
+                  {% for d in s.datasets %}
+                    <a class="item leaf {{ 'on' if s.name == source and d == dataset else '' }}"
+                       href="/n/{{ n|urlencode }}/d/{{ s.name|urlencode }}/{{ d|urlencode }}">{{ d }}</a>
+                  {% endfor %}
+                </details>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </nav>
+
+      <div class="who">
+        {% if user %}
+          <span class="muted">{{ user }}</span>
+          {% if can_logout %}
+            <form method="post" action="/logout"><button class="link" type="submit">sign out</button></form>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <a class="logo" href="/"><img src="/logo/image.png" alt="Fortress"></a>
+    </aside>
+
+    <main>{% block body %}{% endblock %}</main>
+  </div>
+  {% endif %}
+</body>
+</html>

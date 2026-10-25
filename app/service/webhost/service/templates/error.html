@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Fortress · {{ status_code }}{% endblock %}
+{% block body %}
+  <section class="hero">
+    <h1>{{ status_code }}</h1>
+    <p class="warn">{{ message }}</p>
+    <p><a href="/">back to nodes</a></p>
+  </section>
+{% endblock %}

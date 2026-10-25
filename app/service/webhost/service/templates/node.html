@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import machine, chips %}
+{% block title %}Fortress · {{ node }}{% endblock %}
+{% block body %}
+  <section class="hero">
+    <div class="row">
+      <span class="dot {{ health.get('state', 'unknown') }}"></span>
+      <h1>{{ node }}</h1>
+      <span class="state {{ health.get('state', 'unknown') }}">{{ health.get("state", "unknown") }}</span>
+    </div>
+    <p class="muted mono small">{{ endpoint }}</p>
+    {% if running %}
+      <div class="actions"><a href="/n/{{ node|urlencode }}/query">query</a></div>
+    {% endif %}
+  </section>
+
+  {% if not running %}
+    <p class="warn">The node is not running.</p>
+  {% else %}
+    <section class="panel">{{ machine(snapshot) }}</section>
+  {% endif %}
+  {% for n in notes %}<p class="warn small">{{ n }}</p>{% endfor %}
+
+  {% for s in sources %}
+      <section class="source" id="s-{{ s.name }}">
+      <header>
+        <h2>{{ s.name }}</h2>
+        {{ chips(s.facts) }}
+      </header>
+      {% if s.description %}<p class="muted">{{ s.description }}</p>{% endif %}
+
+      {% if s["items"] %}
+        <table class="list">
+          <thead><tr><th>dataset</th><th>frequency</th><th>kind</th><th>partitions</th><th></th></tr></thead>
+          <tbody>
+            {% for d in s["items"] %}
+              <tr>
+                <td><a href="/n/{{ node|urlencode }}/d/{{ d.source|urlencode }}/{{ d.name|urlencode }}">{{ d.name }}</a></td>
+                <td>{{ d.frequency }}</td>
+                <td>{{ d.filekind }}</td>
+                <td>{% for p in d.partitions %}<span class="chip small">{{ p }}</span>{% endfor %}</td>
+                <td class="muted">{{ d.description }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">no datasets</p>
+      {% endif %}
+
+      <details class="logs" data-url="/n/{{ node|urlencode }}/s/{{ s.name|urlencode }}/logs">
+        <summary>logs</summary>
+        <pre class="term"></pre>
+      </details>
+    </section>
+  {% else %}
+    {% if running %}<p class="muted">This node has no sources.</p>{% endif %}
+  {% endfor %}
+{% endblock %}
