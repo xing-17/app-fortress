@@ -4,6 +4,7 @@ import math
 import re
 from datetime import date
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 
@@ -406,6 +407,18 @@ class AccessSetting(IAbstractSetting):
         return self
 
 
+def _normalize_public_hosts(value: list[str]) -> list[str]:
+    _hosts: list[str] = []
+    for _host in value:
+        # Lowercase because browsers and proxies send the Host header lowercased
+        _name: str = _host.strip().lower()
+        if not _HOST_PATTERN.match(_name):
+            raise ValueError(f"public_hosts: '{_host}' is not a host name, use 'name' or 'name:port'")
+        if _name not in _hosts:
+            _hosts.append(_name)
+    return _hosts
+
+
 class McpHostServiceSetting(AbstractHostServiceSetting):
     """
     MCP host service setting, MCP adapter in front of nodes
@@ -450,15 +463,7 @@ class McpHostServiceSetting(AbstractHostServiceSetting):
     @field_validator("public_hosts")
     @classmethod
     def _validate_public_hosts(cls, value: list[str]) -> list[str]:
-        _hosts: list[str] = []
-        for _host in value:
-            # Lowercase because browsers and proxies send the Host header lowercased
-            _name: str = _host.strip().lower()
-            if not _HOST_PATTERN.match(_name):
-                raise ValueError(f"public_hosts: '{_host}' is not a host name, use 'name' or 'name:port'")
-            if _name not in _hosts:
-                _hosts.append(_name)
-        return _hosts
+        return _normalize_public_hosts(value)
 
 
 class WebHostServiceSetting(AbstractHostServiceSetting):
@@ -470,6 +475,12 @@ class WebHostServiceSetting(AbstractHostServiceSetting):
         kind (Literal[ServiceKind.WEBHOST]): Service kind, fixed as WEBHOST
         host (str): Listen host, loopback by default
         port (int): Listen port
+        display_timezone (str): Timezone to display times in, e.g., "Australia/Sydney"
+        public_hosts (list[str]): Host names browsers reach this host by through a tunnel or proxy,
+            the Host header of a request must be one of them or loopback
+        auth (AuthSetting): Bearer tokens a person can paste into the login page
+        access (AccessSetting | None): Cloudflare Access in front of the host, when set a request carrying
+            an Access assertion is signed in by it, a request without one still needs the login page
 
     """
 
@@ -478,12 +489,43 @@ class WebHostServiceSetting(AbstractHostServiceSetting):
         default="127.0.0.1",
         description="[Optional] Listen host",
     )
+    display_timezone: str = Field(
+        default="UTC",
+        description="[Optional] Timezone to display times in, e.g., 'Australia/Sydney'",
+    )
     port: int = Field(
         default=8802,
         description="[Optional] Listen port",
         ge=1,
         le=65535,
     )
+    public_hosts: list[str] = Field(
+        default_factory=list,
+        description="[Optional] Host names browsers reach this host by through a tunnel or proxy",
+    )
+    auth: AuthSetting = Field(
+        default_factory=lambda: AuthSetting(masterfile="../local/.auth/webhost.key"),
+        description="[Optional] Bearer tokens of the people, its master key must not be the node's",
+    )
+    access: AccessSetting | None = Field(
+        default=None,
+        description="[Optional] Cloudflare Access in front of the host",
+    )
+
+    @field_validator("display_timezone")
+    @classmethod
+    def _validate_display_timezone(cls, value: str) -> str:
+        _name: str = value.strip()
+        try:
+            ZoneInfo(_name)
+        except (ZoneInfoNotFoundError, ValueError) as _e:
+            raise ValueError(f"display_timezone: '{value}' is not an IANA timezone, e.g. 'Australia/Sydney'") from _e
+        return _name
+
+    @field_validator("public_hosts")
+    @classmethod
+    def _validate_public_hosts(cls, value: list[str]) -> list[str]:
+        return _normalize_public_hosts(value)
 
 
 class ServicesSetting(IAbstractSetting):
