@@ -56,7 +56,7 @@
     </header>
     <div class="plot-wrap">
       <div class="yaxis small mono">
-        {% for t in c.ticks %}<span style="top: {{ '%.2f'|format(t.top) }}%">{{ t.text }}</span>{% endfor %}
+        {% for t in c.ticks %}<span data-top="{{ '%.2f'|format(t.top) }}">{{ t.text }}</span>{% endfor %}
       </div>
       <div class="plot" data-chart="{{ c.id }}">
         <svg viewBox="0 0 1000 240" preserveAspectRatio="none" aria-hidden="true">
@@ -73,7 +73,7 @@
       </div>
     </div>
     <div class="xaxis small mono muted">
-      {% for t in c.times %}<span style="left: {{ '%.1f'|format(t.left) }}%">{{ t.text }}</span>{% endfor %}
+      {% for t in c.times %}<span data-left="{{ '%.1f'|format(t.left) }}">{{ t.text }}</span>{% endfor %}
     </div>
   </article>
 {% endmacro %}

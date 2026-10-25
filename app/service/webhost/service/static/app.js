@@ -127,6 +127,14 @@
     });
   });
 
+  // Axis labels are placed here, the page's CSP blocks inline style attributes
+  document.querySelectorAll(".yaxis [data-top]").forEach((el) => {
+    el.style.top = el.dataset.top + "%";
+  });
+  document.querySelectorAll(".xaxis [data-left]").forEach((el) => {
+    el.style.left = el.dataset.left + "%";
+  });
+
   // ---- Machine charts: a cursor and the readings under it ----
   const machineData = $("#machine-data");
   if (machineData) {

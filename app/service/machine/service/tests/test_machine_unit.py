@@ -66,6 +66,20 @@ class TestSample:
         assert _snap.disk_total_mb > 0
         assert _snap.timestamp == pytest.approx(time.time(), abs=5)
 
+    def test_memory_follows_the_kernel_level_when_it_answers(self, service, monkeypatch):
+        monkeypatch.setattr(machine_module, "_kernel_used_percent", lambda: 49.0)
+        _snap = service.sample()
+        assert _snap.mem_percent == 49.0
+        assert _snap.mem_used_mb == round(_snap.mem_total_mb * 0.49)
+
+    def test_memory_falls_back_to_psutil(self, service, monkeypatch):
+        monkeypatch.setattr(machine_module, "_kernel_used_percent", lambda: None)
+        assert service.sample().mem_percent == pytest.approx(machine_module.psutil.virtual_memory().percent, abs=5)
+
+    def test_kernel_level_is_none_off_macos(self, monkeypatch):
+        monkeypatch.setattr(machine_module.sys, "platform", "linux")
+        assert machine_module._kernel_used_percent() is None
+
     def test_reads_this_process(self, service):
         _snap = service.sample()
         assert _snap.proc_mem_mb > 0

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import ctypes
+import ctypes.util
+import sys
 import threading
 import time
 from collections import deque
@@ -17,6 +20,26 @@ _MB = 1024**2
 # CPU percent is measured since the previous call
 # give the first reading a window
 _WARMUP_SECONDS = 1.0
+
+
+def _kernel_used_percent() -> float | None:
+    """
+    Share of memory in use by macOS' own measure, the complement of what `memory_pressure` calls free
+
+    psutil counts file cache and compressed pages as used on macOS, which keeps it near 75% on a
+    healthy machine. None off macOS or when the kernel does not answer.
+    """
+    if sys.platform != "darwin":
+        return None
+    try:
+        _libc = ctypes.CDLL(ctypes.util.find_library("c"))
+        _value = ctypes.c_int(0)
+        _size = ctypes.c_size_t(ctypes.sizeof(_value))
+        if _libc.sysctlbyname(b"kern.memorystatus_level", ctypes.byref(_value), ctypes.byref(_size), None, 0) != 0:
+            return None
+    except (OSError, AttributeError, TypeError):
+        return None
+    return 100.0 - _value.value if 0 <= _value.value <= 100 else None
 
 
 class MachineService(BaseService[MachineServiceSetting]):
@@ -137,13 +160,13 @@ class MachineService(BaseService[MachineServiceSetting]):
         except Exception as e:
             self.log.warning("machine network read failed", metadata={"error": type(e).__name__})
 
+        _kernel_percent: float | None = _kernel_used_percent()
+        _mem_percent: float = _memory.percent if _kernel_percent is None else _kernel_percent
         return MachineSnapshot(
             timestamp=time.time(),
             cpu_percent=psutil.cpu_percent(interval=None),
-            mem_percent=_memory.percent,
-            # `used` is active+wired on macOS and ignores the compressor
-            # so derive it from `available` like `percent`
-            mem_used_mb=round((_memory.total - _memory.available) / _MB),
+            mem_percent=_mem_percent,
+            mem_used_mb=round(_memory.total * _mem_percent / 100 / _MB),
             mem_total_mb=round(_memory.total / _MB),
             swap_percent=_swap.percent,
             disk_percent=_disk.percent,
