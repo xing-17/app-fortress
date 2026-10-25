@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.service._common.auth import TokenAuth
-    from app.setting.service import AuthSetting, McpHostServiceSetting, NodeServiceSetting
+    from app.setting.service import AuthSetting, McpHostServiceSetting, NodeServiceSetting, WebHostServiceSetting
 
 
 def _load_node_setting(args: argparse.Namespace) -> tuple[NodeServiceSetting, Path]:
@@ -28,6 +28,14 @@ def _load_mcphost_setting(args: argparse.Namespace) -> McpHostServiceSetting:
     return _res
 
 
+def _load_webhost_setting(args: argparse.Namespace) -> WebHostServiceSetting:
+    from app.resource._global.setting import GlobalSetting
+
+    GlobalSetting.load(args.setting_path)
+    _res: WebHostServiceSetting = GlobalSetting.get_services().webhost
+    return _res
+
+
 def _load_auth_setting(args: argparse.Namespace) -> tuple[AuthSetting, Path]:
     from app.resource._global.setting import GlobalSetting
 
@@ -36,6 +44,8 @@ def _load_auth_setting(args: argparse.Namespace) -> tuple[AuthSetting, Path]:
     _setting_path = GlobalSetting.get_setting_path()
     if args.service == "mcphost":
         return _services.mcphost.auth, _setting_path
+    if args.service == "webhost":
+        return _services.webhost.auth, _setting_path
     return _services.node.auth, _setting_path
 
 
@@ -107,6 +117,8 @@ def _build_auth(
         _services = ServicesSetting.from_yaml(path=_file)
         if service == "mcphost":
             _res: AuthSetting = _services.mcphost.auth
+        elif service == "webhost":
+            _res: AuthSetting = _services.webhost.auth
         else:
             _res: AuthSetting = _services.node.auth
         return _res
@@ -176,6 +188,32 @@ def _auth_base_dir() -> Path:
 
 
 # --------------------------------------------------
+# fortress webhost
+# --------------------------------------------------
+
+
+def _webhost_start(args: argparse.Namespace) -> int:
+    # Imported here so the other commands work without the webhost extra (jinja2, httpx)
+    from app.service.webhost.service.http import serve
+    from app.service.webhost.service.service import WebHostService
+
+    _setting = _load_webhost_setting(args)
+    try:
+        _auth = _build_auth("webhost", _setting.auth, _auth_base_dir())
+        _service = WebHostService(_setting, auth=_auth)
+        serve(
+            service=_service,
+            host=args.host,
+            port=args.port,
+            log_level=args.log_level,
+        )
+    except (ValueError, OSError, RuntimeError) as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    return 0
+
+
+# --------------------------------------------------
 # All service control
 # --------------------------------------------------
 
@@ -215,6 +253,8 @@ def _up(args: argparse.Namespace) -> int:
         print("node did not come up", file=sys.stderr)
         return 1
     _procs.append(subprocess.Popen([*_base, "mcphost", "start", *_common]))
+    if _load_webhost_setting(args).enabled:
+        _procs.append(subprocess.Popen([*_base, "webhost", "start", *_common]))
 
     # 任何一个退出就带停另一个
     while all(_p.poll() is None for _p in _procs):
@@ -250,9 +290,9 @@ def _build_cline() -> argparse.ArgumentParser:
     _service_arg = argparse.ArgumentParser(add_help=False)
     _service_arg.add_argument(
         "--service",
-        choices=["node", "mcphost"],
+        choices=["node", "mcphost", "webhost"],
         default="node",
-        help="whose tokens, the node's (services) or the MCP host's (users), default node",
+        help="whose tokens, the node's (services), the MCP host's or the web host's (users), default node",
     )
     _auth = _groups.add_parser(
         "auth",
@@ -346,6 +386,39 @@ def _build_cline() -> argparse.ArgumentParser:
         help="log level of the HTTP server",
     )
     _mcphost_run.set_defaults(handler=_mcphost_start)
+
+    # Webhost group
+    _webhost = _groups.add_parser(
+        "webhost",
+        help="run the web console in front of the nodes",
+    )
+    _webhost_cmds = _webhost.add_subparsers(
+        dest="command",
+        required=True,
+    )
+    _webhost_run = _webhost_cmds.add_parser(
+        "start",
+        parents=[_common],
+        help="start the web console until interrupted",
+    )
+    _webhost_run.add_argument(
+        "--host",
+        default=None,
+        help="listen host, default from the setting",
+    )
+    _webhost_run.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="listen port, default from the setting",
+    )
+    _webhost_run.add_argument(
+        "--log-level",
+        default="info",
+        choices=["critical", "error", "warning", "info", "debug"],
+        help="log level of the HTTP server",
+    )
+    _webhost_run.set_defaults(handler=_webhost_start)
 
     # Up command
     _up_cmd = _groups.add_parser(
