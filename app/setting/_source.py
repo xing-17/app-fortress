@@ -98,7 +98,6 @@ class ABSSourceSetting(AbstractSourceSetting):
         name (str): The name of the data source.
         description (str): The description of the data source.
         timeout_seconds (float): The timeout of a single ABS API request in seconds (> 0).
-        provision_path (Path | str | None): The provision path for manual downloads.
         log (LogSetting | None): The log configuration for the data source.
         vault (UnionVaultSetting | str): The vault configuration or name.
         store (UnionStoreSetting | str): The store configuration or name.
@@ -120,6 +119,32 @@ class ABSSourceSetting(AbstractSourceSetting):
         description="[Optional] The timeout of a single ABS API request in seconds.",
         gt=0,
     )
+
+
+class RBASourceSetting(AbstractSourceSetting):
+    """
+    RBA (Reserve Bank of Australia) data source setting.
+
+    Attributes:
+    ----------
+        name (str): The name of the data source.
+        description (str): The description of the data source.
+        log (LogSetting | None): The log configuration for the data source.
+        vault (UnionVaultSetting | str): The vault configuration or name.
+        store (UnionStoreSetting | str): The store configuration or name.
+        tags (dict[str, str]): The tags associated with the data source.
+
+    """
+
+    # Inherited from AbstractSourceSetting
+    # -- name: str
+    # -- description: str
+    # -- provision_path: Path | str | None
+    # -- log: LogSetting | None
+    # -- vault: UnionVaultSetting | str
+    # -- store: UnionStoreSetting | str
+    # -- tags: dict[str, str]
+    provider: Literal[SourceProvider.RBA] = SourceProvider.RBA
 
 
 class NSWVGSourceSetting(AbstractSourceSetting):
@@ -187,6 +212,7 @@ UnionSourceSetting = Annotated[
     Union[
         ABSSourceSetting,
         NSWVGSourceSetting,
+        RBASourceSetting,
         TushareSourceSetting,
     ],
     Field(discriminator="provider"),

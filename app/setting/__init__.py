@@ -14,6 +14,7 @@ from ._log import LogSetting
 from ._source import (
     ABSSourceSetting,
     NSWVGSourceSetting,
+    RBASourceSetting,
     TushareSourceSetting,
     UnionSourceSetting,
 )
@@ -55,6 +56,7 @@ __all__ = [
     "LogSetting",
     "ABSSourceSetting",
     "NSWVGSourceSetting",
+    "RBASourceSetting",
     "TushareSourceSetting",
     "UnionSourceSetting",
     "OSSStoreSetting",
