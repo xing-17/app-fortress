@@ -156,9 +156,7 @@ class ABSDataset(BaseDataset):
         except requests.HTTPError as e:
             # ABS answers 404 for an empty result too, only its body tells it from an unknown dataflow
             _failed: requests.Response | None = e.response
-            _is_404: bool = _failed.status_code == 404 
-            _is_no_records: bool = _failed.text.strip() == self._no_records_body
-            if _failed is not None and _is_404 and _is_no_records:
+            if _failed is not None and _failed.status_code == 404 and _failed.text.strip() == self._no_records_body:
                 return pl.DataFrame()
             raise
         if not _response.content.strip():

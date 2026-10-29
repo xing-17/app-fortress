@@ -6,14 +6,21 @@ from app.internal.constant.frequencyoption import FrequencyOption
 from app.resource.source.abs.dataset import ABSDataset
 
 
-class JobVacanciesDataset(ABSDataset):
+class JobVacanciesQuarterDataset(ABSDataset):
     """
     ABS Job Vacancies (dataflow JV), partitioned by snapshotdate
+
+    Description:
+    ----------
+        Estimates of job vacancies classified by industry,
+        sector and state/territory.
+        Job vacancies data relate to the number of vacancies which exist on the actual survey reference date only,
+        and not for a monthly or quarterly period.
 
     Args:
     ----------
         name (str):
-            Dataset name, fixed to "job_vacancies"
+            Dataset name, fixed to "job_vacancies_quarter"
         partitions (list[str]):
             Partition keys of the dataset, fixed to ["snapshotdate"]
         frequency (FrequencyOption):
@@ -23,10 +30,13 @@ class JobVacanciesDataset(ABSDataset):
 
     """
 
-    name: ClassVar[str] = "job_vacancies"
+    name: ClassVar[str] = "job_vacancies_quarter"
     partitions: ClassVar[list[str]] = ["snapshotdate"]
     frequency: ClassVar[FrequencyOption] = FrequencyOption.QUARTER
     description: ClassVar[str] = (
-        "Dataset for ABS Job Vacancies, results of the quarterly Job Vacancies Survey containing estimates of job vacancies classified by industry, sector and state/territory."
+        "Estimates of job vacancies classified by industry, "
+        "sector and state/territory. "
+        "Job vacancies data relate to the number of vacancies which exist on the actual survey reference date only, "
+        "and not for a monthly or quarterly period. "
     )
     dataflow_id: ClassVar[str] = "JV"
