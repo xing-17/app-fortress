@@ -41,6 +41,7 @@ class SourceFactory:
         SourceProvider.TUSHARE: "app.resource.source.tushare.source:TushareSource",
         SourceProvider.NSWVG: "app.resource.source.nswvg.source:NSWVGSource",
         SourceProvider.ABS: "app.resource.source.abs.source:ABSSource",
+        SourceProvider.RBA: "app.resource.source.rba.source:RBASource",
     }
 
     @classmethod

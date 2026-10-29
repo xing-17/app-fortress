@@ -5,6 +5,8 @@ import pytest
 from app.internal.constant.sourceprovider import SourceProvider
 from app.resource.source._common._factory import SourceFactory
 from app.resource.source._common._source import BaseSource
+from app.resource.source.abs.source import ABSSource
+from app.resource.source.rba.source import RBASource
 from app.resource.source.tushare.source import TushareSource
 from app.setting._source import (
     ABSSourceSetting,
@@ -26,7 +28,12 @@ class TestSourceFactoryGet:
         with pytest.raises(ValueError, match="No source registered"):
             SourceFactory.get("not_a_provider")
 
-    def test_get_unimplemented_provider_raises_value_error(self):
+    def test_get_abs_and_rba_return_their_source_classes(self):
+        assert SourceFactory.get(SourceProvider.ABS) is ABSSource
+        assert SourceFactory.get(SourceProvider.RBA) is RBASource
+
+    def test_get_unregistered_provider_raises_value_error(self, monkeypatch):
+        monkeypatch.delitem(SourceFactory._registry, SourceProvider.ABS)
         with pytest.raises(ValueError, match="No source registered"):
             SourceFactory.get(SourceProvider.ABS)
 
@@ -72,7 +79,11 @@ class TestSourceFactoryLoad:
         assert source.store is store
         assert source.tags["env"] == "prod"
 
-    def test_load_unimplemented_provider_raises_value_error(self):
+    def test_load_abs_returns_abs_source_instance(self, vault, store, monkeypatch):
+        monkeypatch.setattr("app.resource._global.vaults.GlobalVaults.vaults", {"v": vault})
+        monkeypatch.setattr("app.resource._global.stores.GlobalStores.stores", {"s": store})
         setting = ABSSourceSetting(name="abs", vault="v", store="s")
-        with pytest.raises(ValueError, match="No source registered"):
-            SourceFactory.load(setting)
+        source = SourceFactory.load(setting)
+        assert isinstance(source, ABSSource)
+        assert source.vault is vault
+        assert source.store is store
