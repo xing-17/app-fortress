@@ -9,7 +9,7 @@ from app.resource.source.abs.dataset import ABSDataset
 class NationalAccountsIncQuarterDataset(ABSDataset):
     """
     ABS National Accounts Income (dataflow ANA_INC), partitioned by snapshotdate
-    
+
     Args:
     ----------
         name (str):
