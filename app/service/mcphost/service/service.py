@@ -199,7 +199,10 @@ class McpHostService(BaseService[McpHostServiceSetting]):
         )
         _app: Starlette = self._server.streamable_http_app(
             host=host or self.setting.host,
+            streamable_http_path="/",
             transport_security=_security,
+            stateless_http=True,  # enabled stateless_http to fix session loss in chatGPT
+            json_response=True,  # enabled JSON response for API requests
         )
         _app.add_middleware(
             BearerAuthMiddleware,

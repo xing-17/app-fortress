@@ -154,7 +154,7 @@ class TestAsgiApp:
     def test_serves_the_mcp_route(self, service):
         service.start()
         _paths = [getattr(r, "path", None) for r in service.asgi_app().routes]
-        assert "/mcp" in _paths
+        assert "/" in _paths
 
     def test_not_available_after_stop(self, service):
         service.start()

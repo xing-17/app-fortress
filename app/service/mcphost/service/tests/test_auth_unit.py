@@ -63,16 +63,18 @@ def _bearer(auth, name):
 
 
 def _open_session(web, headers) -> dict:
-    _res = web.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, **headers})
+    _res = web.post("/", json=_INITIALIZE, headers={**_HEADERS, **headers})
     assert _res.status_code == 200, _res.text
-    _session = {**_HEADERS, **headers, "mcp-session-id": _res.headers["mcp-session-id"]}
-    web.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers=_session)
+    _session = {**_HEADERS, **headers}
+    if "mcp-session-id" in _res.headers:  # stateless HTTP issues no session id
+        _session["mcp-session-id"] = _res.headers["mcp-session-id"]
+    web.post("/", json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers=_session)
     return _session
 
 
 def _call(web, session, tool, arguments) -> dict:
     _body = {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": tool, "arguments": arguments}}
-    return _rpc(web.post("/mcp", json=_body, headers=session))
+    return _rpc(web.post("/", json=_body, headers=session))
 
 
 class TestBearerAuth:
@@ -86,26 +88,26 @@ class TestBearerAuth:
         ],
     )
     def test_requests_without_a_valid_token_get_401(self, web, headers):
-        _res = web.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, **headers})
+        _res = web.post("/", json=_INITIALIZE, headers={**_HEADERS, **headers})
         assert _res.status_code == 401
         assert _res.json() == {"error": "unauthorized"}
 
     def test_a_revoked_token_gets_401(self, web, user_auth):
         _state = user_auth._state
         _token = user_auth._mac(_state.masterkey, _state.entries["gone"])
-        _res = web.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, "Authorization": f"Bearer {_token}"})
+        _res = web.post("/", json=_INITIALIZE, headers={**_HEADERS, "Authorization": f"Bearer {_token}"})
         assert _res.status_code == 401
 
     def test_the_node_token_is_not_a_user_token(self, web, node_auth):
-        _res = web.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, **_bearer(node_auth, "mcphost")})
+        _res = web.post("/", json=_INITIALIZE, headers={**_HEADERS, **_bearer(node_auth, "mcphost")})
         assert _res.status_code == 401
 
     def test_a_user_token_cannot_name_another_caller(self, web, user_auth):
         _headers = {**_bearer(user_auth, "phone"), "X-Fortress-Caller": "someone"}
-        assert web.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, **_headers}).status_code == 401
+        assert web.post("/", json=_INITIALIZE, headers={**_HEADERS, **_headers}).status_code == 401
 
     def test_a_valid_token_opens_a_session(self, web, user_auth):
-        _res = web.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, **_bearer(user_auth, "phone")})
+        _res = web.post("/", json=_INITIALIZE, headers={**_HEADERS, **_bearer(user_auth, "phone")})
         assert _res.status_code == 200
 
     def test_nothing_is_public(self, web):
@@ -126,7 +128,7 @@ class TestPublicHost:
 
     def _post(self, app, base_url, headers):
         with TestClient(app, base_url=base_url) as _client:
-            return _client.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, **headers})
+            return _client.post("/", json=_INITIALIZE, headers={**_HEADERS, **headers})
 
     def test_a_public_host_is_served(self, public, user_auth):
         _res = self._post(public, "https://mcp.example.com", _bearer(user_auth, "phone"))
@@ -141,7 +143,7 @@ class TestPublicHost:
 
     def test_without_public_hosts_the_public_name_gets_421(self, web, user_auth):
         _res = web.post(
-            "/mcp", json=_INITIALIZE, headers={**_HEADERS, **_bearer(user_auth, "phone"), "Host": "mcp.example.com"}
+            "/", json=_INITIALIZE, headers={**_HEADERS, **_bearer(user_auth, "phone"), "Host": "mcp.example.com"}
         )
         assert _res.status_code == 421
 
@@ -177,7 +179,7 @@ class TestAccessAssertion:
 
     def test_the_assertion_opens_a_session_without_a_bearer_token(self, behind_access, signing_key):
         _res = behind_access.post(
-            "/mcp", json=_INITIALIZE, headers={**_HEADERS, "Cf-Access-Jwt-Assertion": mint(signing_key)}
+            "/", json=_INITIALIZE, headers={**_HEADERS, "Cf-Access-Jwt-Assertion": mint(signing_key)}
         )
         assert _res.status_code == 200
 
@@ -188,19 +190,19 @@ class TestAccessAssertion:
 
     def test_a_stranger_signed_by_access_is_rejected(self, behind_access, signing_key):
         _headers = {**_HEADERS, "Cf-Access-Jwt-Assertion": mint(signing_key, email="stranger@example.com")}
-        assert behind_access.post("/mcp", json=_INITIALIZE, headers=_headers).status_code == 401
+        assert behind_access.post("/", json=_INITIALIZE, headers=_headers).status_code == 401
 
     def test_a_forged_assertion_is_rejected(self, behind_access):
         _headers = {**_HEADERS, "Cf-Access-Jwt-Assertion": mint(make_key())}
-        assert behind_access.post("/mcp", json=_INITIALIZE, headers=_headers).status_code == 401
+        assert behind_access.post("/", json=_INITIALIZE, headers=_headers).status_code == 401
 
     def test_the_bearer_token_still_works(self, behind_access, user_auth):
-        _res = behind_access.post("/mcp", json=_INITIALIZE, headers={**_HEADERS, **_bearer(user_auth, "phone")})
+        _res = behind_access.post("/", json=_INITIALIZE, headers={**_HEADERS, **_bearer(user_auth, "phone")})
         assert _res.status_code == 200
 
     def test_the_public_host_still_needs_to_be_listed(self, behind_access, signing_key):
         _headers = {**_HEADERS, "Cf-Access-Jwt-Assertion": mint(signing_key), "Host": "evil.example.org"}
-        assert behind_access.post("/mcp", json=_INITIALIZE, headers=_headers).status_code == 421
+        assert behind_access.post("/", json=_INITIALIZE, headers=_headers).status_code == 421
 
     def test_the_service_builds_its_own_verifier_from_the_setting(self, log, fake, user_auth):
         _setting = McpHostServiceSetting(
