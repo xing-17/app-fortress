@@ -10,13 +10,6 @@ class NationalAccountsIndGvaQuarterDataset(ABSDataset):
     """
     ABS National Accounts Industry GVA (dataflow ANA_IND_GVA), partitioned by snapshotdate
 
-    Description:
-    ----------
-        Quarterly estimates of the Production approach of measuring Gross Domestic Product (GDP (P)),
-        measured in chain volume measures.
-        Includes estimates of gross value added by industry and subdivision,
-        and taxes less subsidies on products.
-
     Args:
     ----------
         name (str):

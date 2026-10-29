@@ -10,14 +10,6 @@ class NationalAccountsAggQuarterDataset(ABSDataset):
     """
     ABS National Accounts Aggregates (dataflow ANA_AGG), partitioned by snapshotdate
 
-    Description:
-    ----------
-        Headline statistics from the quarterly national accounts.
-        Includes gross domestic product (GDP),
-        GDP per capita,
-        real income measures,
-        and the household saving ratio
-
     Args:
     ----------
         name (str):

@@ -10,14 +10,6 @@ class NationalAccountsSfdQuarterDataset(ABSDataset):
     """
     ABS National Accounts State Final Demand (dataflow ANA_SFD), partitioned by snapshotdate
 
-    Description:
-    ----------
-        Quarterly estimates of state final demand (SFD) and component series,
-        measured in chain volume measures.
-        Includes household and government expenditure,
-        private and public sector investment,
-        and compensation of employees by state.
-
     Args:
     ----------
         name (str):

@@ -10,11 +10,6 @@ class LabourForceMonthDataset(ABSDataset):
     """
     ABS Labour Force (dataflow LF), partitioned by snapshotdate
 
-    Description:
-    ----------
-        Headline estimates of employment, unemployment, underemployment,
-        participation and hours worked from the monthly Labour Force Survey.
-
     Args:
     ----------
         name (str):

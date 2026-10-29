@@ -10,15 +10,6 @@ class NationalAccountsExpQuarterDataset(ABSDataset):
     """
     ABS National Accounts Expenditure (dataflow ANA_EXP), partitioned by snapshotdate
 
-    Description:
-    ----------
-        Quarterly estimates of the Expenditure approach of Gross Domestic Product (GDP (E)),
-        measured in chain volume measures and current prices.
-        Includes household and government expenditure,
-        private and public sector investment,
-        changes in inventories,
-        and exports and imports of goods and services.
-
     Args:
     ----------
         name (str):

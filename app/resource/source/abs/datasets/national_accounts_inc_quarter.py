@@ -9,16 +9,7 @@ from app.resource.source.abs.dataset import ABSDataset
 class NationalAccountsIncQuarterDataset(ABSDataset):
     """
     ABS National Accounts Income (dataflow ANA_INC), partitioned by snapshotdate
-
-    Description:
-    ----------
-        Quarterly estimates of the Income approach of measuring Gross Domestic Product (GDP (I)),
-        measured in current prices.
-        Includes estimates of compensation of employees,
-        gross operating surplus,
-        gross mixed income,
-        and taxes less subsidies on production and imports.
-
+    
     Args:
     ----------
         name (str):

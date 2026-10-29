@@ -10,13 +10,6 @@ class JobVacanciesQuarterDataset(ABSDataset):
     """
     ABS Job Vacancies (dataflow JV), partitioned by snapshotdate
 
-    Description:
-    ----------
-        Estimates of job vacancies classified by industry,
-        sector and state/territory.
-        Job vacancies data relate to the number of vacancies which exist on the actual survey reference date only,
-        and not for a monthly or quarterly period.
-
     Args:
     ----------
         name (str):
