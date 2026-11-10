@@ -8,7 +8,7 @@ from app.resource.source.rba.dataset import RBADataset
 
 @pytest.fixture
 def dataset(source):
-    return source.dataset("cpi_month")
+    return source.dataset("g4_cpi_month")
 
 
 @pytest.fixture
