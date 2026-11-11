@@ -49,6 +49,8 @@ class NSWVGSource(BaseSource):
             Source name, e.g. "prod_nswvg"
         description (str):
             Source description, default is "NSW Valuer General data source for properties."
+        timezone (str):
+            IANA timezone of the source, default is "UTC"
         provision_path (Path | str | None):
             Path holding the manually downloaded files, e.g. "local/provision/source/nswvg/"
         vault (BaseVault | AbstractVaultSetting | str):
@@ -85,9 +87,12 @@ class NSWVGSource(BaseSource):
     # [Inherited] vault: BaseVault
     # [Inherited] store: BaseStore
     # [Inherited] log_stream: LogStream
+    # [Inherited] max_threads: int
+    # [Inherited] provision_path: Path | str | None
+    # [Inherited] timezone: str
     # [Inherited] tags: dict[str, str]
     description: str = Field(
-        default="NSW Valuer General data source for properties.",
+        default="NSW Valuer General data source for properties. More information: https://valuation.property.nsw.gov.au/embed/propertySalesInformation",
         description="[Optional] Source description.",
     )
 
@@ -105,6 +110,7 @@ class NSWVGSource(BaseSource):
             name=setting.name,
             provision_path=setting.provision_path,
             description=setting.description,
+            timezone=setting.timezone,
             max_threads=setting.max_threads,
             vault=setting.vault,
             store=setting.store,
@@ -129,6 +135,7 @@ class NSWVGSource(BaseSource):
         _provision_path: Path = self.provision_path / f"{_klass_name}"
         _instance: NSWVGDataset = _klass(
             provision_path=_provision_path,
+            timezone=self.timezone,
             asset=_asset,
             database=_database,
             log_stream=self.log_stream,

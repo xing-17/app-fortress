@@ -104,6 +104,8 @@ class NSWVGDataset(BaseDataset):
     # [Inherited] asset: BaseAsset
     # [Inherited] database: BaseDatabase
     # [Inherited] log_stream: LogStream
+    # [Inherited] max_threads: int
+    # [Inherited] timezone: str
     # [Inherited] tags: dict[str, str]
     provision_path: Path = Field(
         ...,
