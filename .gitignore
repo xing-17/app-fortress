@@ -1,5 +1,6 @@
 # Project specific files
 .test/*
+.benchmark/
 /settings/system.yaml
 /settings/services.yaml
 /local/.logs/*
