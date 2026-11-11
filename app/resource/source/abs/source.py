@@ -48,6 +48,8 @@ class ABSSource(BaseSource):
             Source name, e.g. "prod_abs"
         description (str):
             Source description, default is "ABS AU macro statistics data source."
+        timezone (str):
+            IANA timezone of the source, default is "UTC"
         timeout_seconds (float):
             Timeout of a single API request in seconds, default is 60
         vault (BaseVault | AbstractVaultSetting | str):
@@ -84,6 +86,9 @@ class ABSSource(BaseSource):
     # [Inherited] vault: BaseVault
     # [Inherited] store: BaseStore
     # [Inherited] log_stream: LogStream
+    # [Inherited] max_threads: int
+    # [Inherited] provision_path: Path | str | None
+    # [Inherited] timezone: str
     # [Inherited] tags: dict[str, str]
     description: str = Field(
         default="ABS AU macro statistics data source.",
@@ -109,6 +114,7 @@ class ABSSource(BaseSource):
         return cls(
             name=setting.name,
             description=setting.description,
+            timezone=setting.timezone,
             timeout_seconds=setting.timeout_seconds,
             max_threads=setting.max_threads,
             vault=setting.vault,
@@ -134,6 +140,7 @@ class ABSSource(BaseSource):
         _instance: ABSDataset = _klass(
             client=self._client,
             timeout_seconds=self.timeout_seconds,
+            timezone=self.timezone,
             asset=_asset,
             database=_database,
             log_stream=self.log_stream,

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import io
+from datetime import datetime
 from typing import ClassVar
+from zoneinfo import ZoneInfo
 
 import polars as pl
 import pytest
@@ -9,6 +11,8 @@ import requests
 
 from app.internal.constant.computestatus import ComputeStatus
 from app.internal.constant.frequencyoption import FrequencyOption
+from app.internal.util.clock import IClock
+from app.internal.util.timezone import ITimezone
 from app.resource.source.abs.dataset import ABSDataset
 from app.resource.source.abs.tests.conftest import JV_CSV, make_response
 
@@ -26,10 +30,11 @@ class VersionedDataset(DemoDataset):
     key: ClassVar[str] = "M2..AUS.Q"
 
 
-def _build(klass, client, vault, store, log_stream):
+def _build(klass, client, vault, store, log_stream, timezone="UTC"):
     return klass(
         client=client,
         timeout_seconds=7,
+        timezone=timezone,
         asset=vault.asset(rel=klass.name, filekind=klass.filekind, partitions=klass.partitions),
         database=store.database(klass.name),
         log_stream=log_stream,
@@ -114,6 +119,19 @@ class TestTransform:
 
     def test_empty_frame_stays_empty(self, dataset):
         assert dataset.transform(pl.DataFrame()).is_empty()
+
+    def test_snapshotdate_follows_the_dataset_timezone(self, client, vault, store, log_stream, monkeypatch):
+        # 23:55 UTC on the 10th is already the 11th in Sydney
+        _now = datetime(2026, 11, 10, 23, 55, tzinfo=ZoneInfo("UTC"))
+        monkeypatch.setattr(
+            IClock, "current", staticmethod(lambda timezone=None: _now.astimezone(ITimezone.resolve(timezone)))
+        )
+        _dates = {}
+        for _tz in ("UTC", "Australia/Sydney"):
+            client.replies = [make_response(200, JV_CSV)]
+            _ds = _build(DemoDataset, client, vault, store, log_stream, timezone=_tz)
+            _dates[_tz] = _ds.transform(_ds.extract())["snapshotdate"].unique().to_list()
+        assert _dates == {"UTC": ["2026-11-10"], "Australia/Sydney": ["2026-11-11"]}
 
 
 class TestRun:

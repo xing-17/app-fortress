@@ -24,7 +24,8 @@ class ABSDataset(BaseDataset):
     Base class for ABS datasets, constructed via `ABSSource.dataset()`
 
     Every run pulls the whole dataflow through the ABS SDMX REST API as CSV
-    and stores it as one `snapshotdate` partition, revisions are left to downstream models.
+    and stores it as one `snapshotdate` partition (dated in the source timezone),
+    revisions are left to downstream models.
 
     Attributes:
     ----------
@@ -63,6 +64,8 @@ class ABSDataset(BaseDataset):
             HTTP client shared by the source
         timeout_seconds (float):
             Timeout of a single request, shared by the source
+        timezone (str):
+            IANA timezone inherited from the source, `snapshotdate` is dated in it, default is "UTC"
         asset (BaseAsset):
             Asset holding the dataset files
         database (BaseDatabase):
@@ -123,6 +126,8 @@ class ABSDataset(BaseDataset):
     # [Inherited] asset: BaseAsset
     # [Inherited] database: BaseDatabase
     # [Inherited] log_stream: LogStream
+    # [Inherited] max_threads: int
+    # [Inherited] timezone: str
     # [Inherited] tags: dict[str, str]
     client: WebClient = Field(
         ...,
@@ -260,5 +265,5 @@ class ABSDataset(BaseDataset):
         self,
         frame: pl.DataFrame,
     ) -> pl.DataFrame:
-        _snapshotdate: str = IClock.current_snapshotdate(timezone="UTC")
+        _snapshotdate: str = IClock.current_snapshotdate(timezone=self.timezone)
         return frame.with_columns(pl.lit(_snapshotdate).alias("snapshotdate"))
