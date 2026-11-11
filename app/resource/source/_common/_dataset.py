@@ -48,6 +48,8 @@ class BaseDataset(
             Update frequency, declared by the subclass
         description (str):
             Dataset description, default is ""
+        timezone (str):
+            IANA timezone inherited from the source, `snapshotdate` is taken in it, default is "UTC"
         asset (BaseAsset):
             Asset holding the dataset files
         database (BaseDatabase):
@@ -135,6 +137,10 @@ class BaseDataset(
     # Subclass is not expected to define these instance variables
     #
     # [Inherited] tags: dict[str, str]
+    timezone: str = Field(
+        default="UTC",
+        description="[Optional] IANA timezone inherited from the source",
+    )
     asset: BaseAsset = Field(
         ...,
         description="[Required] Dataset Asset, derived from vault",

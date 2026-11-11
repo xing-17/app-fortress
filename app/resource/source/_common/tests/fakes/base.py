@@ -52,6 +52,7 @@ class FakeSource(BaseSource):
         return _klass(
             asset=self.vault.asset(rel=_klass.name, filekind=_klass.filekind, partitions=_klass.partitions),
             database=self.store.database(_klass.name),
+            timezone=self.timezone,
             log_stream=self.log_stream,
             tags=self.tags,
             _authorized=True,

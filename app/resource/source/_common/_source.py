@@ -8,8 +8,9 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from types import ModuleType
 from typing import Any, ClassVar
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, PrivateAttr, model_validator
+from pydantic import Field, PrivateAttr, field_validator, model_validator
 
 from app.internal.abstract.domain import IAbstractTaggedDomain
 from app.internal.constant.geocountry import GeoCountry
@@ -63,6 +64,9 @@ class BaseSource(
             Source description
         max_threads (int):
             Datasets of the source a node runs at the same time, default is 1
+        timezone (str):
+            IANA timezone of the source, datasets take their `snapshotdate` in it,
+            default is "UTC" (None is treated as "UTC"), an unknown name raises ValueError
         vault (BaseVault | AbstractVaultSetting | str):
             Source landing vault, resolved through GlobalVaults
         store (BaseStore | AbstractStoreSetting | str):
@@ -128,6 +132,10 @@ class BaseSource(
         ge=1,
         description="[Optional] Datasets of the source run at the same time",
     )
+    timezone: str = Field(
+        default="UTC",
+        description="[Optional] IANA timezone of the source, inherited by its datasets",
+    )
     provision_path: Path | str | None = Field(
         default=None,
         description="[Optional] The provision path for manual downloads.",
@@ -150,6 +158,20 @@ class BaseSource(
     _dataset_classes: list[type[BaseDataset]] | None = PrivateAttr(default=None)
     _datasets: list[BaseDataset] | None = PrivateAttr(default=None)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
+
+    @field_validator("timezone", mode="before")
+    @classmethod
+    def _validate_timezone(cls, value: Any) -> str:
+        if value is None:
+            return "UTC"
+
+        # ITimezone.resolve falls back to UTC silently
+        # typo must fail here instead
+        try:
+            ZoneInfo(str(value))
+        except (ZoneInfoNotFoundError, ValueError) as e:
+            raise ValueError(f"Unknown timezone: {value!r}") from e
+        return str(value)
 
     @model_validator(mode="after")
     def _derive_provision_path(self) -> "BaseSource":

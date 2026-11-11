@@ -40,6 +40,29 @@ class TestSourceInit:
         assert source.description is None
 
 
+class TestSourceTimezone:
+    def test_defaults_to_utc(self, source):
+        assert source.timezone == "UTC"
+
+    def test_none_is_treated_as_utc(self, vault, store):
+        assert FakeSource(name="src", vault=vault, store=store, timezone=None).timezone == "UTC"
+
+    def test_explicit_timezone_is_kept(self, vault, store):
+        _source = FakeSource(name="src", vault=vault, store=store, timezone="Asia/Shanghai")
+        assert _source.timezone == "Asia/Shanghai"
+
+    def test_unknown_timezone_raises(self, vault, store):
+        with pytest.raises(ValueError):
+            FakeSource(name="src", vault=vault, store=store, timezone="Mars/Base")
+
+    def test_dataset_inherits_the_source_timezone(self, vault, store):
+        _source = FakeSource(name="src", vault=vault, store=store, timezone="Australia/Sydney")
+        assert _source.dataset("alpha").timezone == "Australia/Sydney"
+
+    def test_dataset_defaults_to_utc(self, source):
+        assert source.dataset("alpha").timezone == "UTC"
+
+
 class TestSourceIdentity:
     def test_frn_includes_provider_and_name(self, source):
         assert source.frn == f"source:provider={SourceProvider.TUSHARE}:name=src"
