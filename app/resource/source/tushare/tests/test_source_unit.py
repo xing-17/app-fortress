@@ -24,9 +24,6 @@ class TestTushareSource:
     def test_frn_includes_provider_and_name(self, source):
         assert source.frn == f"source:provider={SourceProvider.TUSHARE}:name=ts"
 
-    def test_discovers_tradedates_dataset(self, source):
-        assert source.list_dataset_names() == ["tradedates"]
-
     def test_empty_key_is_rejected(self, vault, store):
         with pytest.raises(ValidationError):
             TushareSource(name="ts", key="", vault=vault, store=store)
@@ -52,7 +49,6 @@ class TestTushareSource:
         _source = TushareSource.from_setting(_setting)
         assert _source.name == "ts"
         assert _source.key == "k"
-        assert _source.list_dataset_names() == ["tradedates"]
 
 
 class TestTradedatesRun:

@@ -47,6 +47,8 @@ class RBASource(BaseSource):
             Source name, e.g. "prod_rba"
         description (str):
             Source description, default is "RBA AU financial data source."
+        timezone (str):
+            IANA timezone of the source, default is "UTC"
         vault (BaseVault | AbstractVaultSetting | str):
             Source landing vault, resolved through GlobalVaults
         store (BaseStore | AbstractStoreSetting | str):
@@ -81,6 +83,9 @@ class RBASource(BaseSource):
     # [Inherited] vault: BaseVault
     # [Inherited] store: BaseStore
     # [Inherited] log_stream: LogStream
+    # [Inherited] max_threads: int
+    # [Inherited] provision_path: Path | str | None
+    # [Inherited] timezone: str
     # [Inherited] tags: dict[str, str]
     description: str = Field(
         default="RBA AU financial data source.",
@@ -100,6 +105,7 @@ class RBASource(BaseSource):
         return cls(
             name=setting.name,
             description=setting.description,
+            timezone=setting.timezone,
             max_threads=setting.max_threads,
             vault=setting.vault,
             store=setting.store,
@@ -122,6 +128,7 @@ class RBASource(BaseSource):
         )
         _database: BaseDatabase = self.store.database(f"{_klass_name}")
         _instance: RBADataset = _klass(
+            timezone=self.timezone,
             asset=_asset,
             database=_database,
             log_stream=self.log_stream,

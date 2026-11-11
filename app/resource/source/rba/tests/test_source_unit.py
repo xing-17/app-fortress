@@ -35,6 +35,25 @@ class TestRBASource:
         assert _source.name == "rba"
         assert "g4_cpi_month" in _source.list_dataset_names()
 
+    def test_from_setting_takes_the_timezone_and_datasets_inherit_it(self, tmp_path):
+        _setting = RBASourceSetting(
+            name="rba",
+            timezone="Australia/Sydney",
+            vault=LocalVaultSetting(name="v", path=str(tmp_path / "vault")),
+            store=FileStoreSetting(name="s", path=str(tmp_path / "store")),
+        )
+        _source = RBASource.from_setting(_setting)
+        assert _source.timezone == "Australia/Sydney"
+        assert _source.dataset("g4_cpi_month").timezone == "Australia/Sydney"
+
+    def test_from_setting_without_timezone_is_utc(self, tmp_path):
+        _setting = RBASourceSetting(
+            name="rba",
+            vault=LocalVaultSetting(name="v", path=str(tmp_path / "vault")),
+            store=FileStoreSetting(name="s", path=str(tmp_path / "store")),
+        )
+        assert RBASource.from_setting(_setting).timezone == "UTC"
+
 
 class TestRBADatasets:
     def test_every_dataset_declares_a_table_no(self, source):

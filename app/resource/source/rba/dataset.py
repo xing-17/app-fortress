@@ -21,7 +21,8 @@ class RBADataset(BaseDataset):
     Base class for RBA datasets, constructed via `RBASource.dataset()`
 
     Every run pulls the whole statistical table through the `rbadata` package
-    and stores it as one `snapshotdate` partition, revisions are left to downstream models.
+    and stores it as one `snapshotdate` partition (dated in the source timezone),
+    revisions are left to downstream models.
 
     Attributes:
     ----------
@@ -46,6 +47,8 @@ class RBADataset(BaseDataset):
             RBA statistical table number, e.g. "f1.1", declared by the subclass
         retry (Retry):
             Retry policy of the request, default is 3 retries with exponential backoff
+        timezone (str):
+            IANA timezone inherited from the source, `snapshotdate` is dated in it, default is "UTC"
         asset (BaseAsset):
             Asset holding the dataset files
         database (BaseDatabase):
@@ -184,5 +187,5 @@ class RBADataset(BaseDataset):
         self,
         frame: pl.DataFrame,
     ) -> pl.DataFrame:
-        _snapshotdate: str = IClock.current_snapshotdate(timezone="UTC")
+        _snapshotdate: str = IClock.current_snapshotdate(timezone=self.timezone)
         return frame.with_columns(pl.lit(_snapshotdate).alias("snapshotdate"))

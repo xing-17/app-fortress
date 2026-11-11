@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import io
+from datetime import datetime
 from typing import ClassVar
+from zoneinfo import ZoneInfo
 
 import polars as pl
 import pytest
 
+from app.internal.util.clock import IClock
+from app.internal.util.timezone import ITimezone
 from app.resource.accessory.paginate.paginate import Paginate
 from app.resource.source.tushare.dataset import TushareDataset
 
@@ -142,3 +146,23 @@ class TestColumnHelpers:
 
     def test_add_snapshotdate_keeps_empty_frame_empty(self, dataset):
         assert dataset._col_add_snapshotdate(pl.DataFrame()).is_empty()
+
+    def test_add_snapshotdate_follows_the_dataset_timezone(self, session, vault, store, log_stream, monkeypatch):
+        # 17:00 UTC on the 10th is already the 11th in Shanghai
+        _now = datetime(2026, 11, 10, 17, 0, tzinfo=ZoneInfo("UTC"))
+        monkeypatch.setattr(
+            IClock, "current", staticmethod(lambda timezone=None: _now.astimezone(ITimezone.resolve(timezone)))
+        )
+        _dates = {}
+        for _tz in ("UTC", "Asia/Shanghai"):
+            _ds = DemoDataset(
+                session=session,
+                timezone=_tz,
+                asset=vault.asset(rel="demo", filekind=DemoDataset.filekind, partitions=DemoDataset.partitions),
+                database=store.database("demo"),
+                log_stream=log_stream,
+                tags={},
+                _authorized=True,
+            )
+            _dates[_tz] = _ds._col_add_snapshotdate(pl.DataFrame({"x": [1]}))["snapshotdate"][0]
+        assert _dates == {"UTC": "2026-11-10", "Asia/Shanghai": "2026-11-11"}

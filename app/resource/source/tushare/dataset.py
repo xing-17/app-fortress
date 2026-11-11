@@ -56,6 +56,8 @@ class TushareDataset(BaseDataset):
             Retry policy of a single page request, default is 3 retries
         session (TushareSession):
             Tushare session for API calls
+        timezone (str):
+            IANA timezone inherited from the source, `snapshotdate` is dated in it, default is "UTC"
         asset (BaseAsset):
             Asset holding the dataset files
         database (BaseDatabase):
@@ -253,7 +255,7 @@ class TushareDataset(BaseDataset):
         # A column-less empty frame would otherwise broadcast the literal into one bogus row
         if frame.is_empty():
             return frame
-        _snapshotdate: str = IClock.current_snapshotdate(timezone="UTC")
+        _snapshotdate: str = IClock.current_snapshotdate(timezone=self.timezone)
         return frame.with_columns(pl.lit(_snapshotdate).alias("snapshotdate"))
 
     def _col_format_date_value(

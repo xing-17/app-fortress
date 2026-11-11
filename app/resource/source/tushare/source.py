@@ -42,6 +42,8 @@ class TushareSource(BaseSource):
             Source name, e.g. "prod_tushare"
         description (str):
             Source description, default is "Tushare CN trading and financial data source."
+        timezone (str):
+            IANA timezone of the source, default is "UTC"
         provision_path (str):
             Path for provisioning the source, e.g. "local/provision/source/tushare/"
         vault (BaseVault | AbstractVaultSetting | str):
@@ -83,6 +85,9 @@ class TushareSource(BaseSource):
     # [Inherited] vault: BaseVault
     # [Inherited] store: BaseStore
     # [Inherited] log_stream: LogStream
+    # [Inherited] max_threads: int
+    # [Inherited] provision_path: Path | str | None
+    # [Inherited] timezone: str
     # [Inherited] tags: dict[str, str]
     key: str = Field(
         ...,
@@ -124,6 +129,7 @@ class TushareSource(BaseSource):
             key=setting.key,
             ttl_hours=setting.session_ttl_hours,
             description=setting.description,
+            timezone=setting.timezone,
             max_threads=setting.max_threads,
             vault=setting.vault,
             store=setting.store,
@@ -147,6 +153,7 @@ class TushareSource(BaseSource):
         _database: BaseDatabase = self.store.database(f"{_klass_name}")
         _instance: TushareDataset = _klass(
             session=self._session,
+            timezone=self.timezone,
             asset=_asset,
             database=_database,
             log_stream=self.log_stream,

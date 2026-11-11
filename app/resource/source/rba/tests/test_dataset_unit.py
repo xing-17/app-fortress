@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import polars as pl
 import pytest
 
+from app.internal.util.clock import IClock
+from app.internal.util.timezone import ITimezone
+from app.resource.source.rba import RBASource
 from app.resource.source.rba.dataset import RBADataset
 
 
@@ -38,6 +44,17 @@ class TestExtract:
 class TestTransform:
     def test_adds_snapshotdate(self, dataset, frame):
         assert "snapshotdate" in dataset.transform(frame).columns
+
+    def test_snapshotdate_follows_the_source_timezone(self, vault, store, log_stream, frame, monkeypatch):
+        # 23:55 UTC on the 10th is already the 11th in Sydney
+        _now = datetime(2026, 11, 10, 23, 55, tzinfo=ZoneInfo("UTC"))
+        monkeypatch.setattr(
+            IClock, "current", staticmethod(lambda timezone=None: _now.astimezone(ITimezone.resolve(timezone)))
+        )
+        _utc = RBASource(name="rba", vault=vault, store=store, log_stream=log_stream)
+        _syd = RBASource(name="rba", vault=vault, store=store, log_stream=log_stream, timezone="Australia/Sydney")
+        assert _utc.dataset("g4_cpi_month").transform(frame)["snapshotdate"].unique().to_list() == ["2026-11-10"]
+        assert _syd.dataset("g4_cpi_month").transform(frame)["snapshotdate"].unique().to_list() == ["2026-11-11"]
 
     def test_empty_frame_is_returned_as_is(self, dataset):
         assert dataset.transform(pl.DataFrame()).is_empty()
