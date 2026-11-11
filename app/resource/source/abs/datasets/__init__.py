@@ -8,6 +8,8 @@ from .lending_indicators_housing_quarter import LendingIndicatorsHousingQuarterD
 from .living_cost_selected_indexes_quarter import LivingCostSelectedIndexesQuarterDataset
 from .migration_interstate_quarter import MigrationInterstateQuarterDataset
 from .migration_overseas_year import MigrationOverseasYearDataset
+from .migration_regional_archived_year import MigrationRegionalArchivedYearDataset
+from .migration_regional_recent_year import MigrationRegionalRecentYearDataset
 from .national_accounts_agg_quarter import NationalAccountsAggQuarterDataset
 from .national_accounts_exp_quarter import NationalAccountsExpQuarterDataset
 from .national_accounts_inc_quarter import NationalAccountsIncQuarterDataset
@@ -16,6 +18,7 @@ from .national_accounts_sfd_quarter import NationalAccountsSfdQuarterDataset
 from .population_components_gccsa_year import PopulationComponentsGCCSAYearDataset
 from .population_components_quarter import PopulationComponentsQuarterDataset
 from .population_erp_quarter import PopulationERPQuarterDataset
+from .population_estimates_sa2_year import PopulationEstimatesSA2YearDataset
 from .price_index_cpi_capital_quarter import PriceIndexCPICapitalQuarterDataset
 from .price_index_cpi_quarter import PriceIndexCPIQuarterDataset
 from .price_index_ppi_quarter import PriceIndexPPIQuarterDataset
@@ -32,6 +35,8 @@ __all__ = [
     "LivingCostSelectedIndexesQuarterDataset",
     "MigrationInterstateQuarterDataset",
     "MigrationOverseasYearDataset",
+    "MigrationRegionalArchivedYearDataset",
+    "MigrationRegionalRecentYearDataset",
     "NationalAccountsAggQuarterDataset",
     "NationalAccountsExpQuarterDataset",
     "NationalAccountsIncQuarterDataset",
@@ -40,6 +45,7 @@ __all__ = [
     "PopulationComponentsGCCSAYearDataset",
     "PopulationComponentsQuarterDataset",
     "PopulationERPQuarterDataset",
+    "PopulationEstimatesSA2YearDataset",
     "PriceIndexCPICapitalQuarterDataset",
     "PriceIndexCPIQuarterDataset",
     "PriceIndexPPIQuarterDataset",
