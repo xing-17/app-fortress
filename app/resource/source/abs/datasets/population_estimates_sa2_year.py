@@ -17,7 +17,7 @@ class PopulationEstimatesSA2YearDataset(ABSDataset):
         partitions (list[str]):
             Partition keys of the dataset, fixed to ["snapshotdate"]
         frequency (FrequencyOption):
-            Update frequency, fixed to FrequencyOption.QUARTER
+            Update frequency, fixed to FrequencyOption.YEAR
         dataflow_id (str):
             ABS dataflow id, fixed to "ERP_ASGS2021"
 
@@ -25,7 +25,7 @@ class PopulationEstimatesSA2YearDataset(ABSDataset):
 
     name: ClassVar[str] = "population_estimates_sa2_year"
     partitions: ClassVar[list[str]] = ["snapshotdate"]
-    frequency: ClassVar[FrequencyOption] = FrequencyOption.QUARTER
+    frequency: ClassVar[FrequencyOption] = FrequencyOption.YEAR
     description: ClassVar[str] = (
         "Annual estimated resident population (ERP) at 30 June by SA2 and above, "
         "ASGS Edition 3 boundaries, 2001 onwards. Used at Greater Sydney (GCCSA) "
