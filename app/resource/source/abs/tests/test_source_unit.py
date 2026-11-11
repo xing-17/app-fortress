@@ -23,13 +23,28 @@ class TestABSSource:
 
     def test_discovers_all_datasets(self, source):
         assert sorted(source.list_dataset_names()) == [
+            "building_activity_state_quarter",
+            "building_approvals_gccsa_month",
             "job_vacancies_quarter",
             "labour_force_month",
+            "lending_indicators_housing_quarter",
+            "living_cost_selected_indexes_quarter",
+            "migration_interstate_quarter",
+            "migration_overseas_year",
             "national_accounts_agg_quarter",
             "national_accounts_exp_quarter",
             "national_accounts_inc_quarter",
             "national_accounts_ind_gva_quarter",
             "national_accounts_sfd_quarter",
+            "population_components_gccsa_year",
+            "population_components_quarter",
+            "population_erp_quarter",
+            "price_index_cpi_capital_quarter",
+            "price_index_cpi_quarter",
+            "price_index_ppi_quarter",
+            "price_index_wpi_quarter",
+            "residential_dwelling_gccsa_quarter",
+            "residential_dwelling_state_quarter",
         ]
 
     def test_non_positive_timeout_is_rejected(self, vault, store):
