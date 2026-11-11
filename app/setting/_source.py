@@ -41,6 +41,10 @@ class AbstractSourceSetting(IAbstractTaggedSetting):
         ...,
         description="[discriminator] The data provider for the source.",
     )
+    timezone: str = Field(
+        default="UTC",
+        description="[Optional] The timezone of the data source. Defaults to 'UTC'.",
+    )
     description: str = Field(
         default="",
         description="[Optional] The description of the data source.",
