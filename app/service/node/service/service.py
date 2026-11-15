@@ -94,7 +94,8 @@ class NodeService(BaseService[NodeServiceSetting]):
             Each assetfile with its quality, None when it has no metadata
         list_definitions(source, dataset, since=None, until=None) -> list[dict]:
             Definitions grouped by fingerprint with the partitions that carry each of them,
-            assetfiles without metadata are skipped
+            assetfiles without metadata are skipped. Each column carries the `description` and
+            `unit` its dataset declares, empty strings when it declares none
         list_runs(source, dataset, status=None, limit=None) -> list[dict]:
             Run records of a dataset, newest first, optionally of one status and capped at limit
         submit_dataset_run(source, dataset, params=None) -> dict:
@@ -425,7 +426,16 @@ class NodeService(BaseService[NodeServiceSetting]):
             _seen[_fp].add(_key)
             _groups[_fp].partitions.append(dict(_file.partitions))
 
-        return [_group.export() for _group in _groups.values()]
+        # The spec is joined here, not stored with the data, so edits apply to old partitions
+        _res: list[dict[str, Any]] = []
+        for _group in _groups.values():
+            _item: dict[str, Any] = _group.export()
+            for _col in _item["columns"]:
+                _spec = _dataset.get_column_desc(_col["name"])
+                _col["description"] = _spec.description
+                _col["unit"] = _spec.unit
+            _res.append(_item)
+        return _res
 
     # Run Info
 

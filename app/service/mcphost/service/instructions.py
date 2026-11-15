@@ -31,10 +31,12 @@ Pass `source` to list only one source, `node` to ask only one node.
 """
 
 _GET_SCHEMA_DOC = """\
-Show the columns and types of a dataset, and which partitions exist.
+Show the columns, types, descriptions and units of a dataset, and which partitions exist.
 
 `dataset` is "<source>.<dataset>". The node that holds it is found automatically; pass `node` only
-when the same dataset exists on several nodes. The partition keys are also columns in SQL and are
+when the same dataset exists on several nodes. Each column has a `description` (what it means) and
+a `unit`; both are empty strings when the dataset does not document the column, read them before
+writing SQL. The partition keys are also columns in SQL and are
 always VARCHAR: CAST them when you need numbers or dates, e.g. CAST(date AS DATE).
 The schema may differ between partitions: each entry of `definitions` is one schema with the
 number of partitions that carry it and the range (min, max as strings) of each partition key.

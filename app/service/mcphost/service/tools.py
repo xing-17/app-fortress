@@ -484,7 +484,15 @@ def build_server(
             _definitions = []
             for _g in _groups:
                 _definition = {
-                    "columns": [{"name": c["name"], "type": c["type"]} for c in _g["columns"]],
+                    "columns": [
+                        {
+                            "name": c["name"],
+                            "type": c["type"],
+                            "description": c.get("description", ""),
+                            "unit": c.get("unit", ""),
+                        }
+                        for c in _g["columns"]
+                    ],
                     "partition_count": len(_g["partitions"]),
                     "partition_range": _partition_range(_g["partitions"]),
                 }

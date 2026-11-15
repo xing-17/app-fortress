@@ -140,9 +140,19 @@
           <h3 class="mono">{{ g.fingerprint[:12] }}</h3>
           <span class="muted small">{{ g.partitions|length }} partition(s)</span>
         </div>
-        <div class="chips">
-          {% for c in g.columns %}<span class="chip small">{{ c|column }}</span>{% endfor %}
-        </div>
+        <table class="list">
+          <thead><tr><th>column</th><th>type</th><th>unit</th><th>description</th></tr></thead>
+          <tbody>
+            {% for c in g.columns %}
+              <tr>
+                <td class="mono">{{ c.name }}</td>
+                <td class="mono">{{ c.type }}</td>
+                <td>{{ c.unit }}</td>
+                <td>{{ c.description }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         <details>
           <summary>partitions</summary>
           <div class="chips">

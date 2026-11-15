@@ -39,7 +39,8 @@ class NodeClient(ABC):
         list_qualities(source, dataset, since=None, until=None) -> list[dict]:
             Each assetfile with its quality, None when it has no metadata
         list_definitions(source, dataset, since=None, until=None) -> list[dict]:
-            Definitions grouped by fingerprint with the partitions that carry each of them
+            Definitions grouped by fingerprint with the partitions that carry each of them,
+            columns carry `description` and `unit`, empty when the dataset declares none
         list_runs(source, dataset, status=None, limit=None) -> list[dict]:
             Run records of a dataset, newest first, optionally of one status and capped at limit
         submit_dataset_run(source, dataset, params=None) -> dict:

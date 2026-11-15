@@ -225,6 +225,17 @@ class TestDefinitions:
         _write(source, "beta", "bare.parquet", pl.DataFrame({"a": [1]}), {"year": "2022"}, metadata=False)
         assert service.list_definitions("src", "beta") == []
 
+    def test_columns_carry_the_declared_description_and_unit(self, service, source):
+        _write(source, "beta", "a.parquet", pl.DataFrame({"a": [1], "b": [2], "c": [3]}), {"year": "2022"})
+        _cols = {c["name"]: c for c in service.list_definitions("src", "beta")[0]["columns"]}
+        assert (_cols["a"]["description"], _cols["a"]["unit"]) == ("First column", "kg")
+        assert (_cols["b"]["description"], _cols["b"]["unit"]) == ("Second column", "")
+
+    def test_undeclared_column_is_empty_not_an_error(self, service, source):
+        _write(source, "beta", "a.parquet", pl.DataFrame({"c": [3]}), {"year": "2022"})
+        _col = service.list_definitions("src", "beta")[0]["columns"][0]
+        assert (_col["description"], _col["unit"]) == ("", "")
+
 
 class TestRuns:
     def test_lists_the_runs_of_a_dataset(self, service, source):

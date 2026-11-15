@@ -21,7 +21,7 @@ AI client ──► HTTP (streamable MCP)
         BearerAuthMiddleware ──► Principal (which user / device)
                 │
                 ▼
-        MCPServer  (tools: list_nodes, list_datasets, get_schema, get_quality, list_runs, get_dataset_run, list_machine_snapshots, query)
+        MCPServer  (tools: list_nodes, list_datasets, get_schema, get_quality, list_logs, list_runs, get_dataset_run, list_machine_snapshots, query)
                 │
                 ▼
         MCPGuard   (log start, time, translate errors, log result)
@@ -101,7 +101,7 @@ Three facts explain most of the design:
 | `fortressfront.app` | The domain name. Its DNS is managed by Cloudflare, so Cloudflare receives every request to it | Cloudflare dashboard, DNS |
 | Cloudflare edge | The public front. Provides the HTTPS certificate, and can block, rate-limit or filter by IP before a request reaches this computer | Cloudflare dashboard, Security (WAF, rate limiting) |
 | Tunnel + `cloudflared` | A small program on this computer that keeps an outbound connection to Cloudflare. A *Public Hostname* rule says "requests for `www.fortressfront.app` go to `http://127.0.0.1:8801`" | Cloudflare dashboard, Zero Trust, Networks, Tunnels; `cloudflared` runs as a macOS service |
-| `mcphost` | This service. Checks the user token and the Host header, then exposes the four tools | `settings/services.yaml`, `mcphost:` |
+| `mcphost` | This service. Checks the user token and the Host header, then exposes the [tools](#tools) | `settings/services.yaml`, `mcphost:` |
 | `node` | The data service. Only reachable on loopback, checks the host token | `settings/services.yaml`, `node:` |
 
 ### Life of one request
@@ -175,20 +175,24 @@ mcphost:
 
 ## Tools
 
-The AI is guided to the flow `list_datasets` → `get_schema` → `query`, with `get_quality` to judge completeness and `list_runs` to see how the last runs went. Datasets are always named `<source>.<dataset>`, which is also the table name in SQL (`_split` validates this form).
+The AI is guided to the flow `list_datasets` → `get_schema` → `query`, with `get_quality` to judge completeness, `list_runs` to see how the last runs went, and `list_logs` / `list_machine_snapshots` when something misbehaves. Datasets are always named `<source>.<dataset>`, which is also the table name in SQL (`_split` validates this form). Every tool except `list_nodes` takes an optional `node`, needed only when several nodes are served and the target is ambiguous.
 
 | Tool | Node calls | Returns |
 |---|---|---|
-| `list_datasets(source?)` | `list_datasets` | dataset, description, frequency, partition keys |
-| `get_schema(dataset)` | `get_dataset`, `list_definitions` | Description, partition keys, and `definitions`: each distinct schema (columns and types) with its `partition_count` and the min/max of each partition key. Sorted by partition count, the most common schema first |
+| `list_nodes()` | `list_sources` (all nodes) | Per node: name, `reachable`, source names, or a fixed `error` text when it is down |
+| `list_datasets(source?, node?)` | `list_datasets` (all nodes, or one) | `datasets` (node, dataset, description, frequency, partition keys) and `nodes` (reachable or not). A node that does not know `source` is skipped; the call fails only when no node knows it |
+| `get_schema(dataset)` | `get_dataset`, `list_definitions` | Description, partition keys, and `definitions`: each distinct schema (columns with type, `description` and `unit`, both empty when the dataset does not declare them) with its `partition_count` and the min/max of each partition key. Sorted by partition count, the most common schema first |
 | `get_quality(dataset, limit=20)` | `list_qualities` | Per partition file, newest first (limit clamped 1..200): rows, complete rows, duplicates, columns with a NULL rate, constant columns, all-NULL columns. `checked: false` when a file has no quality record |
+| `list_logs(source, limit=50)` | `get_source` (find the node), `list_logs` | The latest log events of a source, newest first (limit clamped 1..500). Empty when the source keeps no log file |
 | `list_runs(dataset, status?, limit=20)` | `list_runs` | Run records of the dataset, newest first (limit clamped 1..100): status, start/finish time, duration, params, rows/columns written, error of a failed run. `status` is started, completed or failed |
 | `get_dataset_run(dataset, id)` | `get_dataset_run` | The record of one run (id from `list_runs`), `{node, dataset, run}` |
+| `list_machine_snapshots(hours?)` | `list_machine_snapshots` (all nodes, or one) | Per node, one snapshot per minute, oldest first: cpu, memory, swap, disk, process and network figures. `hours` must be greater than 0 (else a bad request); without it the node returns everything it keeps. A node that is down carries an `error` |
 | `query(sql)` | `query(sql, caller=)` | The rows of ONE read-only SELECT (DuckDB). Capped in rows and size, `truncated` says so |
 
 Notes:
 - `_summarize_quality` reduces the full quality record to key metrics so the answer stays small for the AI.
 - Partition keys are VARCHAR in SQL; the tool descriptions tell the AI to `CAST` them. Columns missing in some partitions read as NULL.
+- Column `description` and `unit` come from the dataset's `ColumnDesc` declarations (`column_descs` on the dataset class, see `app/internal/model/definition/desc.py`). They are static documentation, not stored with the data and not part of the definition fingerprint; an undeclared column reads as empty strings.
 - The tool functions are plain `def`, the MCP SDK runs them in a worker thread so a slow node call does not block the event loop.
 - **Read-only by construction**: there is no write tool (starting a dataset run is not exposed here), and SQL validation, session isolation, row/size caps and timeout are the node's DRA engine's job, not the host's.
 - `query` passes the user's name as `caller`, so the node runs the query in a session of its own and audits it by that name.

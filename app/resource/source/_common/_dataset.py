@@ -110,8 +110,10 @@ class BaseDataset(
         list_definitions(since: datetime | float | None = None, until: datetime | float | None = None) -> list[DefinitionGroup]:
             Definitions of the assetfiles matching the filter, grouped by fingerprint
             with the partitions that carry each definition.
-        column_spec(name: str) -> ColumnDesc:
+        get_column_desc(name: str) -> ColumnDesc:
             Description and unit of a column, empty when the dataset does not declare it.
+        list_column_descs() -> list[ColumnDesc]:
+            All declared column descriptions.
         export() -> dict[str, Any]:
             Export the dataset as a dictionary.
 

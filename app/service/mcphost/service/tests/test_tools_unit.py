@@ -385,9 +385,25 @@ class TestGetSchema:
         assert _res["description"] == "Alpha dataset"
         assert _res["partition_keys"] == ["date"]
         _new = _res["definitions"][0]
-        assert _new["columns"] == [{"name": "a", "type": "BIGINT"}, {"name": "b", "type": "VARCHAR"}]
+        assert _new["columns"] == [
+            {"name": "a", "type": "BIGINT", "description": "", "unit": ""},
+            {"name": "b", "type": "VARCHAR", "description": "", "unit": ""},
+        ]
         assert _new["partition_count"] == 3
         assert _new["partition_range"] == {"date": ["2024-02-01", "2024-03-01"]}
+
+    def test_columns_carry_description_and_unit(self, server, fake):
+        fake.definitions = [
+            {
+                "fingerprint": "x",
+                "columns": [{"name": "a", "type": "BIGINT", "description": "Count", "unit": "people"}],
+                "partitions": [{"date": "2024-01-01"}],
+            }
+        ]
+        _res = data(call(server, "get_schema", {"dataset": "src.alpha"}))
+        assert _res["definitions"][0]["columns"] == [
+            {"name": "a", "type": "BIGINT", "description": "Count", "unit": "people"}
+        ]
 
     def test_the_most_common_definition_comes_first(self, server, fake):
         fake.definitions = self._definitions()

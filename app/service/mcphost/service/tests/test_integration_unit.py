@@ -26,7 +26,9 @@ class TestThroughANode:
 
         _schema = data(call(_server, "get_schema", {"dataset": "src.beta"}))
         assert _schema["partition_keys"] == ["year"]
-        assert _schema["definitions"][0]["columns"] == [{"name": "v", "type": "Int64"}]
+        assert _schema["definitions"][0]["columns"] == [
+            {"name": "v", "type": "Int64", "description": "", "unit": ""},
+        ]
         assert _schema["definitions"][0]["partition_range"] == {"year": ["2023", "2024"]}
 
         _res = data(call(_server, "query", {"sql": "SELECT sum(v) AS total FROM src.beta WHERE year = '2024'"}))

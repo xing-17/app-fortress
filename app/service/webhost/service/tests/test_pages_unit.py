@@ -222,13 +222,16 @@ class TestDataset:
         fake.definitions = [
             {
                 "fingerprint": "abcdef0123456789",
-                "columns": [{"name": "px", "type": "DOUBLE"}],
+                "columns": [{"name": "px", "type": "DOUBLE", "description": "Closing price", "unit": "CNY"}],
                 "partitions": [{"date": "d1"}],
             }
         ]
         _text = signed_in.get("/n/centre/d/src/alpha?tab=definitions", headers=HTML).text
         assert "abcdef012345" in _text
-        assert "px DOUBLE" in _text
+        assert "px" in _text
+        assert "DOUBLE" in _text
+        assert "Closing price" in _text
+        assert "CNY" in _text
 
     def test_runs_tab(self, signed_in):
         _text = signed_in.get("/n/centre/d/src/alpha?tab=runs", headers=HTML).text
