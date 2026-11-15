@@ -11,6 +11,7 @@ from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.frequencyoption import FrequencyOption
 from app.internal.constant.sourceprovider import SourceProvider
 from app.internal.logstream import LogStream
+from app.internal.model.definition.desc import ColumnDesc
 from app.internal.model.metadata.assetfile import AssetfileMetadata
 from app.internal.util.frn import IFrn
 from app.internal.util.stopwatch import IStopwatch
@@ -48,6 +49,9 @@ class BaseDataset(
             Update frequency, declared by the subclass
         description (str):
             Dataset description, default is ""
+        column_descs (list[ColumnDesc]):
+            Description and unit of columns by column name, default is []
+            A column that is not declared reads as an empty ColumnDesc
         timezone (str):
             IANA timezone inherited from the source, `snapshotdate` is taken in it, default is "UTC"
         asset (BaseAsset):
@@ -106,6 +110,8 @@ class BaseDataset(
         list_definitions(since: datetime | float | None = None, until: datetime | float | None = None) -> list[DefinitionGroup]:
             Definitions of the assetfiles matching the filter, grouped by fingerprint
             with the partitions that carry each definition.
+        column_spec(name: str) -> ColumnDesc:
+            Description and unit of a column, empty when the dataset does not declare it.
         export() -> dict[str, Any]:
             Export the dataset as a dictionary.
 
@@ -122,6 +128,7 @@ class BaseDataset(
     filekind: ClassVar[AssetFileKind] = AssetFileKind.OBJECT
     frequency: ClassVar[FrequencyOption]
     description: ClassVar[str] = ""
+    column_descs: ClassVar[list[ColumnDesc]] = []
 
     # ---------- Enforced PRIVATE class variables ----------
     _metadata_key: ClassVar[str] = "__METADATA__"
@@ -419,6 +426,18 @@ class BaseDataset(
             key=run.id,
             data=run.export(),
         )
+
+    def get_column_desc(
+        self,
+        name: str,
+    ) -> ColumnDesc:
+        for col_desc in self.column_descs:
+            if col_desc.name == name:
+                return col_desc
+        return ColumnDesc(name=name)
+
+    def list_column_descs(self) -> list[ColumnDesc]:
+        return list(self.column_descs)
 
     def export(self) -> dict[str, Any]:
         _res: dict[str, Any] = self.model_dump(

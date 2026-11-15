@@ -22,7 +22,16 @@ class TestDatasetIdentity:
     def test_class_defaults(self):
         assert AlphaDataset.partitions == []
         assert AlphaDataset.description == ""
+        assert AlphaDataset.column_descs == []
         assert AlphaDataset.frequency == FrequencyOption.DAY
+
+    def test_undeclared_column_desc_is_empty(self, dataset):
+        _spec = dataset.get_column_desc("anything")
+        assert (_spec.description, _spec.unit) == ("", "")
+
+    def test_declared_column_desc_is_returned(self, source):
+        _spec = source.dataset("beta").get_column_desc("a")
+        assert (_spec.description, _spec.unit) == ("First column", "kg")
 
     def test_dataset_is_bound_to_source_resources(self, dataset, source):
         assert dataset.log_stream is source.log_stream
