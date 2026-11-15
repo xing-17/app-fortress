@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from app.internal.constant.frequencyoption import FrequencyOption
+from app.internal.model.definition.desc import ColumnDesc
 from app.resource.source.abs.dataset import ABSDataset
 
 
@@ -32,3 +33,22 @@ class MigrationInterstateQuarterDataset(ABSDataset):
         "Geographic coverage: Australia/State."
     )
     dataflow_id: ClassVar[str] = "ABS_DEM_QIM"
+    column_descs: ClassVar[list[ColumnDesc]] = [
+        *ABSDataset.column_descs,
+        ColumnDesc(
+            name="SEX",
+            description="Sex: 1 Males, 2 Females, 3 Persons.",
+        ),
+        ColumnDesc(
+            name="STATE_DEP",
+            description="State or territory of departure: AUS Australia, 1 NSW, 2 Vic, 3 Qld, 4 SA, 5 WA, 6 Tas, 7 NT, 8 ACT, 9 Other Territories.",
+        ),
+        ColumnDesc(
+            name="STATE_ARR",
+            description="State or territory of arrival, coded as STATE_DEP.",
+        ),
+        ColumnDesc(
+            name="FREQ",
+            description="Frequency of the series: A annual, Q quarterly, M monthly.",
+        ),
+    ]

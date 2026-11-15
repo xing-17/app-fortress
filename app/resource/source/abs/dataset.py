@@ -9,6 +9,7 @@ from pydantic import ConfigDict, Field
 
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.sourceprovider import SourceProvider
+from app.internal.model.definition.desc import ColumnDesc
 from app.internal.model.metadata.assetfile import AssetfileMetadata
 from app.internal.util.clock import IClock
 from app.internal.util.dataframe import IDataframe
@@ -46,6 +47,8 @@ class ABSDataset(BaseDataset):
             Update frequency, declared by the subclass
         description (str):
             Dataset description, default is ""
+        column_descs (list[ColumnDesc]):
+            Columns shared by every dataflow, subclasses append their own dimensions
         dataflow_id (str):
             ABS dataflow id, e.g. "JV", declared by the subclass
         agency_id (str):
@@ -99,6 +102,47 @@ class ABSDataset(BaseDataset):
     dataflow_id: ClassVar[str]
     agency_id: ClassVar[str] = "ABS"
     version: ClassVar[str | None] = None
+    # Columns shared by every dataflow, subclasses append the ones of their own
+    column_descs: ClassVar[list[ColumnDesc]] = [
+        ColumnDesc(
+            name="DATAFLOW",
+            description="Dataflow reference in the form ABS:<dataflow id>(<version>), e.g. ABS:JV(1.0).",
+        ),
+        ColumnDesc(
+            name="TIME_PERIOD",
+            description="Reference period of the observation, as text: YYYY for annual, YYYY-Qn for quarterly and YYYY-MM for monthly data, e.g. 2025, 2026-Q3, 2026-09.",
+        ),
+        ColumnDesc(
+            name="OBS_VALUE",
+            description=(
+                "Observed value of the series in the reference period. "
+                "Its unit is UNIT_MEASURE, multiplied by 10^UNIT_MULT in dataflows that carry UNIT_MULT. "
+                "It is null when the value is not available or not published, see OBS_STATUS."
+            ),
+            unit="see UNIT_MEASURE",
+        ),
+        ColumnDesc(
+            name="UNIT_MEASURE",
+            description="Unit code of OBS_VALUE, e.g. NUM number, PSNS persons, AUD Australian dollars, PCT percent, PCT_PTS percentage points, IN index numbers, NA not applicable.",
+        ),
+        ColumnDesc(
+            name="OBS_STATUS",
+            description=(
+                "Observation status flag, null for a regular value. "
+                "p preliminary and subject to revision, r revised, k estimate, q not available, s break in time series, "
+                "u not applicable, o nil or rounded to zero, "
+                "w/x/y/z sampling variability from too high to relative standard error above 50%, to be used with caution or not at all."
+            ),
+        ),
+        ColumnDesc(
+            name="OBS_COMMENT",
+            description="Free-text comment ABS attaches to the observation, null for most rows.",
+        ),
+        ColumnDesc(
+            name="snapshotdate",
+            description="Date the dataflow was pulled, in the source timezone. It is the partition key, not an ABS field.",
+        ),
+    ]
     key: ClassVar[str] = "all"
     base_url: ClassVar[str] = "https://data.api.abs.gov.au/rest"
     jitter: ClassVar[Jitter] = Jitter(

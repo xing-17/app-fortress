@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from app.internal.constant.frequencyoption import FrequencyOption
+from app.internal.model.definition.desc import ColumnDesc
 from app.resource.source.abs.dataset import ABSDataset
 
 
@@ -32,3 +33,33 @@ class MigrationOverseasYearDataset(ABSDataset):
         "Geographic coverage: Australia/State."
     )
     dataflow_id: ClassVar[str] = "NOM_FY"
+    column_descs: ClassVar[list[ColumnDesc]] = [
+        *ABSDataset.column_descs,
+        ColumnDesc(
+            name="MEASURE",
+            description="What is counted: 1 NOM arrivals, 2 NOM departures, 3 Net Overseas Migration.",
+        ),
+        ColumnDesc(
+            name="AGE",
+            description="Age: TOT All ages, single years such as 45, or five-year groups coded A<first age> such as A40 for 40-44 and A50 for 50-54, and 6599 for 65 and over.",
+        ),
+        ColumnDesc(
+            name="SEX",
+            description="Sex: 1 Males, 2 Females, 3 Persons.",
+        ),
+        ColumnDesc(
+            name="REGION",
+            description=(
+                "State or territory: AUS Australia, 1 New South Wales, 2 Victoria, 3 Queensland, 4 South Australia, "
+                "5 Western Australia, 6 Tasmania, 7 Northern Territory, 8 Australian Capital Territory, 9 Other Territories."
+            ),
+        ),
+        ColumnDesc(
+            name="FREQ",
+            description="Frequency of the series: A annual, Q quarterly, M monthly.",
+        ),
+        ColumnDesc(
+            name="REPYEAREND",
+            description="Year end of the reporting period, e.g. 30-6 Year Ending 30 June, 31-12 Year Ending 31 December.",
+        ),
+    ]
