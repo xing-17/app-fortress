@@ -8,6 +8,7 @@ from pydantic import ConfigDict
 
 from app.internal.constant.assetfilekind import AssetFileKind
 from app.internal.constant.sourceprovider import SourceProvider
+from app.internal.model.definition.desc import ColumnDesc
 from app.internal.model.metadata.assetfile import AssetfileMetadata
 from app.internal.util.clock import IClock
 from app.internal.util.dataframe import IDataframe
@@ -84,6 +85,50 @@ class RBADataset(BaseDataset):
         interval=5,
         backoff_rate=2.0,
     )
+    # Every RBA table is a long-format frame with the same columns
+    # so the descriptions are shared
+    column_descs: ClassVar[list[ColumnDesc]] = [
+        ColumnDesc(
+            name="date",
+            description="Observation date of the value, the last day of the month or quarter for monthly and quarterly tables.",
+        ),
+        ColumnDesc(
+            name="description",
+            description="Series description from the RBA table header, with the measure and its qualifiers separated by semicolons.",
+        ),
+        ColumnDesc(
+            name="frequency",
+            description="Frequency label from the RBA table header. It is blank for most tables, use the dataset frequency instead.",
+        ),
+        ColumnDesc(
+            name="series_id",
+            description="RBA series identifier, unique within a table, e.g. GCPIAG.",
+        ),
+        ColumnDesc(
+            name="series_type",
+            description="Series treatment from the RBA table header, e.g. Original, Seasonally adjusted or Indicative.",
+        ),
+        ColumnDesc(
+            name="snapshotdate",
+            description="Date the table was pulled, in the source timezone. It is the partition key, not an RBA field.",
+        ),
+        ColumnDesc(
+            name="source",
+            description="Download channel used by the rbadata package, normally csv. It is not an RBA publisher field.",
+        ),
+        ColumnDesc(
+            name="table",
+            description="RBA statistical table number in upper case, e.g. F1.1.",
+        ),
+        ColumnDesc(
+            name="units",
+            description="Unit of the value of this series, e.g. Per cent, $ million, an index base or a currency code.",
+        ),
+        ColumnDesc(
+            name="value",
+            description="Observed value of the series on the date, expressed in the units column. Missing observations are dropped.",
+        ),
+    ]
 
     # Enforced instance variables
     # [Inherited] asset: BaseAsset

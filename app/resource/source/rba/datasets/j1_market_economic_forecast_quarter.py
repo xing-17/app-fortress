@@ -9,6 +9,7 @@ import polars as pl
 import requests
 
 from app.internal.constant.frequencyoption import FrequencyOption
+from app.internal.model.definition.desc import ColumnDesc
 from app.resource.source.rba.dataset import RBADataset
 
 _BASE_URL: str = "https://www.rba.gov.au/statistics/tables/csv/j1-{slug}.csv"
@@ -71,6 +72,17 @@ class J1MarketEconomicForecastQuarterDataset(RBADataset):
         "Forecasts of future values, not outcomes, actuals are in g1, i1 and f1_1."
     )
     table_no: ClassVar[str] = "j1"
+    column_descs: ClassVar[list[ColumnDesc]] = [
+        *[_c for _c in RBADataset.column_descs if _c.name != "date"],
+        ColumnDesc(
+            name="date",
+            description="Survey date of the forecast.",
+        ),
+        ColumnDesc(
+            name="target_quarter",
+            description="Quarter the forecast refers to, as dated in the source CSV. It is null for the long-run and potential-output estimate series.",
+        ),
+    ]
 
     # RBA publishes no j1-data.csv
     # rbadata Excel fallback is broken (duplicate series_id)
