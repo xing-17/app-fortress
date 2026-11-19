@@ -45,6 +45,8 @@ class OSSAssetfile(BaseAssetfile):
             OSS bucket key非空路径
         in_vpc (bool):
             是否在VPC内访问OSS，默认False
+        connect_timeout (float):
+            OSS连接超时秒数，同时作为读写超时，默认120
         identity (AliyunIdentity | str | None):
             OSS 身份认证
         filesystem (Literal[AssetFilesystem.OSS]):
@@ -109,6 +111,11 @@ class OSSAssetfile(BaseAssetfile):
         default=False,
         description="[Optional] 是否在VPC内访问OSS",
     )
+    connect_timeout: float = Field(
+        default=120.0,
+        gt=0,
+        description="[Optional] OSS连接超时秒数，同时作为读写超时",
+    )
     identity: AliyunIdentity | str | None = Field(
         default_factory=AliyunIdentity.default,
         description="[Optional] OSS 身份认证",
@@ -151,6 +158,7 @@ class OSSAssetfile(BaseAssetfile):
             region=self.region,
             identity=self.identity,
             in_vpc=self.in_vpc,
+            connect_timeout=self.connect_timeout,
         )
 
     @property

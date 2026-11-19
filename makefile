@@ -59,7 +59,6 @@ lint:
 	@ruff check .
 	@echo "[$(APP_NAME)@$(APP_ALIAS)] 'library' lint checked ✅"
 
-
 start:
 	@echo "[$(APP_NAME)@$(APP_ALIAS)] starting node ..."
 	@fortress up

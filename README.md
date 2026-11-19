@@ -213,11 +213,13 @@ Without the Node, call the handler in `entrypoint` directly (it is also the entr
 ```python
 from app.entrypoint.run_dataset import handler
 
-handler({
-    "source": "snt_local_abs",
-    "dataset": "labour_force_month",
-    "params": {},
-})
+handler(
+    {
+        "source": "snt_local_abs",
+        "dataset": "labour_force_month",
+        "params": {},
+    }
+)
 # -> {"ok": True, "results": [{"source": ..., "dataset": ..., "assetfiles": [...]}]}
 ```
 

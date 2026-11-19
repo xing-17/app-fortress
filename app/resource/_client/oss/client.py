@@ -45,6 +45,8 @@ class OSSClient:
             用于认证 OSS 的阿里云身份
         in_vpc (bool):
             是否使用 VPC 内网 endpoint，默认 False
+        connect_timeout (float):
+            连接超时秒数，同时作为读写超时，默认 120
 
     Methods:
     ----------
@@ -75,7 +77,7 @@ class OSSClient:
 
     """
 
-    _cache: OrderedDict[tuple[str, str, bool, str], "OSSClient"] = OrderedDict()
+    _cache: OrderedDict[tuple[str, str, bool, float, str], "OSSClient"] = OrderedDict()
     _cache_lock = threading.RLock()
     _cache_max_size: int = 20
 
@@ -86,8 +88,9 @@ class OSSClient:
         region: str,
         identity: AliyunIdentity,
         in_vpc: bool = False,
+        connect_timeout: float = 120.0,
     ) -> "OSSClient":
-        _key = (bucket, region, in_vpc, identity.sha256())
+        _key = (bucket, region, in_vpc, connect_timeout, identity.sha256())
         with cls._cache_lock:
             _hit: OSSClient | None = cls._cache.get(_key)
             if _hit is not None:
@@ -100,6 +103,7 @@ class OSSClient:
                 region=region,
                 identity=identity,
                 in_vpc=in_vpc,
+                connect_timeout=connect_timeout,
             )
             cls._cache[_key] = _instance
             if len(cls._cache) > cls._cache_max_size:
@@ -112,11 +116,13 @@ class OSSClient:
         region: str,
         identity: AliyunIdentity,
         in_vpc: bool = False,
+        connect_timeout: float = 120.0,
     ) -> None:
         self.bucket: str = bucket
         self.region: str = region
         self.identity: AliyunIdentity = identity
         self.in_vpc: bool = in_vpc
+        self.connect_timeout: float = connect_timeout
         self.endpoint: str = OSSClient.resolve_endpoint(
             region=self.region,
             in_vpc=self.in_vpc,
@@ -151,6 +157,8 @@ class OSSClient:
                     _cfg.credentials_provider = CredentialsProviderFunc(func=get_credentials_wrapper)
                     _cfg.region = self.region
                     _cfg.endpoint = self.endpoint
+                    _cfg.connect_timeout = self.connect_timeout
+                    _cfg.readwrite_timeout = self.connect_timeout
                     self._client = OSSTeaClient(_cfg)
         return self._client
 

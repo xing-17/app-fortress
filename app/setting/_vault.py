@@ -122,6 +122,7 @@ class OSSVaultSetting(AbstractVaultSetting):
         region (str): 资产所在的OSS区域
         prefix (str): 资产的OSS前缀
         in_vpc (bool): 是否在VPC内访问OSS (默认False)
+        connect_timeout (float): OSS连接超时秒数，同时作为读写超时 (默认120)
         identity (AliyunIdentitySetting | str | None): 资产访问所使用的阿里云Identity
         platform (Literal[Platform.ALIYUN]): 资产平台类型，固定为ALIYUN
         filesystem (Literal[AssetFilesystem.OSS]): 资产文件系统类型，固定为OSS
@@ -150,6 +151,11 @@ class OSSVaultSetting(AbstractVaultSetting):
     in_vpc: bool = Field(
         default=False,
         description="[Optional] 是否在VPC内访问OSS",
+    )
+    connect_timeout: float = Field(
+        default=120.0,
+        gt=0,
+        description="[Optional] OSS连接超时秒数，同时作为读写超时",
     )
     identity: AliyunIdentitySetting | str | None = Field(
         default=None,

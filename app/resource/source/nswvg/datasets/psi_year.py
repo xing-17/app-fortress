@@ -108,7 +108,7 @@ class YearPSIDataset(NSWVGDataset):
             description="Name of the property as recorded in the Register of Land Values. Available in the current file format.",
         ),
         ColumnDesc(
-            name="purchase_price", 
+            name="purchase_price",
             description="Purchase price in Australian dollars, sourced from the Notice of Sale.",
         ),
         ColumnDesc(

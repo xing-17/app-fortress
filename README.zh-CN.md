@@ -213,11 +213,13 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 ```python
 from app.entrypoint.run_dataset import handler
 
-handler({
-    "source": "snt_local_abs",
-    "dataset": "labour_force_month",
-    "params": {},
-})
+handler(
+    {
+        "source": "snt_local_abs",
+        "dataset": "labour_force_month",
+        "params": {},
+    }
+)
 # -> {"ok": True, "results": [{"source": ..., "dataset": ..., "assetfiles": [...]}]}
 ```
 

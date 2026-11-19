@@ -35,6 +35,8 @@ class OSSVault(BaseVault):
             OSS bucket前缀，默认空字符串
         in_vpc (bool):
             是否在VPC内访问OSS，默认False
+        connect_timeout (float):
+            OSS连接超时秒数，同时作为读写超时，默认120
         identity (AliyunIdentity | AbstractIdentitySetting | str | None):
             Aliyun身份认证，默认AliyunIdentity.default()
         filesystem (Literal[AssetFilesystem.OSS]):
@@ -87,6 +89,11 @@ class OSSVault(BaseVault):
         default=False,
         description="[Optional] 是否在VPC内访问OSS",
     )
+    connect_timeout: float = Field(
+        default=120.0,
+        gt=0,
+        description="[Optional] OSS连接超时秒数，同时作为读写超时",
+    )
     identity: AliyunIdentity | AbstractIdentitySetting | str | None = Field(
         default=None,
         description="[Optional] Aliyun Identity身份认证",
@@ -122,6 +129,7 @@ class OSSVault(BaseVault):
             region=setting.region,
             prefix=setting.prefix,
             in_vpc=setting.in_vpc,
+            connect_timeout=setting.connect_timeout,
             identity=setting.identity,
             description=setting.description,
             tags=setting.tags,
@@ -158,6 +166,7 @@ class OSSVault(BaseVault):
             prefix=_key,
             filekind=filekind,
             in_vpc=self.in_vpc,
+            connect_timeout=self.connect_timeout,
             partitions=partitions,
             identity=self.identity,
             tags=self.tags,
